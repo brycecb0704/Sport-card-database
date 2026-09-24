@@ -1076,7 +1076,7 @@
 
       <div class="auth-tabs">
         <button
-          id="loginTabButton"
+          id="loginTab"
           class="auth-tab active"
           onclick="showAuthMode('login')">
           Login
@@ -1094,7 +1094,7 @@
 
       <!-- LOGIN -->
 
-      <form id="loginForm" onsubmit="handleLogin(event)">
+        <form id="loginPanel" onsubmit="handleLogin(event)">
 
         <div class="form-group">
           <label class="form-label">Email</label>
@@ -1129,7 +1129,7 @@
       <!-- SIGN UP -->
 
       <form
-        id="signupForm"
+        id="signupPanel"
         class="hidden"
         onsubmit="handleSignup(event)">
 
@@ -3285,7 +3285,6 @@
   // ============================================================
 
   function showAuthMode(mode) {
-
     authMode = mode;
 
     const loginPanel =
