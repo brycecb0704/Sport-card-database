@@ -1,0 +1,10130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Sports Card Database</title>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Barcode -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #f4f6f8;
+      --surface: #ffffff;
+      --surface-2: #eef1f4;
+      --text: #17202a;
+      --muted: #68737d;
+      --border: #d9dee3;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --warning: #d97706;
+      --shadow: 0 4px 18px rgba(0,0,0,.08);
+      --radius: 14px;
+    }
+
+    body.dark {
+      --bg: #101418;
+      --surface: #181d23;
+      --surface-2: #222931;
+      --text: #f2f4f7;
+      --muted: #9ca6b1;
+      --border: #343c46;
+      --accent: #4f8cff;
+      --accent-hover: #76a5ff;
+      --shadow: 0 4px 20px rgba(0,0,0,.3);
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body {
+      min-height: 100vh;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    img {
+      max-width: 100%;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* =========================
+       HEADER
+       ========================= */
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0,0,0,.05);
+    }
+
+    .topbar-inner {
+      max-width: 1500px;
+      margin: auto;
+      min-height: 68px;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 230px;
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent);
+      color: white;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .brand-title {
+      font-size: 19px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .top-search {
+      flex: 1;
+      min-width: 180px;
+      position: relative;
+    }
+
+    .top-search input {
+      width: 100%;
+      height: 42px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-2);
+      color: var(--text);
+      padding: 0 14px;
+      outline: none;
+    }
+
+    .top-search input:focus {
+      border-color: var(--accent);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 10px;
+      font-size: 18px;
+    }
+
+    .icon-btn:hover {
+      background: var(--surface-2);
+    }
+
+    .account-button {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 22px;
+      min-height: 42px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+
+    .account-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent);
+      color: white;
+      font-size: 15px;
+    }
+
+    /* =========================
+       LAYOUT
+       ========================= */
+
+    .app-shell {
+      max-width: 1500px;
+      margin: auto;
+      display: flex;
+      min-height: calc(100vh - 68px);
+    }
+
+    .sidebar {
+      width: 235px;
+      flex: 0 0 235px;
+      padding: 18px 12px;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      min-height: calc(100vh - 68px);
+    }
+
+    .sidebar-section {
+      margin-bottom: 22px;
+    }
+
+    .sidebar-label {
+      color: var(--muted);
+      text-transform: uppercase;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      padding: 0 11px 7px;
+    }
+
+    .nav-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      padding: 11px;
+      border-radius: 10px;
+      text-align: left;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .nav-btn:hover {
+      background: var(--surface-2);
+    }
+
+    .nav-btn.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .nav-icon {
+      width: 22px;
+      text-align: center;
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+      padding: 24px;
+    }
+
+    .screen {
+      max-width: 1250px;
+      margin: auto;
+    }
+
+    /* =========================
+       HOME
+       ========================= */
+
+    .hero {
+      border-radius: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 28px;
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .hero-search {
+      display: flex;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .hero-search input {
+      flex: 1;
+      height: 48px;
+      padding: 0 15px;
+      border-radius: 11px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      outline: none;
+    }
+
+    .hero-search button {
+      min-width: 120px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-size: 27px;
+      font-weight: 800;
+      margin-top: 7px;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .quick-card {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: left;
+      box-shadow: var(--shadow);
+    }
+
+    .quick-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .quick-icon {
+      font-size: 26px;
+      margin-bottom: 12px;
+    }
+
+    .quick-title {
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .quick-text {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    /* =========================
+       COMMON UI
+       ========================= */
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 18px;
+    }
+
+    .page-header h2 {
+      margin: 0;
+      font-size: 25px;
+    }
+
+    .page-header p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .btn {
+      min-height: 40px;
+      padding: 9px 14px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .btn:hover {
+      background: var(--surface-2);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .btn-danger {
+      color: white;
+      background: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .btn-success {
+      color: white;
+      background: var(--success);
+      border-color: var(--success);
+    }
+
+    .btn-warning {
+      color: white;
+      background: var(--warning);
+      border-color: var(--warning);
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .search-filter-bar {
+      display: grid;
+      grid-template-columns: minmax(200px, 1fr) repeat(3, minmax(140px, 180px));
+      gap: 9px;
+      margin-bottom: 16px;
+    }
+
+    .field,
+    .search-field {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      color: var(--text);
+      padding: 9px 11px;
+      outline: none;
+    }
+
+    textarea.field {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    .field:focus,
+    .search-field:focus {
+      border-color: var(--accent);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 55px 20px;
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .empty-icon {
+      font-size: 38px;
+      margin-bottom: 10px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 50px;
+      color: var(--muted);
+    }
+
+    /* =========================
+       CARD GRID
+       ========================= */
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(245px, 1fr));
+      gap: 14px;
+    }
+
+    .card-tile {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: transform .12s ease, border-color .12s ease;
+    }
+
+    .card-tile:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+    }
+
+    .card-image {
+      height: 230px;
+      background: var(--surface-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .card-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .card-image-placeholder {
+      color: var(--muted);
+      font-size: 44px;
+    }
+
+    .card-tile-body {
+      padding: 14px;
+    }
+
+    .card-name {
+      font-weight: 800;
+      font-size: 16px;
+      line-height: 1.25;
+    }
+
+    .card-meta {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .card-value {
+      margin-top: 12px;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .card-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 9px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 23px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .badge-accent {
+      background: var(--accent);
+      color: white;
+    }
+
+    .badge-success {
+      background: var(--success);
+      color: white;
+    }
+
+    /* =========================
+       TABLE
+       ========================= */
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 800px;
+    }
+
+    th,
+    td {
+      padding: 11px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    th {
+      background: var(--surface-2);
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    /* =========================
+       MODALS
+       ========================= */
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      background: rgba(0,0,0,.62);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .modal {
+      width: min(900px, 100%);
+      max-height: 92vh;
+      overflow-y: auto;
+      background: var(--surface);
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 70px rgba(0,0,0,.3);
+    }
+
+    .modal-small {
+      width: min(520px, 100%);
+    }
+
+    .modal-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+    }
+
+    .modal-close {
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      font-size: 26px;
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+    }
+
+    .modal-close:hover {
+      background: var(--surface-2);
+    }
+
+    .modal-body {
+      padding: 18px;
+    }
+
+    .modal-footer {
+      border-top: 1px solid var(--border);
+      padding: 14px 18px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    .form-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    /* =========================
+       CARD DETAIL
+       ========================= */
+
+    .detail-top {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 20px;
+    }
+
+    .detail-photo {
+      min-height: 380px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--surface-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .detail-photo img {
+      width: 100%;
+      height: 100%;
+      max-height: 520px;
+      object-fit: contain;
+    }
+
+    .detail-title {
+      font-size: 29px;
+      font-weight: 900;
+      margin-bottom: 5px;
+    }
+
+    .detail-subtitle {
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .detail-fields {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .detail-field {
+      background: var(--surface);
+      padding: 11px;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-field-label {
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .detail-field-value {
+      margin-top: 4px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .ownership-box {
+      margin-top: 18px;
+      padding: 15px;
+      background: var(--surface-2);
+      border-radius: 12px;
+    }
+
+    .ownership-title {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    /* =========================
+       AUTH
+       ========================= */
+
+    .auth-screen {
+      min-height: calc(100vh - 68px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 25px;
+    }
+
+    .auth-card {
+      width: min(460px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 28px;
+    }
+
+    .auth-logo {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 15px;
+      background: var(--accent);
+      color: white;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 29px;
+      font-weight: 900;
+    }
+
+    .auth-card h1 {
+      text-align: center;
+      margin: 0;
+    }
+
+    .auth-subtitle {
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+      margin: 8px 0 22px;
+    }
+
+    .auth-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 18px;
+      background: var(--surface-2);
+      padding: 4px;
+      border-radius: 10px;
+    }
+
+    .auth-tab {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 7px;
+      padding: 9px;
+      font-weight: 800;
+    }
+
+    .auth-tab.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 4px rgba(0,0,0,.1);
+    }
+
+    .auth-message {
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+
+    .auth-message.error {
+      background: rgba(220,38,38,.12);
+      color: var(--danger);
+    }
+
+    .auth-message.success {
+      background: rgba(22,163,74,.12);
+      color: var(--success);
+    }
+
+    /* =========================
+       TOAST
+       ========================= */
+
+    #toastContainer {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      background: #1f2937;
+      color: white;
+      padding: 11px 14px;
+      border-radius: 9px;
+      box-shadow: 0 7px 25px rgba(0,0,0,.2);
+      max-width: 360px;
+      font-size: 13px;
+      animation: toastIn .15s ease;
+    }
+
+    .toast.error {
+      background: #991b1b;
+    }
+
+    .toast.success {
+      background: #166534;
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* =========================
+       RESPONSIVE
+       ========================= */
+
+    @media (max-width: 1000px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .quick-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .search-filter-bar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .detail-top {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-photo {
+        max-height: 420px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .topbar-inner {
+        flex-wrap: wrap;
+      }
+
+      .brand {
+        min-width: auto;
+        flex: 1;
+      }
+
+      .top-search {
+        order: 5;
+        flex-basis: 100%;
+      }
+
+      .app-shell {
+        display: block;
+      }
+
+      .sidebar {
+        width: 100%;
+        min-height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+        padding: 8px;
+        overflow-x: auto;
+      }
+
+      .sidebar-section {
+        display: flex;
+        gap: 5px;
+        margin: 0;
+      }
+
+      .sidebar-label {
+        display: none;
+      }
+
+      .nav-btn {
+        width: auto;
+        white-space: nowrap;
+        margin: 0;
+      }
+
+      .main {
+        padding: 15px;
+      }
+
+      .hero h1 {
+        font-size: 25px;
+      }
+
+      .stats-grid,
+      .quick-grid,
+      .search-filter-bar,
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .form-group.full {
+        grid-column: auto;
+      }
+
+      .page-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .detail-fields {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-photo {
+        min-height: 300px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ==========================================
+       AUTH SCREEN
+       ========================================== -->
+
+  <div id="authScreen" class="auth-screen">
+
+    <div class="auth-card">
+
+      <div class="auth-logo">🃏</div>
+
+      <h1>Sports Card Database</h1>
+
+      <div class="auth-subtitle">
+        Your complete sports card collection and catalog
+      </div>
+
+      <div class="auth-tabs">
+        <button
+          id="loginTabButton"
+          class="auth-tab active"
+          onclick="showAuthMode('login')">
+          Login
+        </button>
+
+        <button
+          id="signupTabButton"
+          class="auth-tab"
+          onclick="showAuthMode('signup')">
+          Create Account
+        </button>
+      </div>
+
+      <div id="authMessage" class="hidden"></div>
+
+      <!-- LOGIN -->
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input
+            id="loginEmail"
+            class="field"
+            type="email"
+            autocomplete="email"
+            required>
+        </div>
+
+        <div class="form-group" style="margin-top:12px;">
+          <label class="form-label">Password</label>
+          <input
+            id="loginPassword"
+            class="field"
+            type="password"
+            autocomplete="current-password"
+            required>
+        </div>
+
+        <button
+          id="loginButton"
+          class="btn btn-primary"
+          type="submit"
+          style="width:100%; margin-top:16px;">
+          Login
+        </button>
+
+      </form>
+
+      <!-- SIGN UP -->
+
+      <form
+        id="signupForm"
+        class="hidden"
+        onsubmit="handleSignup(event)">
+
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input
+            id="signupEmail"
+            class="field"
+            type="email"
+            autocomplete="email"
+            required>
+        </div>
+
+        <div class="form-group" style="margin-top:12px;">
+          <label class="form-label">Password</label>
+          <input
+            id="signupPassword"
+            class="field"
+            type="password"
+            autocomplete="new-password"
+            minlength="6"
+            required>
+        </div>
+
+        <div class="form-group" style="margin-top:12px;">
+          <label class="form-label">Confirm Password</label>
+          <input
+            id="signupPasswordConfirm"
+            class="field"
+            type="password"
+            autocomplete="new-password"
+            minlength="6"
+            required>
+        </div>
+
+        <div class="form-group" style="margin-top:12px;">
+          <label class="form-label">Display Name</label>
+          <input
+            id="signupDisplayName"
+            class="field"
+            type="text"
+            placeholder="Your name"
+            required>
+        </div>
+
+        <button
+          id="signupButton"
+          class="btn btn-primary"
+          type="submit"
+          style="width:100%; margin-top:16px;">
+          Create Account
+        </button>
+
+      </form>
+
+    </div>
+
+  </div>
+
+
+  <!-- ==========================================
+       MAIN APPLICATION
+       ========================================== -->
+
+  <div id="appScreen" class="hidden">
+
+    <!-- HEADER -->
+
+    <header class="topbar">
+
+      <div class="topbar-inner">
+
+        <div class="brand">
+
+          <div class="brand-icon">
+            🃏
+          </div>
+
+          <div>
+            <div class="brand-title">
+              Sports Card Database
+            </div>
+
+            <div class="brand-subtitle">
+              Catalog • Collection • Community
+            </div>
+          </div>
+
+        </div>
+
+
+        <div class="top-search">
+
+          <input
+            id="globalSearch"
+            type="search"
+            placeholder="Search cards, players, teams, sets..."
+            oninput="globalSearch()">
+
+        </div>
+
+
+        <div class="header-actions">
+
+          <button
+            id="themeToggle"
+            class="icon-btn"
+            title="Toggle dark mode"
+            onclick="toggleTheme()">
+            🌙
+          </button>
+
+          <button
+            class="account-button"
+            onclick="openAccountModal()">
+
+            <span
+              id="headerAvatar"
+              class="account-avatar">
+              👤
+            </span>
+
+            <span id="headerUsername">
+              Account
+            </span>
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </header>
+
+
+    <!-- APPLICATION BODY -->
+
+    <div class="app-shell">
+
+
+      <!-- SIDEBAR -->
+
+      <aside class="sidebar">
+
+        <div class="sidebar-section">
+
+          <div class="sidebar-label">
+            Main
+          </div>
+
+          <button
+            id="navHome"
+            class="nav-btn active"
+            onclick="showScreen('home')">
+
+            <span class="nav-icon">🏠</span>
+            Home
+
+          </button>
+
+          <button
+            id="navCatalog"
+            class="nav-btn"
+            onclick="showScreen('catalog')">
+
+            <span class="nav-icon">📚</span>
+            Card Catalog
+
+          </button>
+
+          <button
+            id="navCollection"
+            class="nav-btn"
+            onclick="showScreen('collection')">
+
+            <span class="nav-icon">🗃️</span>
+            My Collection
+
+          </button>
+
+          <button
+            id="navAdd"
+            class="nav-btn"
+            onclick="openAddCardModal()">
+
+            <span class="nav-icon">➕</span>
+            Add Card
+
+          </button>
+
+        </div>
+
+
+        <div class="sidebar-section">
+
+          <div class="sidebar-label">
+            Marketplace
+          </div>
+
+          <button
+            id="navForSale"
+            class="nav-btn"
+            onclick="showScreen('forsale')">
+
+            <span class="nav-icon">🏷️</span>
+            For Sale
+
+          </button>
+
+          <button
+            id="navSold"
+            class="nav-btn"
+            onclick="showScreen('sold')">
+
+            <span class="nav-icon">💵</span>
+            Sold
+
+          </button>
+
+          <button
+            id="navTraded"
+            class="nav-btn"
+            onclick="showScreen('traded')">
+
+            <span class="nav-icon">🔄</span>
+            Traded
+
+          </button>
+
+        </div>
+
+
+        <div class="sidebar-section">
+
+          <div class="sidebar-label">
+            Explore
+          </div>
+
+          <button
+            id="navSets"
+            class="nav-btn"
+            onclick="showScreen('sets')">
+
+            <span class="nav-icon">📦</span>
+            Sets
+
+          </button>
+
+          <button
+            id="navCommunity"
+            class="nav-btn"
+            onclick="showScreen('community')">
+
+            <span class="nav-icon">👥</span>
+            Community
+
+          </button>
+
+          <button
+            id="navLeaderboard"
+            class="nav-btn"
+            onclick="showScreen('leaderboard')">
+
+            <span class="nav-icon">🏆</span>
+            Leaderboard
+
+          </button>
+
+        </div>
+
+
+        <div
+          id="adminNavSection"
+          class="sidebar-section hidden">
+
+          <div class="sidebar-label">
+            Administration
+          </div>
+
+          <button
+            id="navAdmin"
+            class="nav-btn"
+            onclick="showScreen('admin')">
+
+            <span class="nav-icon">⚙️</span>
+            Admin
+
+          </button>
+
+        </div>
+
+      </aside>
+
+
+      <!-- MAIN CONTENT -->
+
+      <main class="main">
+
+
+        <!-- ==============================
+             HOME SCREEN
+             ============================== -->
+
+        <section
+          id="screen-home"
+          class="screen">
+
+          <div class="hero">
+
+            <h1>
+              Your Sports Card Database
+            </h1>
+
+            <p>
+              Keep the complete card catalog separate from the cards actually owned.
+            </p>
+
+            <div class="hero-search">
+
+              <input
+                id="homeSearchInput"
+                type="search"
+                placeholder="Search the card catalog..."
+                oninput="homeSearch()">
+
+              <button
+                class="btn btn-primary"
+                onclick="showScreen('catalog')">
+
+                Browse Catalog
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div class="stats-grid">
+
+            <div class="stat-card">
+
+              <div class="stat-label">
+                Catalog Cards
+              </div>
+
+              <div
+                id="statCatalogCards"
+                class="stat-value">
+                0
+              </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+              <div class="stat-label">
+                My Unique Cards
+              </div>
+
+              <div
+                id="statMyCards"
+                class="stat-value">
+                0
+              </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+              <div class="stat-label">
+                Quantity Owned
+              </div>
+
+              <div
+                id="statMyQuantity"
+                class="stat-value">
+                0
+              </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+              <div class="stat-label">
+                Collection Value
+              </div>
+
+              <div
+                id="statCollectionValue"
+                class="stat-value">
+                $0.00
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="homeSearchResults"
+            class="card-grid"
+            style="margin-bottom:22px;">
+          </div>
+
+
+          <div class="quick-grid">
+
+            <button
+              class="quick-card"
+              onclick="openAddCardModal()">
+
+              <div class="quick-icon">
+                ➕
+              </div>
+
+              <div class="quick-title">
+                Add a Card
+              </div>
+
+              <div class="quick-text">
+                Add a card to the catalog and your collection.
+              </div>
+
+            </button>
+
+
+            <button
+              class="quick-card"
+              onclick="showScreen('collection')">
+
+              <div class="quick-icon">
+                🗃️
+              </div>
+
+              <div class="quick-title">
+                My Collection
+              </div>
+
+              <div class="quick-text">
+                View cards you currently own.
+              </div>
+
+            </button>
+
+
+            <button
+              class="quick-card"
+              onclick="showScreen('forsale')">
+
+              <div class="quick-icon">
+                🏷️
+              </div>
+
+              <div class="quick-title">
+                Cards For Sale
+              </div>
+
+              <div class="quick-text">
+                See cards currently listed for sale.
+              </div>
+
+            </button>
+
+
+            <button
+              class="quick-card"
+              onclick="showScreen('sets')">
+
+              <div class="quick-icon">
+                📦
+              </div>
+
+              <div class="quick-title">
+                Browse Sets
+              </div>
+
+              <div class="quick-text">
+                Explore cards organized by set.
+              </div>
+
+            </button>
+
+
+            <button
+              class="quick-card"
+              onclick="showScreen('community')">
+
+              <div class="quick-icon">
+                👥
+              </div>
+
+              <div class="quick-title">
+                Community Cards
+              </div>
+
+              <div class="quick-text">
+                See who owns cards in the shared database.
+              </div>
+
+            </button>
+
+
+            <button
+              class="quick-card"
+              onclick="showScreen('leaderboard')">
+
+              <div class="quick-icon">
+                🏆
+              </div>
+
+              <div class="quick-title">
+                Leaderboard
+              </div>
+
+              <div class="quick-text">
+                XP, levels, and collector achievements.
+              </div>
+
+            </button>
+
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             CATALOG SCREEN
+             ============================== -->
+
+        <section
+          id="screen-catalog"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Card Catalog
+              </h2>
+
+              <p>
+                Every card in the database, whether owned or not.
+              </p>
+
+            </div>
+
+            <div class="button-row">
+
+              <button
+                class="btn btn-primary"
+                onclick="openAddCardModal()">
+
+                + Add Card
+
+              </button>
+
+              <button
+                class="btn"
+                onclick="refreshData()">
+
+                ↻ Refresh
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div class="search-filter-bar">
+
+            <input
+              id="catalogSearch"
+              class="search-field"
+              type="search"
+              placeholder="Search catalog..."
+              oninput="renderCatalog()">
+
+            <select
+              id="catalogSport"
+              class="field"
+              onchange="renderCatalog()">
+
+              <option value="">
+                All Sports
+              </option>
+
+            </select>
+
+            <select
+              id="catalogYear"
+              class="field"
+              onchange="renderCatalog()">
+
+              <option value="">
+                All Years
+              </option>
+
+            </select>
+
+            <select
+              id="catalogSet"
+              class="field"
+              onchange="renderCatalog()">
+
+              <option value="">
+                All Sets
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            id="catalogResults"
+            class="card-grid">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             MY COLLECTION
+             ============================== -->
+
+        <section
+          id="screen-collection"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                My Collection
+              </h2>
+
+              <p>
+                Cards currently owned by your account.
+              </p>
+
+            </div>
+
+            <button
+              class="btn btn-primary"
+              onclick="openAddCardModal()">
+
+              + Add Card
+
+            </button>
+
+          </div>
+
+
+          <div class="search-filter-bar">
+
+            <input
+              id="collectionSearch"
+              class="search-field"
+              type="search"
+              placeholder="Search my collection..."
+              oninput="renderCollection()">
+
+            <select
+              id="collectionSport"
+              class="field"
+              onchange="renderCollection()">
+
+              <option value="">
+                All Sports
+              </option>
+
+            </select>
+
+            <select
+              id="collectionPossession"
+              class="field"
+              onchange="renderCollection()">
+
+              <option value="">
+                All Possession
+              </option>
+
+              <option value="Collection">
+                Collection
+              </option>
+
+              <option value="For Sale">
+                For Sale
+              </option>
+
+              <option value="Sold">
+                Sold
+              </option>
+
+              <option value="Traded">
+                Traded
+              </option>
+
+            </select>
+
+            <select
+              id="collectionGrade"
+              class="field"
+              onchange="renderCollection()">
+
+              <option value="">
+                All Grades
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            id="collectionResults"
+            class="card-grid">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             FOR SALE
+             ============================== -->
+
+        <section
+          id="screen-forsale"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                For Sale
+              </h2>
+
+              <p>
+                Cards currently marked for sale.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="forSaleResults"
+            class="card-grid">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             SOLD
+             ============================== -->
+
+        <section
+          id="screen-sold"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Sold Cards
+              </h2>
+
+              <p>
+                Cards recorded as sold.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="soldResults"
+            class="card-grid">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             TRADED
+             ============================== -->
+
+        <section
+          id="screen-traded"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Traded Cards
+              </h2>
+
+              <p>
+                Cards recorded as traded.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="tradedResults"
+            class="card-grid">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             COMMUNITY
+             ============================== -->
+
+        <section
+          id="screen-community"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Community
+              </h2>
+
+              <p>
+                See which cards are owned by members of the database.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div class="panel">
+
+            <div class="search-filter-bar" style="margin:0;">
+
+              <input
+                id="communitySearch"
+                class="search-field"
+                type="search"
+                placeholder="Search community cards..."
+                oninput="renderCommunity()">
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="communityResults"
+            class="card-grid">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             SETS
+             ============================== -->
+
+        <section
+          id="screen-sets"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Card Sets
+              </h2>
+
+              <p>
+                Browse the catalog by set.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div class="panel">
+
+            <input
+              id="setSearch"
+              class="search-field"
+              type="search"
+              placeholder="Search sets..."
+              oninput="renderSets()">
+
+          </div>
+
+
+          <div
+            id="setsResults">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             LEADERBOARD
+             ============================== -->
+
+        <section
+          id="screen-leaderboard"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Leaderboard
+              </h2>
+
+              <p>
+                Collector XP and achievements.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div class="panel">
+
+            <div id="leaderboardResults">
+              Loading leaderboard...
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             ADMIN
+             ============================== -->
+
+        <section
+          id="screen-admin"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Admin Panel
+              </h2>
+
+              <p>
+                Account and database administration.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="adminResults"
+            class="panel">
+
+            Loading...
+
+          </div>
+
+        </section>
+
+      </main>
+
+    </div>
+
+  </div>
+
+
+  <!-- ==========================================
+       CARD DETAIL MODAL
+       ========================================== -->
+
+  <div
+    id="cardDetailModal"
+    class="modal-backdrop hidden"
+    onclick="closeModalOnBackdrop(event, 'cardDetailModal')">
+
+    <div class="modal">
+
+      <div class="modal-header">
+
+        <h3>
+          Card Details
+        </h3>
+
+        <button
+          class="modal-close"
+          onclick="closeModal('cardDetailModal')">
+
+          ×
+
+        </button>
+
+      </div>
+
+      <div
+        id="cardDetailBody"
+        class="modal-body">
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button
+          class="btn"
+          onclick="closeModal('cardDetailModal')">
+
+          Close
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ==========================================
+       ADD CARD MODAL
+       ========================================== -->
+
+  <div
+    id="addCardModal"
+    class="modal-backdrop hidden"
+    onclick="closeModalOnBackdrop(event, 'addCardModal')">
+
+    <div class="modal">
+
+      <div class="modal-header">
+
+        <h3>
+          Add Card
+        </h3>
+
+        <button
+          class="modal-close"
+          onclick="closeModal('addCardModal')">
+
+          ×
+
+        </button>
+
+      </div>
+
+
+      <form id="addCardForm" onsubmit="saveNewCard(event)">
+
+        <div class="modal-body">
+
+          <div class="panel" style="box-shadow:none; margin:0 0 15px;">
+
+            <strong>
+              Card Catalog
+            </strong>
+
+            <div
+              style="font-size:12px; color:var(--muted); margin-top:4px;">
+
+              If the card already exists in the catalog, the existing card will be used instead of creating a duplicate.
+
+            </div>
+
+          </div>
+
+
+          <div class="form-grid">
+
+
+            <div class="form-group full">
+
+              <label class="form-label">
+                Card Name *
+              </label>
+
+              <input
+                id="addName"
+                class="field"
+                type="text"
+                required>
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Sport
+              </label>
+
+              <input
+                id="addSport"
+                class="field"
+                type="text"
+                placeholder="Baseball, Football, UFC...">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Team
+              </label>
+
+              <input
+                id="addTeam"
+                class="field"
+                type="text">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Year Made
+              </label>
+
+              <input
+                id="addYear"
+                class="field"
+                type="number">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Card Number
+              </label>
+
+              <input
+                id="addCardNumber"
+                class="field"
+                type="text">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Card Series
+              </label>
+
+              <input
+                id="addSeries"
+                class="field"
+                type="text">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Card Brand
+              </label>
+
+              <input
+                id="addBrand"
+                class="field"
+                type="text">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Set Name
+              </label>
+
+              <input
+                id="addSetName"
+                class="field"
+                type="text">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Parallel
+              </label>
+
+              <input
+                id="addParallel"
+                class="field"
+                type="text">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Grade
+              </label>
+
+              <input
+                id="addGrade"
+                class="field"
+                type="text"
+                placeholder="Raw, PSA 10, BGS 9.5...">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Quantity
+              </label>
+
+              <input
+                id="addQuantity"
+                class="field"
+                type="number"
+                min="0"
+                value="1">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Possession
+              </label>
+
+              <select
+                id="addPossession"
+                class="field">
+
+                <option value="Collection">
+                  Collection
+                </option>
+
+                <option value="For Sale">
+                  For Sale
+                </option>
+
+                <option value="Sold">
+                  Sold
+                </option>
+
+                <option value="Traded">
+                  Traded
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Value
+              </label>
+
+              <input
+                id="addValue"
+                class="field"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                For Sale Price
+              </label>
+
+              <input
+                id="addForSalePrice"
+                class="field"
+                type="number"
+                min="0"
+                step="0.01">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Purchase Price
+              </label>
+
+              <input
+                id="addPurchasePrice"
+                class="field"
+                type="number"
+                min="0"
+                step="0.01">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Purchase Date
+              </label>
+
+              <input
+                id="addPurchaseDate"
+                class="field"
+                type="date">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Seller
+              </label>
+
+              <input
+                id="addSeller"
+                class="field"
+                type="text">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Sold Price
+              </label>
+
+              <input
+                id="addSoldPrice"
+                class="field"
+                type="number"
+                min="0"
+                step="0.01">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Sold Date
+              </label>
+
+              <input
+                id="addSoldDate"
+                class="field"
+                type="date">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Traded With
+              </label>
+
+              <input
+                id="addTradedWith"
+                class="field"
+                type="text">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Trade Date
+              </label>
+
+              <input
+                id="addTradeDate"
+                class="field"
+                type="date">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Barcode
+              </label>
+
+              <input
+                id="addBarcode"
+                class="field"
+                type="text">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Position
+              </label>
+
+              <input
+                id="addPosition"
+                class="field"
+                type="text">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Weight Division
+              </label>
+
+              <input
+                id="addWeightDivision"
+                class="field"
+                type="text">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Serial Numbering
+              </label>
+
+              <input
+                id="addSerialNumbering"
+                class="field"
+                type="text"
+                placeholder="e.g. 17/25">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Print Run
+              </label>
+
+              <input
+                id="addPrintRun"
+                class="field"
+                type="number"
+                min="0">
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Numbered
+              </label>
+
+              <select
+                id="addNumbered"
+                class="field">
+
+                <option value="false">
+                  No
+                </option>
+
+                <option value="true">
+                  Yes
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Rookie
+              </label>
+
+              <select
+                id="addRookie"
+                class="field">
+
+                <option value="false">
+                  No
+                </option>
+
+                <option value="true">
+                  Yes
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Patch / Relic
+              </label>
+
+              <select
+                id="addPatch"
+                class="field">
+
+                <option value="false">
+                  No
+                </option>
+
+                <option value="true">
+                  Yes
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label class="form-label">
+                Autographed
+              </label>
+
+              <select
+                id="addAutographed"
+                class="field">
+
+                <option value="false">
+                  No
+                </option>
+
+                <option value="true">
+                  Yes
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div class="form-group full">
+
+              <label class="form-label">
+                Front Catalog Image
+              </label>
+
+              <input
+                id="addCatalogFront"
+                class="field"
+                type="file"
+                accept="image/*">
+
+            </div>
+
+
+            <div class="form-group full">
+
+              <label class="form-label">
+                Back Catalog Image
+              </label>
+
+              <input
+                id="addCatalogBack"
+                class="field"
+                type="file"
+                accept="image/*">
+
+            </div>
+
+
+            <div class="form-group full">
+
+              <label class="form-label">
+                Your Card Front Photo
+              </label>
+
+              <input
+                id="addOwnedFront"
+                class="field"
+                type="file"
+                accept="image/*">
+
+            </div>
+
+
+            <div class="form-group full">
+
+              <label class="form-label">
+                Your Card Back Photo
+              </label>
+
+              <input
+                id="addOwnedBack"
+                class="field"
+                type="file"
+                accept="image/*">
+
+            </div>
+
+
+            <div class="form-group full">
+
+              <label class="form-label">
+                Notes
+              </label>
+
+              <textarea
+                id="addNotes"
+                class="field"
+                placeholder="Anything else about this card..."></textarea>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="modal-footer">
+
+          <button
+            type="button"
+            class="btn"
+            onclick="closeModal('addCardModal')">
+
+            Cancel
+
+          </button>
+
+          <button
+            id="saveCardButton"
+            type="submit"
+            class="btn btn-primary">
+
+            Add Card
+
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+
+  <!-- ==========================================
+       ACCOUNT MODAL
+       ========================================== -->
+
+  <div
+    id="accountModal"
+    class="modal-backdrop hidden"
+    onclick="closeModalOnBackdrop(event, 'accountModal')">
+
+    <div class="modal modal-small">
+
+      <div class="modal-header">
+
+        <h3>
+          My Account
+        </h3>
+
+        <button
+          class="modal-close"
+          onclick="closeModal('accountModal')">
+
+          ×
+
+        </button>
+
+      </div>
+
+
+      <div class="modal-body">
+
+        <div class="form-group">
+
+          <label class="form-label">
+            Display Name
+          </label>
+
+          <input
+            id="accountDisplayName"
+            class="field"
+            type="text">
+
+        </div>
+
+
+        <div class="form-group" style="margin-top:12px;">
+
+          <label class="form-label">
+            Username
+          </label>
+
+          <input
+            id="accountUsername"
+            class="field"
+            type="text">
+
+        </div>
+
+
+        <div class="form-group" style="margin-top:12px;">
+
+          <label class="form-label">
+            Bio
+          </label>
+
+          <textarea
+            id="accountBio"
+            class="field"></textarea>
+
+        </div>
+
+
+        <div
+          class="panel"
+          style="margin-top:18px; box-shadow:none;">
+
+          <div class="stat-label">
+            XP
+          </div>
+
+          <div
+            id="accountXP"
+            class="stat-value">
+            0
+          </div>
+
+          <div
+            id="accountLevel"
+            style="color:var(--muted); margin-top:4px;">
+            Level 1
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="modal-footer">
+
+        <button
+          class="btn btn-danger"
+          onclick="handleLogout()">
+
+          Log Out
+
+        </button>
+
+        <button
+          class="btn btn-primary"
+          onclick="saveAccount()">
+
+          Save
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ==========================================
+       TOASTS
+       ========================================== -->
+
+  <div id="toastContainer"></div>
+
+
+  <!-- ==========================================
+       JAVASCRIPT STARTS IN PART 2
+       ========================================== -->
+
+  <script>
+
+  // ============================================================
+  // SPORTS CARD DATABASE
+  // PART 2 — APPLICATION LOGIC
+  // ============================================================
+
+
+  // ============================================================
+  // SUPABASE CONFIGURATION
+  // ============================================================
+
+  const SUPABASE_URL =
+    "https://nsctktkfwrxgerrjkqij.supabase.co";
+
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zY3RrdGtmd3J4Z2VycmprcWlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxOTIzMDksImV4cCI6MjEwNTc2ODMwOX0.PItvtdZJ49bEJfxapw7k6baipiG0KjObSJoWsf_XOc8";
+
+  const supabaseClient =
+    window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
+
+
+  // ============================================================
+  // GLOBAL APPLICATION STATE
+  // ============================================================
+
+  let currentUser = null;
+  let currentProfile = null;
+
+  let allCards = [];
+  let allSets = [];
+  let allOwnership = [];
+  let allProfiles = [];
+  let allPrices = [];
+  let allSports = [];
+
+  let selectedCard = null;
+  let selectedOwnership = null;
+
+  let activeScreen = "home";
+
+  let authMode = "login";
+
+  let catalogSearchTimer = null;
+  let collectionSearchTimer = null;
+
+
+  // ============================================================
+  // BASIC HELPERS
+  // ============================================================
+
+  function escapeHtml(value) {
+
+    if (value === null || value === undefined) {
+      return "";
+    }
+
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+
+  function clean(value) {
+
+    if (value === null || value === undefined) {
+      return "";
+    }
+
+    return String(value).trim();
+  }
+
+
+  function money(value) {
+
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+      return "$0.00";
+    }
+
+    return number.toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD"
+    });
+  }
+
+
+  function numberValue(value) {
+
+    const number = Number(value);
+
+    return Number.isFinite(number) ? number : 0;
+  }
+
+
+  function formatDate(value) {
+
+    if (!value) {
+      return "—";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return escapeHtml(value);
+    }
+
+    return date.toLocaleDateString();
+  }
+
+
+  function formatDateTime(value) {
+
+    if (!value) {
+      return "—";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return escapeHtml(value);
+    }
+
+    return date.toLocaleString();
+  }
+
+
+  function yesNo(value) {
+
+    return value ? "Yes" : "No";
+  }
+
+
+  function initials(name) {
+
+    const text = clean(name);
+
+    if (!text) {
+      return "?";
+    }
+
+    const pieces = text.split(/\s+/).filter(Boolean);
+
+    if (pieces.length === 1) {
+      return pieces[0].substring(0, 2).toUpperCase();
+    }
+
+    return (
+      pieces[0][0] +
+      pieces[pieces.length - 1][0]
+    ).toUpperCase();
+  }
+
+
+  function slugify(value) {
+
+    return clean(value)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+  }
+
+
+  function makeIdentityKey(parts) {
+
+    return parts
+      .map(part => clean(part).toLowerCase())
+      .join("|");
+  }
+
+
+  // ============================================================
+  // TOAST / NOTIFICATION
+  // ============================================================
+
+  function showToast(message, type = "info") {
+
+    const container =
+      document.getElementById("toastContainer");
+
+    if (!container) {
+      return;
+    }
+
+    const toast =
+      document.createElement("div");
+
+    toast.className =
+      "toast toast-" + type;
+
+    toast.innerHTML =
+      escapeHtml(message);
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+
+      toast.classList.add("toast-hide");
+
+      setTimeout(() => {
+        toast.remove();
+      }, 300);
+
+    }, 3500);
+  }
+
+
+  // ============================================================
+  // THEME
+  // ============================================================
+
+  function initializeTheme() {
+
+    const savedTheme =
+      localStorage.getItem("sportsCardTheme");
+
+    if (savedTheme === "dark") {
+      document.body.classList.add("dark-mode");
+    }
+
+    updateThemeButton();
+  }
+
+
+  function toggleTheme() {
+
+    document.body.classList.toggle("dark-mode");
+
+    const dark =
+      document.body.classList.contains("dark-mode");
+
+    localStorage.setItem(
+      "sportsCardTheme",
+      dark ? "dark" : "light"
+    );
+
+    updateThemeButton();
+  }
+
+
+  function updateThemeButton() {
+
+    const button =
+      document.getElementById("themeToggle");
+
+    if (!button) {
+      return;
+    }
+
+    const dark =
+      document.body.classList.contains("dark-mode");
+
+    button.innerHTML =
+      dark ? "☀️" : "🌙";
+  }
+
+
+  // ============================================================
+  // MODALS
+  // ============================================================
+
+  function openModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+
+    modal.classList.remove("hidden");
+    modal.classList.add("modal-open");
+    document.body.classList.add("modal-active");
+  }
+
+
+  function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+
+    modal.classList.remove("modal-open");
+    modal.classList.add("hidden");
+
+    if (!document.querySelector(".modal-backdrop:not(.hidden)")) {
+      document.body.classList.remove("modal-active");
+    }
+  }
+
+  function closeAllModals() {
+    document
+      .querySelectorAll(".modal-backdrop")
+      .forEach(modal => {
+        modal.classList.remove("modal-open");
+        modal.classList.add("hidden");
+      });
+
+    document.body.classList.remove("modal-active");
+  }
+
+
+  // Close modal when clicking outside the modal box.
+
+  document.addEventListener("click", function(event) {
+
+    if (
+      event.target.classList &&
+      event.target.classList.contains("modal")
+    ) {
+      event.target.classList.remove("modal-open");
+
+      if (
+        !document.querySelector(".modal.modal-open")
+      ) {
+        document.body.classList.remove("modal-active");
+      }
+    }
+
+  });
+
+
+  // ============================================================
+  // AUTH SCREEN
+  // ============================================================
+
+  function showAuthMode(mode) {
+    authMode = mode;
+
+    const loginForm =
+      document.getElementById("loginForm");
+
+    const signupForm =
+      document.getElementById("signupForm");
+
+    const loginTab =
+      document.getElementById("loginTabButton");
+
+    const signupTab =
+      document.getElementById("signupTabButton");
+
+    if (loginForm) {
+      loginForm.classList.toggle("hidden", mode !== "login");
+    }
+
+    if (signupForm) {
+      signupForm.classList.toggle("hidden", mode !== "signup");
+    }
+
+    if (loginTab) {
+      loginTab.classList.toggle("active", mode === "login");
+    }
+
+    if (signupTab) {
+      signupTab.classList.toggle("active", mode === "signup");
+    }
+  }
+
+  function setAuthMessage(message, type = "") {
+
+    const element =
+      document.getElementById("authMessage");
+
+    if (!element) {
+      return;
+    }
+
+    element.className =
+      "auth-message " + type;
+
+    element.textContent =
+      message || "";
+  }
+
+
+  async function handleLogin(event) {
+
+    event.preventDefault();
+
+    const email =
+      clean(
+        document.getElementById("loginEmail")?.value
+      );
+
+    const password =
+      document.getElementById("loginPassword")?.value || "";
+
+    if (!email || !password) {
+
+      setAuthMessage(
+        "Enter your email and password.",
+        "error"
+      );
+
+      return;
+    }
+
+    if (
+      SUPABASE_ANON_KEY.includes(
+        "PASTE_YOUR_SUPABASE"
+      )
+    ) {
+
+      setAuthMessage(
+        "Add your Supabase anon/public key to the code first.",
+        "error"
+      );
+
+      return;
+    }
+
+    setAuthMessage("Signing in...");
+
+    const {
+      data,
+      error
+    } =
+      await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+
+    if (error) {
+
+      console.error(error);
+
+      setAuthMessage(
+        error.message,
+        "error"
+      );
+
+      return;
+    }
+
+    currentUser =
+      data.user;
+
+    setAuthMessage("");
+
+    await initializeApp();
+  }
+
+
+  async function handleSignup(event) {
+
+    event.preventDefault();
+
+    const displayName =
+      clean(
+        document.getElementById("signupDisplayName")?.value
+      );
+
+    const email =
+      clean(
+        document.getElementById("signupEmail")?.value
+      );
+
+    const password =
+      document.getElementById("signupPassword")?.value || "";
+
+    const confirmPassword =
+      document.getElementById("signupPasswordConfirm")?.value || "";
+
+    if (!displayName || !email || !password) {
+
+      setAuthMessage(
+        "Complete all required fields.",
+        "error"
+      );
+
+      return;
+    }
+
+    if (password !== confirmPassword) {
+
+      setAuthMessage(
+        "Passwords do not match.",
+        "error"
+      );
+
+      return;
+    }
+
+    if (password.length < 6) {
+
+      setAuthMessage(
+        "Password must be at least 6 characters.",
+        "error"
+      );
+
+      return;
+    }
+
+    if (
+      SUPABASE_ANON_KEY.includes(
+        "PASTE_YOUR_SUPABASE"
+      )
+    ) {
+
+      setAuthMessage(
+        "Add your Supabase anon/public key to the code first.",
+        "error"
+      );
+
+      return;
+    }
+
+    setAuthMessage("Creating account...");
+
+    const {
+      data,
+      error
+    } =
+      await supabaseClient.auth.signUp({
+
+        email,
+
+        password,
+
+        options: {
+          data: {
+            display_name: displayName
+          }
+        }
+
+      });
+
+    if (error) {
+
+      console.error(error);
+
+      setAuthMessage(
+        error.message,
+        "error"
+      );
+
+      return;
+    }
+
+    if (!data.session) {
+
+      setAuthMessage(
+        "Account created. Check your email if confirmation is required.",
+        "success"
+      );
+
+      return;
+    }
+
+    currentUser =
+      data.user;
+
+    setAuthMessage("");
+
+    await initializeApp();
+  }
+
+
+  async function logout() {
+
+    await supabaseClient.auth.signOut();
+
+    currentUser = null;
+    currentProfile = null;
+
+    allCards = [];
+    allSets = [];
+    allOwnership = [];
+    allProfiles = [];
+    allPrices = [];
+
+    showAuthScreen();
+  }
+
+
+  function showAuthScreen() {
+    const authScreen =
+      document.getElementById("authScreen");
+
+    const appScreen =
+      document.getElementById("appScreen");
+
+    if (authScreen) {
+      authScreen.classList.remove("hidden");
+    }
+
+    if (appScreen) {
+      appScreen.classList.add("hidden");
+    }
+
+    closeAllModals();
+    showAuthMode("login");
+  }
+
+
+  function showApplication() {
+    const authScreen =
+      document.getElementById("authScreen");
+
+    const appScreen =
+      document.getElementById("appScreen");
+
+    if (authScreen) {
+      authScreen.classList.add("hidden");
+    }
+
+    if (appScreen) {
+      appScreen.classList.remove("hidden");
+    }
+  }
+
+
+  // ============================================================
+  // DATABASE HELPERS
+  // ============================================================
+
+  function getCard(cardId) {
+
+    return allCards.find(
+      card =>
+        String(card.card_id) ===
+        String(cardId)
+    ) || null;
+  }
+
+
+  function getSet(setId) {
+
+    return allSets.find(
+      item =>
+        String(item.card_set_id) ===
+        String(setId)
+    ) || null;
+  }
+
+
+  function getProfile(userId) {
+
+    return allProfiles.find(
+      profile =>
+        String(profile.user_id) ===
+        String(userId)
+    ) || null;
+  }
+
+
+  function getOwnership(cardId, userId = null) {
+
+    const id =
+      userId ||
+      currentUser?.id;
+
+    if (!id) {
+      return null;
+    }
+
+    return allOwnership.find(
+      ownership =>
+        String(ownership.card_id) ===
+          String(cardId) &&
+        String(ownership.user_id) ===
+          String(id)
+    ) || null;
+  }
+
+
+  function getOwnershipsForCard(cardId) {
+
+    return allOwnership.filter(
+      ownership =>
+        String(ownership.card_id) ===
+        String(cardId)
+    );
+  }
+
+
+  function getPrice(cardId) {
+
+    const prices =
+      allPrices
+        .filter(
+          price =>
+            String(price.card_id) ===
+            String(cardId)
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.fetched_at || 0) -
+            new Date(a.fetched_at || 0)
+        );
+
+    return prices[0] || null;
+  }
+
+
+  function getSetName(card) {
+
+    if (!card) {
+      return "";
+    }
+
+    const set =
+      getSet(card.card_set_id);
+
+    if (set) {
+      return set.name || "";
+    }
+
+    return "";
+  }
+
+
+  function getCardImage(card, side = "front") {
+
+    if (!card) {
+      return "";
+    }
+
+    const path =
+      side === "back"
+        ? card.back_image_path
+        : card.front_image_path;
+
+    if (!path) {
+      return "";
+    }
+
+    if (
+      String(path).startsWith("http://") ||
+      String(path).startsWith("https://") ||
+      String(path).startsWith("data:")
+    ) {
+      return path;
+    }
+
+    try {
+
+      const {
+        data
+      } =
+        supabaseClient.storage
+          .from("catalog-images")
+          .getPublicUrl(path);
+
+      return data?.publicUrl || "";
+
+    } catch (error) {
+
+      console.warn(
+        "Unable to create image URL",
+        error
+      );
+
+      return "";
+    }
+  }
+
+
+  function getOwnedPhoto(ownership, side = "front") {
+
+    if (!ownership) {
+      return "";
+    }
+
+    const path =
+      side === "back"
+        ? ownership.back_photo_path
+        : ownership.front_photo_path;
+
+    if (!path) {
+      return "";
+    }
+
+    if (
+      String(path).startsWith("http://") ||
+      String(path).startsWith("https://") ||
+      String(path).startsWith("data:")
+    ) {
+      return path;
+    }
+
+    try {
+
+      const {
+        data
+      } =
+      supabaseClient.storage
+        .from("card-photos")
+        .getPublicUrl(path);
+
+      return data?.publicUrl || "";
+
+    } catch (error) {
+
+      console.warn(
+        "Unable to create owned photo URL",
+        error
+      );
+
+      return "";
+    }
+  }
+
+
+  // ============================================================
+  // DATABASE LOAD
+  // ============================================================
+
+  async function safeTableLoad(table, select = "*") {
+
+    const result =
+      await supabaseClient
+        .from(table)
+        .select(select);
+
+    if (result.error) {
+
+      console.error(
+        "Supabase error loading " + table,
+        result.error
+      );
+
+      showToast(
+        "Could not load " + table + ".",
+        "error"
+      );
+
+      return [];
+    }
+
+    return result.data || [];
+  }
+
+
+  async function loadDatabase() {
+
+    showToast(
+      "Loading card database...",
+      "info"
+    );
+
+    const [
+      cards,
+      sets,
+      ownership,
+      profiles,
+      prices,
+      sports
+    ] =
+      await Promise.all([
+
+        safeTableLoad(
+          "cards",
+          "*"
+        ),
+
+        safeTableLoad(
+          "card_sets",
+          "*"
+        ),
+
+        safeTableLoad(
+          "card_ownership",
+          "*"
+        ),
+
+        safeTableLoad(
+          "profiles",
+          "*"
+        ),
+
+        safeTableLoad(
+          "card_prices",
+          "*"
+        ),
+
+        safeTableLoad(
+          "sports",
+          "*"
+        )
+
+      ]);
+
+    allCards =
+      cards.sort(
+        (a, b) =>
+          clean(a.name).localeCompare(
+            clean(b.name)
+          )
+      );
+
+    allSets =
+      sets.sort(
+        (a, b) =>
+          clean(a.name).localeCompare(
+            clean(b.name)
+          )
+      );
+
+    allOwnership =
+      ownership;
+
+    allProfiles =
+      profiles;
+
+    allPrices =
+      prices;
+
+    allSports =
+      sports;
+
+    currentProfile =
+      getProfile(currentUser?.id);
+
+    updateUserInterface();
+
+    populateAllFilters();
+
+    renderAllScreens();
+
+    showToast(
+      "Database loaded.",
+      "success"
+    );
+  }
+
+
+  async function initializeApp() {
+
+    if (!currentUser) {
+      showAuthScreen();
+      return;
+    }
+
+    showApplication();
+
+    await loadDatabase();
+
+    showScreen(activeScreen || "home");
+  }
+
+
+  // ============================================================
+  // USER INTERFACE HEADER
+  // ============================================================
+
+  function updateUserInterface() {
+
+    const displayName =
+      currentProfile?.display_name ||
+      currentUser?.user_metadata?.display_name ||
+      currentUser?.email?.split("@")[0] ||
+      "User";
+
+    const username =
+      currentProfile?.username ||
+      displayName;
+
+    const headerUsername =
+      document.getElementById("headerUsername");
+
+    if (headerUsername) {
+      headerUsername.textContent =
+        username;
+    }
+
+    const headerAvatar =
+      document.getElementById("headerAvatar");
+
+    if (headerAvatar) {
+
+      headerAvatar.textContent =
+        initials(displayName);
+    }
+
+    const accountName =
+      document.getElementById("accountDisplayName");
+
+    if (accountName) {
+      accountName.value =
+        currentProfile?.display_name ||
+        displayName;
+    }
+
+    const accountUsername =
+      document.getElementById("accountUsername");
+
+    if (accountUsername) {
+      accountUsername.value =
+        currentProfile?.username || "";
+    }
+
+    const accountBio =
+      document.getElementById("accountBio");
+
+    if (accountBio) {
+      accountBio.value =
+        currentProfile?.bio || "";
+    }
+
+    const accountXP =
+      document.getElementById("accountXP");
+
+    if (accountXP) {
+      accountXP.textContent =
+        numberValue(currentProfile?.xp);
+    }
+
+    const accountLevel =
+      document.getElementById("accountLevel");
+
+    if (accountLevel) {
+      accountLevel.textContent =
+        numberValue(currentProfile?.level) || 1;
+    }
+
+    const adminNav =
+      document.getElementById("adminNavSection");
+
+    if (adminNav) {
+
+      const isAdmin =
+        currentProfile?.role === "admin";
+
+      adminNav.style.display =
+        isAdmin ? "" : "none";
+    }
+  }
+
+
+  // ============================================================
+  // NAVIGATION
+  // ============================================================
+
+  function showScreen(screenName) {
+
+    activeScreen =
+      screenName;
+
+    document
+      .querySelectorAll(".screen")
+      .forEach(screen => {
+
+        screen.style.display =
+          "none";
+      });
+
+    const screen =
+      document.getElementById(
+        "screen-" + screenName
+      );
+
+    if (screen) {
+      screen.style.display = "";
+    }
+
+    document
+      .querySelectorAll("[data-screen]")
+      .forEach(button => {
+
+        button.classList.toggle(
+          "active",
+          button.dataset.screen ===
+          screenName
+        );
+
+      });
+
+    renderScreen(screenName);
+  }
+
+
+  function renderScreen(screenName) {
+
+    switch (screenName) {
+
+      case "home":
+        renderHome();
+        break;
+
+      case "catalog":
+        renderCatalog();
+        break;
+
+      case "collection":
+        renderCollection();
+        break;
+
+      case "forsale":
+        renderForSale();
+        break;
+
+      case "sold":
+        renderSold();
+        break;
+
+      case "traded":
+        renderTraded();
+        break;
+
+      case "sets":
+        renderSets();
+        break;
+
+      case "community":
+        renderCommunity();
+        break;
+
+      case "leaderboard":
+        renderLeaderboard();
+        break;
+
+      case "admin":
+        renderAdmin();
+        break;
+
+      default:
+        renderHome();
+        break;
+    }
+  }
+
+
+  function renderAllScreens() {
+
+    renderHome();
+    renderCatalog();
+    renderCollection();
+    renderForSale();
+    renderSold();
+    renderTraded();
+    renderSets();
+    renderCommunity();
+    renderLeaderboard();
+    renderAdmin();
+  }
+
+
+  // ============================================================
+  // FILTERS
+  // ============================================================
+
+  function uniqueValues(values) {
+
+    return [
+      ...new Set(
+        values
+          .map(value => clean(value))
+          .filter(Boolean)
+      )
+    ].sort(
+      (a, b) =>
+        a.localeCompare(b)
+    );
+  }
+
+
+  function setSelectOptions(
+    selectId,
+    values,
+    firstLabel = "All"
+  ) {
+
+    const select =
+      document.getElementById(selectId);
+
+    if (!select) {
+      return;
+    }
+
+    const current =
+      select.value;
+
+    select.innerHTML =
+      `<option value="">${escapeHtml(firstLabel)}</option>`;
+
+    values.forEach(value => {
+
+      const option =
+        document.createElement("option");
+
+      option.value =
+        value;
+
+      option.textContent =
+        value;
+
+      select.appendChild(option);
+    });
+
+    if (
+      values.includes(current)
+    ) {
+      select.value =
+        current;
+    }
+  }
+
+
+  function populateAllFilters() {
+
+    const sports =
+      uniqueValues(
+        allCards.map(card => card.sport)
+      );
+
+    const years =
+      uniqueValues(
+        allCards.map(card => card.year_made)
+      );
+
+    const sets =
+      uniqueValues(
+        allSets.map(set => set.name)
+      );
+
+    const grades =
+      uniqueValues(
+        allOwnership.map(item => item.grade)
+      );
+
+    setSelectOptions(
+      "catalogSport",
+      sports,
+      "All Sports"
+    );
+
+    setSelectOptions(
+      "catalogYear",
+      years,
+      "All Years"
+    );
+
+    setSelectOptions(
+      "catalogSet",
+      sets,
+      "All Sets"
+    );
+
+    setSelectOptions(
+      "collectionSport",
+      sports,
+      "All Sports"
+    );
+
+    setSelectOptions(
+      "collectionGrade",
+      grades,
+      "All Grades"
+    );
+
+    setSelectOptions(
+      "saleSportFilter",
+      sports,
+      "All Sports"
+    );
+
+    setSelectOptions(
+      "soldSportFilter",
+      sports,
+      "All Sports"
+    );
+
+    setSelectOptions(
+      "tradedSportFilter",
+      sports,
+      "All Sports"
+    );
+  }
+
+
+  // ============================================================
+  // CARD VALUE
+  // ============================================================
+
+  function getDisplayValue(card) {
+
+    if (!card) {
+      return 0;
+    }
+
+    const ownership =
+      getOwnership(card.card_id);
+
+    if (
+      ownership &&
+      Number.isFinite(
+        Number(ownership.value)
+      ) &&
+      Number(ownership.value) > 0
+    ) {
+      return Number(ownership.value);
+    }
+
+    const price =
+      getPrice(card.card_id);
+
+    if (
+      price &&
+      Number.isFinite(
+        Number(price.estimated_value)
+      )
+    ) {
+      return Number(
+        price.estimated_value
+      );
+    }
+
+    return 0;
+  }
+
+
+  function getTotalCollectionValue() {
+
+    return allOwnership
+      .filter(
+        ownership =>
+          String(ownership.user_id) ===
+          String(currentUser?.id)
+      )
+      .filter(
+        ownership =>
+          ownership.possession !== "Sold" &&
+          ownership.possession !== "Traded"
+      )
+      .reduce(
+        (total, ownership) =>
+          total +
+          numberValue(
+            ownership.total_value
+          ) ||
+          total +
+          (
+            numberValue(
+              ownership.value
+            ) *
+            numberValue(
+              ownership.quantity
+            )
+          ),
+        0
+      );
+  }
+
+
+  // ============================================================
+  // CARD BADGES
+  // ============================================================
+
+  function cardBadges(card) {
+
+    if (!card) {
+      return "";
+    }
+
+    const badges = [];
+
+    if (card.rookie) {
+      badges.push("Rookie");
+    }
+
+    if (card.numbered) {
+      badges.push("Numbered");
+    }
+
+    if (card.patch) {
+      badges.push("Patch");
+    }
+
+    if (card.autographed) {
+      badges.push("Auto");
+    }
+
+    if (card.insert_card) {
+      badges.push("Insert");
+    }
+
+    if (card.short_print) {
+      badges.push("SP");
+    }
+
+    return badges
+      .map(
+        badge =>
+          `<span class="badge">${escapeHtml(badge)}</span>`
+      )
+      .join("");
+  }
+
+
+  // ============================================================
+  // CARD TILE
+  // ============================================================
+
+  function cardTile(card, options = {}) {
+
+    const ownership =
+      getOwnership(
+        card.card_id,
+        options.userId || currentUser?.id
+      );
+
+    const price =
+      getPrice(card.card_id);
+
+    const image =
+      getCardImage(card, "front");
+
+    const value =
+      options.value ??
+      getDisplayValue(card);
+
+    const owners =
+      getOwnershipsForCard(
+        card.card_id
+      );
+
+    const ownerCount =
+      owners.filter(
+        owner =>
+          numberValue(owner.quantity) > 0
+      ).length;
+
+    const quantity =
+      numberValue(
+        ownership?.quantity
+      );
+
+    return `
+      <article
+        class="card-tile"
+        onclick="openCardDetail('${escapeHtml(card.card_id)}')"
+      >
+
+        <div class="card-tile-image">
+
+          ${
+            image
+              ? `
+                <img
+                  src="${escapeHtml(image)}"
+                  alt="${escapeHtml(card.name || "Card")}"
+                  loading="lazy"
+                >
+              `
+              : `
+                <div class="card-placeholder">
+                  <div>🃏</div>
+                  <span>No Image</span>
+                </div>
+              `
+          }
+
+          <div class="card-tile-badges">
+            ${cardBadges(card)}
+          </div>
+
+        </div>
+
+        <div class="card-tile-body">
+
+          <h3>
+            ${escapeHtml(card.name || "Unknown Card")}
+          </h3>
+
+          <div class="card-subtitle">
+
+            ${
+              escapeHtml(
+                card.year_made || ""
+              )
+            }
+
+            ${
+              card.card_brand
+                ? " • " +
+                  escapeHtml(card.card_brand)
+                : ""
+            }
+
+          </div>
+
+          <div class="card-subtitle">
+
+            ${
+              escapeHtml(
+                getSetName(card)
+              )
+            }
+
+            ${
+              card.card_number
+                ? " • #" +
+                  escapeHtml(card.card_number)
+                : ""
+            }
+
+          </div>
+
+          <div class="card-tile-bottom">
+
+            <strong>
+              ${money(value)}
+            </strong>
+
+            ${
+              ownership
+                ? `
+                  <span class="quantity-pill">
+                    Qty: ${quantity}
+                  </span>
+                `
+                : ""
+            }
+
+          </div>
+
+          <div class="card-owners">
+
+            ${
+              ownerCount
+                ? `${ownerCount} owner${ownerCount === 1 ? "" : "s"}`
+                : "No owners yet"
+            }
+
+          </div>
+
+          ${
+            price?.confidence
+              ? `
+                <div class="price-confidence">
+                  Confidence:
+                  ${escapeHtml(price.confidence)}
+                </div>
+              `
+              : ""
+          }
+
+        </div>
+
+      </article>
+    `;
+  }
+
+
+  // ============================================================
+  // HOME
+  // ============================================================
+
+  function renderHome() {
+
+    const cardsCount =
+      document.getElementById(
+        "statCatalogCards"
+      );
+
+    if (cardsCount) {
+      cardsCount.textContent =
+        allCards.length.toLocaleString();
+    }
+
+    const ownedCards =
+      allOwnership.filter(
+        ownership =>
+          String(ownership.user_id) ===
+          String(currentUser?.id) &&
+          ownership.possession !== "Sold" &&
+          ownership.possession !== "Traded" &&
+          numberValue(ownership.quantity) > 0
+      );
+
+    const uniqueCards =
+      document.getElementById(
+        "statMyCards"
+      );
+
+    if (uniqueCards) {
+      uniqueCards.textContent =
+        ownedCards.length.toLocaleString();
+    }
+
+    const collectionCount =
+      document.getElementById(
+        "statMyQuantity"
+      );
+
+    if (collectionCount) {
+      collectionCount.textContent =
+        ownedCards.reduce(
+          (total, item) =>
+            total +
+            numberValue(item.quantity),
+          0
+        ).toLocaleString();
+    }
+
+    const collectionValue =
+      document.getElementById(
+        "statCollectionValue"
+      );
+
+    if (collectionValue) {
+
+      const value =
+        ownedCards.reduce(
+          (total, item) =>
+            total +
+            (
+              numberValue(item.value) *
+              numberValue(item.quantity)
+            ),
+          0
+        );
+
+      collectionValue.textContent =
+        money(value);
+    }
+
+    const forSale =
+      document.getElementById(
+        "homeForSaleCount"
+      );
+
+    if (forSale) {
+
+      const count =
+        allOwnership.filter(
+          item =>
+            String(item.user_id) ===
+            String(currentUser?.id) &&
+            item.possession === "For Sale"
+        ).length;
+
+      forSale.textContent =
+        count.toLocaleString();
+    }
+
+    const latest =
+      [...allCards]
+        .sort(
+          (a, b) =>
+            new Date(
+              b.created_at || 0
+            ) -
+            new Date(
+              a.created_at || 0
+            )
+        )
+        .slice(0, 8);
+
+    const container =
+      document.getElementById(
+        "homeSearchResults"
+      );
+
+    if (container) {
+
+      container.innerHTML =
+        latest.length
+          ? latest
+              .map(card => cardTile(card))
+              .join("")
+          : `
+              <div class="empty-state">
+                No cards have been added yet.
+              </div>
+            `;
+    }
+  }
+
+
+  // ============================================================
+  // CATALOG
+  // ============================================================
+
+  function getCatalogFilteredCards() {
+
+    const search =
+      clean(
+        document.getElementById(
+          "catalogSearch"
+        )?.value
+      ).toLowerCase();
+
+    const sport =
+      clean(
+        document.getElementById(
+          "catalogSport"
+        )?.value
+      );
+
+    const year =
+      clean(
+        document.getElementById(
+          "catalogYear"
+        )?.value
+      );
+
+    const set =
+      clean(
+        document.getElementById(
+          "catalogSet"
+        )?.value
+      );
+
+    return allCards.filter(card => {
+
+      const setName =
+        getSetName(card);
+
+      const searchable = [
+        card.name,
+        card.sport,
+        card.team,
+        card.card_number,
+        card.card_series,
+        card.card_brand,
+        card.parallel,
+        card.year_made,
+        setName,
+        card.barcode
+      ]
+        .map(clean)
+        .join(" ")
+        .toLowerCase();
+
+      if (
+        search &&
+        !searchable.includes(search)
+      ) {
+        return false;
+      }
+
+      if (
+        sport &&
+        clean(card.sport) !== sport
+      ) {
+        return false;
+      }
+
+      if (
+        year &&
+        String(card.year_made) !==
+        String(year)
+      ) {
+        return false;
+      }
+
+      if (
+        set &&
+        setName !== set
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+
+  function renderCatalog() {
+
+    const cards =
+      getCatalogFilteredCards();
+
+    const count =
+      document.getElementById(
+        "catalogResultCount"
+      );
+
+    if (count) {
+      count.textContent =
+        cards.length.toLocaleString();
+    }
+
+    const container =
+      document.getElementById(
+        "catalogResults"
+      );
+
+    if (!container) {
+      return;
+    }
+
+    container.innerHTML =
+      cards.length
+        ? cards
+            .map(card => cardTile(card))
+            .join("")
+        : `
+            <div class="empty-state">
+              <div class="empty-icon">🃏</div>
+              <h3>No cards found</h3>
+              <p>
+                Try changing your search or filters.
+              </p>
+            </div>
+          `;
+  }
+
+
+  // ============================================================
+  // COLLECTION
+  // ============================================================
+
+  function getCollectionFilteredCards() {
+
+    const search =
+      clean(
+        document.getElementById(
+          "collectionSearch"
+        )?.value
+      ).toLowerCase();
+
+    const sport =
+      clean(
+        document.getElementById(
+          "collectionSport"
+        )?.value
+      );
+
+    const possession =
+      clean(
+        document.getElementById(
+          "collectionPossession"
+        )?.value
+      );
+
+    const grade =
+      clean(
+        document.getElementById(
+          "collectionGrade"
+        )?.value
+      );
+
+    const owned =
+      allOwnership.filter(
+        ownership =>
+          String(ownership.user_id) ===
+          String(currentUser?.id)
+      );
+
+    const cards = [];
+
+    owned.forEach(ownership => {
+
+      const card =
+        getCard(ownership.card_id);
+
+      if (!card) {
+        return;
+      }
+
+      const setName =
+        getSetName(card);
+
+      const searchable = [
+        card.name,
+        card.sport,
+        card.team,
+        card.card_number,
+        card.card_brand,
+        card.card_series,
+        card.parallel,
+        card.year_made,
+        setName,
+        ownership.grade
+      ]
+        .map(clean)
+        .join(" ")
+        .toLowerCase();
+
+      if (
+        search &&
+        !searchable.includes(search)
+      ) {
+        return;
+      }
+
+      if (
+        sport &&
+        clean(card.sport) !== sport
+      ) {
+        return;
+      }
+
+      if (
+        possession &&
+        clean(ownership.possession) !==
+        possession
+      ) {
+        return;
+      }
+
+      if (
+        grade &&
+        clean(ownership.grade) !==
+        grade
+      ) {
+        return;
+      }
+
+      cards.push(card);
+    });
+
+    return cards;
+  }
+
+
+  function renderCollection() {
+
+    const cards =
+      getCollectionFilteredCards();
+
+    const count =
+      document.getElementById(
+        "collectionResultCount"
+      );
+
+    if (count) {
+      count.textContent =
+        cards.length.toLocaleString();
+    }
+
+    const container =
+      document.getElementById(
+        "collectionResults"
+      );
+
+    if (!container) {
+      return;
+    }
+
+    container.innerHTML =
+      cards.length
+        ? cards
+            .map(card => cardTile(card))
+            .join("")
+        : `
+            <div class="empty-state">
+              <div class="empty-icon">📦</div>
+              <h3>Your collection is empty</h3>
+              <p>
+                Add cards to start building your collection.
+              </p>
+            </div>
+          `;
+  }
+
+
+  // ============================================================
+  // STATUS LISTS
+  // ============================================================
+
+  function renderOwnershipStatus(
+    screenName,
+    possessionValue,
+    gridId,
+    countId
+  ) {
+
+    const ownership =
+      allOwnership.filter(
+        item =>
+          String(item.user_id) ===
+          String(currentUser?.id) &&
+          item.possession ===
+          possessionValue
+      );
+
+    const cards =
+      ownership
+        .map(item =>
+          getCard(item.card_id)
+        )
+        .filter(Boolean);
+
+    const count =
+      document.getElementById(countId);
+
+    if (count) {
+      count.textContent =
+        cards.length.toLocaleString();
+    }
+
+    const grid =
+      document.getElementById(gridId);
+
+    if (!grid) {
+      return;
+    }
+
+    grid.innerHTML =
+      cards.length
+        ? cards
+            .map(card => cardTile(card))
+            .join("")
+        : `
+            <div class="empty-state">
+              <div class="empty-icon">🃏</div>
+              <h3>No ${escapeHtml(screenName)} cards</h3>
+              <p>
+                Cards will appear here when their status is updated.
+              </p>
+            </div>
+          `;
+  }
+
+
+  function renderForSale() {
+
+    renderOwnershipStatus(
+      "For Sale",
+      "For Sale",
+      "forSaleResults",
+      "saleResultCount"
+    );
+  }
+
+
+  function renderSold() {
+
+    renderOwnershipStatus(
+      "Sold",
+      "Sold",
+      "soldResults",
+      "soldResultCount"
+    );
+  }
+
+
+  function renderTraded() {
+
+    renderOwnershipStatus(
+      "Traded",
+      "Traded",
+      "tradedResults",
+      "tradedResultCount"
+    );
+  }
+
+
+  // ============================================================
+  // SETS
+  // ============================================================
+
+  function renderSets() {
+
+    const container =
+      document.getElementById(
+        "setsResults"
+      );
+
+    if (!container) {
+      return;
+    }
+
+    container.innerHTML =
+      allSets.length
+        ? allSets
+            .map(set => {
+
+              const cardCount =
+                allCards.filter(
+                  card =>
+                    String(card.card_set_id) ===
+                    String(set.card_set_id)
+                ).length;
+
+              const image =
+                set.front_image_path
+                  ? (
+                      String(
+                        set.front_image_path
+                      ).startsWith("http")
+                        ? set.front_image_path
+                        : supabaseClient.storage
+                            .from("catalog-images")
+                            .getPublicUrl(
+                              set.front_image_path
+                            )
+                            .data?.publicUrl || ""
+                    )
+                  : "";
+
+              return `
+                <article
+                  class="set-card"
+                  onclick="openSetDetail('${escapeHtml(set.card_set_id)}')"
+                >
+
+                  <div class="set-card-image">
+
+                    ${
+                      image
+                        ? `
+                          <img
+                            src="${escapeHtml(image)}"
+                            alt="${escapeHtml(set.name)}"
+                            loading="lazy"
+                          >
+                        `
+                        : `
+                          <div class="card-placeholder">
+                            <div>📚</div>
+                          </div>
+                        `
+                    }
+
+                  </div>
+
+                  <div class="set-card-body">
+
+                    <h3>
+                      ${escapeHtml(set.name || "Unnamed Set")}
+                    </h3>
+
+                    <div>
+                      ${escapeHtml(set.year || "")}
+                      ${
+                        set.brand
+                          ? " • " +
+                            escapeHtml(set.brand)
+                          : ""
+                      }
+                    </div>
+
+                    <div class="set-card-count">
+                      ${cardCount.toLocaleString()} catalog card${cardCount === 1 ? "" : "s"}
+                    </div>
+
+                  </div>
+
+                </article>
+              `;
+            })
+            .join("")
+        : `
+            <div class="empty-state">
+              <div class="empty-icon">📚</div>
+              <h3>No sets yet</h3>
+              <p>
+                Card sets will appear here as they are added.
+              </p>
+            </div>
+          `;
+  }
+
+
+  function openSetDetail(setId) {
+
+    const set =
+      getSet(setId);
+
+    if (!set) {
+      return;
+    }
+
+    const cards =
+      allCards.filter(
+        card =>
+          String(card.card_set_id) ===
+          String(setId)
+      );
+
+    const body =
+      document.getElementById(
+        "setDetailBody"
+      );
+
+    if (!body) {
+      showScreen("catalog");
+      const filter = document.getElementById("catalogSet");
+      if (filter) filter.value = set.name || "";
+      renderCatalog();
+      return;
+    }
+
+    body.innerHTML = `
+
+      <div class="detail-header">
+
+        <div>
+
+          <h2>
+            ${escapeHtml(set.name)}
+          </h2>
+
+          <p>
+            ${escapeHtml(set.year || "")}
+            ${
+              set.brand
+                ? " • " +
+                  escapeHtml(set.brand)
+                : ""
+            }
+          </p>
+
+        </div>
+
+      </div>
+
+      <div class="detail-stats">
+
+        <div class="detail-stat">
+          <strong>${cards.length}</strong>
+          <span>Catalog Cards</span>
+        </div>
+
+        <div class="detail-stat">
+          <strong>
+            ${escapeHtml(set.total_cards || cards.length)}
+          </strong>
+          <span>Set Size</span>
+        </div>
+
+      </div>
+
+      <div class="detail-card-grid">
+
+        ${
+          cards.length
+            ? cards
+                .map(card => cardTile(card))
+                .join("")
+            : `
+                <div class="empty-state">
+                  No cards have been added to this set.
+                </div>
+              `
+        }
+
+      </div>
+    `;
+
+    openModal("setDetailModal");
+  }
+
+
+  // ============================================================
+  // COMMUNITY
+  // ============================================================
+
+  function renderCommunity() {
+
+    const container =
+      document.getElementById(
+        "communityResults"
+      );
+
+    if (!container) {
+      return;
+    }
+
+    const cardsWithOwners =
+      allCards
+        .filter(
+          card =>
+            getOwnershipsForCard(
+              card.card_id
+            ).some(
+              ownership =>
+                numberValue(
+                  ownership.quantity
+                ) > 0
+            )
+        )
+        .slice(0, 60);
+
+    container.innerHTML =
+      cardsWithOwners.length
+        ? cardsWithOwners
+            .map(card => cardTile(card))
+            .join("")
+        : `
+            <div class="empty-state">
+              <div class="empty-icon">👥</div>
+              <h3>No community cards yet</h3>
+              <p>
+                Once users add cards, the community collection will appear here.
+              </p>
+            </div>
+          `;
+  }
+
+
+  // ============================================================
+  // LEADERBOARD
+  // ============================================================
+
+  function renderLeaderboard() {
+
+    const container =
+      document.getElementById(
+        "leaderboardResults"
+      );
+
+    if (!container) {
+      return;
+    }
+
+    const profiles =
+      [...allProfiles]
+        .sort(
+          (a, b) =>
+            numberValue(b.xp) -
+            numberValue(a.xp)
+        );
+
+    container.innerHTML =
+      profiles.length
+        ? profiles
+            .map(
+              (profile, index) => `
+                <div class="leaderboard-row">
+
+                  <div class="leaderboard-rank">
+                    #${index + 1}
+                  </div>
+
+                  <div class="leaderboard-avatar">
+                    ${initials(
+                      profile.display_name ||
+                      profile.username
+                    )}
+                  </div>
+
+                  <div class="leaderboard-user">
+
+                    <strong>
+                      ${escapeHtml(
+                        profile.display_name ||
+                        profile.username ||
+                        "User"
+                      )}
+                    </strong>
+
+                    <span>
+                      Level
+                      ${numberValue(profile.level) || 1}
+                    </span>
+
+                  </div>
+
+                  <div class="leaderboard-xp">
+                    ${numberValue(profile.xp).toLocaleString()} XP
+                  </div>
+
+                </div>
+              `
+            )
+            .join("")
+        : `
+            <div class="empty-state">
+              No leaderboard data yet.
+            </div>
+          `;
+  }
+
+
+  // ============================================================
+  // ADMIN
+  // ============================================================
+
+  function renderAdmin() {
+
+    const container =
+      document.getElementById(
+        "adminResults"
+      );
+
+    if (!container) {
+      return;
+    }
+
+    if (
+      currentProfile?.role !== "admin"
+    ) {
+
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🔒</div>
+          <h3>Admin access required</h3>
+          <p>
+            Your account does not have administrator permissions.
+          </p>
+        </div>
+      `;
+
+      return;
+    }
+
+    container.innerHTML = `
+
+      <div class="admin-stat-grid">
+
+        <div class="admin-stat">
+          <strong>
+            ${allCards.length.toLocaleString()}
+          </strong>
+          <span>Catalog Cards</span>
+        </div>
+
+        <div class="admin-stat">
+          <strong>
+            ${allSets.length.toLocaleString()}
+          </strong>
+          <span>Sets</span>
+        </div>
+
+        <div class="admin-stat">
+          <strong>
+            ${allProfiles.length.toLocaleString()}
+          </strong>
+          <span>Users</span>
+        </div>
+
+        <div class="admin-stat">
+          <strong>
+            ${allOwnership.length.toLocaleString()}
+          </strong>
+          <span>Ownership Records</span>
+        </div>
+
+      </div>
+
+      <div class="admin-panel">
+
+        <h3>Database Status</h3>
+
+        <p>
+          Supabase connection is active.
+        </p>
+
+        <p>
+          Catalog:
+          ${allCards.length.toLocaleString()} cards
+        </p>
+
+        <p>
+          Sets:
+          ${allSets.length.toLocaleString()}
+        </p>
+
+        <p>
+          Users:
+          ${allProfiles.length.toLocaleString()}
+        </p>
+
+        <p>
+          Ownership:
+          ${allOwnership.length.toLocaleString()}
+        </p>
+
+      </div>
+    `;
+  }
+
+
+  // ============================================================
+  // CARD DETAIL
+  // ============================================================
+
+  function openCardDetail(cardId) {
+
+    const card =
+      getCard(cardId);
+
+    if (!card) {
+      showToast(
+        "Card could not be found.",
+        "error"
+      );
+      return;
+    }
+
+    selectedCard =
+      card;
+
+    selectedOwnership =
+      getOwnership(card.card_id);
+
+    const price =
+      getPrice(card.card_id);
+
+    const owners =
+      getOwnershipsForCard(
+        card.card_id
+      );
+
+    const frontImage =
+      getCardImage(
+        card,
+        "front"
+      );
+
+    const backImage =
+      getCardImage(
+        card,
+        "back"
+      );
+
+    const body =
+      document.getElementById(
+        "cardDetailBody"
+      );
+
+    if (!body) {
+      return;
+    }
+
+    body.innerHTML = `
+
+      <div class="card-detail-layout">
+
+        <div class="card-detail-images">
+
+          <div class="detail-image-box">
+
+            ${
+              frontImage
+                ? `
+                  <img
+                    src="${escapeHtml(frontImage)}"
+                    alt="${escapeHtml(card.name || "Card")}"
+                  >
+                `
+                : `
+                  <div class="card-placeholder large">
+                    🃏
+                  </div>
+                `
+            }
+
+          </div>
+
+          ${
+            backImage
+              ? `
+                <div class="detail-image-box">
+
+                  <img
+                    src="${escapeHtml(backImage)}"
+                    alt="Back of card"
+                  >
+
+                </div>
+              `
+              : ""
+          }
+
+        </div>
+
+
+        <div class="card-detail-info">
+
+          <div class="detail-title-row">
+
+            <div>
+
+              <h2>
+                ${escapeHtml(
+                  card.name ||
+                  "Unknown Card"
+                )}
+              </h2>
+
+              <p>
+                ${escapeHtml(
+                  card.year_made || ""
+                )}
+
+                ${
+                  card.card_brand
+                    ? " • " +
+                      escapeHtml(card.card_brand)
+                    : ""
+                }
+
+                ${
+                  card.card_series
+                    ? " • " +
+                      escapeHtml(card.card_series)
+                    : ""
+                }
+              </p>
+
+            </div>
+
+            <div class="detail-value">
+
+              <span>Estimated Value</span>
+
+              <strong>
+                ${money(
+                  price?.estimated_value ||
+                  selectedOwnership?.value ||
+                  0
+                )}
+              </strong>
+
+            </div>
+
+          </div>
+
+
+          <div class="badge-row">
+
+            ${cardBadges(card)}
+
+          </div>
+
+
+          <div class="detail-fields">
+
+            <div>
+              <label>Sport</label>
+              <strong>
+                ${escapeHtml(card.sport || "—")}
+              </strong>
+            </div>
+
+            <div>
+              <label>Team</label>
+              <strong>
+                ${escapeHtml(card.team || "—")}
+              </strong>
+            </div>
+
+            <div>
+              <label>Card Number</label>
+              <strong>
+                ${escapeHtml(card.card_number || "—")}
+              </strong>
+            </div>
+
+            <div>
+              <label>Set</label>
+              <strong>
+                ${escapeHtml(getSetName(card) || "—")}
+              </strong>
+            </div>
+
+            <div>
+              <label>Parallel</label>
+              <strong>
+                ${escapeHtml(card.parallel || "—")}
+              </strong>
+            </div>
+
+            <div>
+              <label>Position</label>
+              <strong>
+                ${escapeHtml(card.position || "—")}
+              </strong>
+            </div>
+
+            <div>
+              <label>Weight Division</label>
+              <strong>
+                ${escapeHtml(card.weight_division || "—")}
+              </strong>
+            </div>
+
+            <div>
+              <label>Barcode</label>
+              <strong>
+                ${escapeHtml(card.barcode || "—")}
+              </strong>
+            </div>
+
+          </div>
+
+
+          <div class="detail-section">
+
+            <h3>Your Ownership</h3>
+
+            ${
+              selectedOwnership
+                ? `
+                  <div class="ownership-summary">
+
+                    <div>
+                      <span>Quantity</span>
+                      <strong>
+                        ${numberValue(
+                          selectedOwnership.quantity
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Status</span>
+                      <strong>
+                        ${escapeHtml(
+                          selectedOwnership.possession ||
+                          "Collection"
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Grade</span>
+                      <strong>
+                        ${escapeHtml(
+                          selectedOwnership.grade ||
+                          "Ungraded"
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Value</span>
+                      <strong>
+                        ${money(
+                          selectedOwnership.value
+                        )}
+                      </strong>
+                    </div>
+
+                  </div>
+                `
+                : `
+                  <div class="empty-inline">
+                    You do not currently own this card.
+                  </div>
+                `
+            }
+
+          </div>
+
+
+          <div class="detail-section">
+
+            <h3>Community Ownership</h3>
+
+            ${
+              owners.length
+                ? `
+                  <div class="owner-list">
+
+                    ${
+                      owners
+                        .filter(
+                          owner =>
+                            numberValue(
+                              owner.quantity
+                            ) > 0
+                        )
+                        .map(owner => {
+
+                          const profile =
+                            getProfile(
+                              owner.user_id
+                            );
+
+                          const name =
+                            profile?.display_name ||
+                            profile?.username ||
+                            "User";
+
+                          return `
+                            <div class="owner-row">
+
+                              <div class="owner-avatar">
+                                ${initials(name)}
+                              </div>
+
+                              <div class="owner-name">
+                                ${escapeHtml(name)}
+                              </div>
+
+                              <div class="owner-quantity">
+                                Qty:
+                                ${numberValue(
+                                  owner.quantity
+                                )}
+                              </div>
+
+                              <div class="owner-status">
+                                ${escapeHtml(
+                                  owner.possession ||
+                                  "Collection"
+                                )}
+                              </div>
+
+                            </div>
+                          `;
+
+                        })
+                        .join("")
+                    }
+
+                  </div>
+                `
+                : `
+                  <div class="empty-inline">
+                    Nobody has added this card yet.
+                  </div>
+                `
+            }
+
+          </div>
+
+
+          <div class="detail-section">
+
+            <h3>Pricing</h3>
+
+            ${
+              price
+                ? `
+                  <div class="price-box">
+
+                    <div>
+                      <span>Estimated Value</span>
+                      <strong>
+                        ${money(
+                          price.estimated_value
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Confidence</span>
+                      <strong>
+                        ${escapeHtml(
+                          price.confidence ||
+                          "Unknown"
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Source</span>
+                      <strong>
+                        ${escapeHtml(
+                          price.source ||
+                          "Unknown"
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Updated</span>
+                      <strong>
+                        ${formatDateTime(
+                          price.fetched_at
+                        )}
+                      </strong>
+                    </div>
+
+                  </div>
+
+                  ${
+                    price.price_note
+                      ? `
+                        <p class="price-note">
+                          ${escapeHtml(
+                            price.price_note
+                          )}
+                        </p>
+                      `
+                      : ""
+                  }
+
+                `
+                : `
+                  <div class="empty-inline">
+                    No pricing data has been added yet.
+                  </div>
+                `
+            }
+
+          </div>
+
+
+          <div class="detail-actions">
+
+            ${
+              selectedOwnership
+                ? `
+                  <button
+                    class="btn btn-primary"
+                    onclick="openEditOwnership('${escapeHtml(card.card_id)}')"
+                  >
+                    Edit My Card
+                  </button>
+                `
+                : `
+                  <button
+                    class="btn btn-primary"
+                    onclick="openAddOwnership('${escapeHtml(card.card_id)}')"
+                  >
+                    Add To My Collection
+                  </button>
+                `
+            }
+
+            <button
+              class="btn btn-secondary"
+              onclick="openEditCard('${escapeHtml(card.card_id)}')"
+            >
+              Edit Catalog Card
+            </button>
+
+            <button
+              class="btn btn-secondary"
+              onclick="refreshCardPrice('${escapeHtml(card.card_id)}')"
+            >
+              Refresh Price
+            </button>
+
+          </div>
+
+
+          ${
+            card.barcode
+              ? `
+                <div class="barcode-section">
+
+                  <h3>Barcode</h3>
+
+                  <svg
+                    id="detailBarcode"
+                  ></svg>
+
+                </div>
+              `
+              : ""
+          }
+
+        </div>
+
+      </div>
+    `;
+
+    openModal("cardDetailModal");
+
+    if (card.barcode) {
+
+      setTimeout(() => {
+
+        try {
+
+          JsBarcode(
+            "#detailBarcode",
+            card.barcode,
+            {
+              format: "CODE128",
+              displayValue: true,
+              width: 2,
+              height: 60
+            }
+          );
+
+        } catch (error) {
+
+          console.warn(
+            "Barcode generation failed",
+            error
+          );
+
+        }
+
+      }, 50);
+    }
+  }
+
+
+  // ============================================================
+  // SEARCH
+  // ============================================================
+
+  function performGlobalSearch(value) {
+
+    const search =
+      clean(value).toLowerCase();
+
+    if (!search) {
+      return;
+    }
+
+    const matches =
+      allCards.filter(card => {
+
+        const setName =
+          getSetName(card);
+
+        const text = [
+          card.name,
+          card.sport,
+          card.team,
+          card.card_number,
+          card.card_brand,
+          card.card_series,
+          card.parallel,
+          card.year_made,
+          setName,
+          card.barcode
+        ]
+          .map(clean)
+          .join(" ")
+          .toLowerCase();
+
+        return text.includes(search);
+      });
+
+    showScreen("catalog");
+
+    const catalogSearch =
+      document.getElementById(
+        "catalogSearch"
+      );
+
+    if (catalogSearch) {
+      catalogSearch.value =
+        value;
+    }
+
+    renderCatalog();
+
+    if (!matches.length) {
+
+      showToast(
+        "No matching cards found.",
+        "info"
+      );
+
+    } else {
+
+      showToast(
+        `${matches.length} card${matches.length === 1 ? "" : "s"} found.`,
+        "success"
+      );
+    }
+  }
+
+
+  // ============================================================
+  // EVENTS
+  // ============================================================
+
+  function setupEvents() {
+
+    // Navigation
+
+    document
+      .querySelectorAll("[data-screen]")
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            showScreen(
+              button.dataset.screen
+            );
+
+          }
+        );
+
+      });
+
+
+    // Theme
+
+    const themeToggle =
+      document.getElementById(
+        "themeToggle"
+      );
+
+    if (themeToggle) {
+
+      themeToggle.addEventListener(
+        "click",
+        toggleTheme
+      );
+    }
+
+
+    // Login
+
+    const loginForm =
+      document.getElementById(
+        "loginForm"
+      );
+
+    if (loginForm) {
+
+      loginForm.addEventListener(
+        "submit",
+        handleLogin
+      );
+    }
+
+
+    // Signup
+
+    const signupForm =
+      document.getElementById(
+        "signupForm"
+      );
+
+    if (signupForm) {
+
+      signupForm.addEventListener(
+        "submit",
+        handleSignup
+      );
+    }
+
+
+    // Logout
+
+    document
+      .querySelectorAll("[data-action='logout']")
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          logout
+        );
+
+      });
+
+
+    // Login/signup tabs
+
+    const loginTab =
+      document.getElementById(
+        "loginTabButton"
+      );
+
+    if (loginTab) {
+
+      loginTab.addEventListener(
+        "click",
+        () => showAuthMode("login")
+      );
+    }
+
+
+    const signupTab =
+      document.getElementById(
+        "signupTabButton"
+      );
+
+    if (signupTab) {
+
+      signupTab.addEventListener(
+        "click",
+        () => showAuthMode("signup")
+      );
+    }
+
+
+    // Global search
+
+    const globalSearch =
+      document.getElementById(
+        "globalSearch"
+      );
+
+    if (globalSearch) {
+
+      globalSearch.addEventListener(
+        "keydown",
+        event => {
+
+          if (
+            event.key === "Enter"
+          ) {
+
+            performGlobalSearch(
+              globalSearch.value
+            );
+
+          }
+
+        }
+      );
+    }
+
+
+    // Catalog search
+
+    const catalogSearch =
+      document.getElementById(
+        "catalogSearch"
+      );
+
+    if (catalogSearch) {
+
+      catalogSearch.addEventListener(
+        "input",
+        () => {
+
+          clearTimeout(
+            catalogSearchTimer
+          );
+
+          catalogSearchTimer =
+            setTimeout(
+              renderCatalog,
+              150
+            );
+
+        }
+      );
+    }
+
+
+    // Collection search
+
+    const collectionSearch =
+      document.getElementById(
+        "collectionSearch"
+      );
+
+    if (collectionSearch) {
+
+      collectionSearch.addEventListener(
+        "input",
+        () => {
+
+          clearTimeout(
+            collectionSearchTimer
+          );
+
+          collectionSearchTimer =
+            setTimeout(
+              renderCollection,
+              150
+            );
+
+        }
+      );
+    }
+
+
+    // Filter changes
+
+    [
+      "catalogSport",
+      "catalogYear",
+      "catalogSet"
+    ]
+      .forEach(id => {
+
+        const element =
+          document.getElementById(id);
+
+        if (element) {
+
+          element.addEventListener(
+            "change",
+            renderCatalog
+          );
+
+        }
+
+      });
+
+
+    [
+      "collectionSport",
+      "collectionPossession",
+      "collectionGrade"
+    ]
+      .forEach(id => {
+
+        const element =
+          document.getElementById(id);
+
+        if (element) {
+
+          element.addEventListener(
+            "change",
+            renderCollection
+          );
+
+        }
+
+      });
+
+
+    // Close buttons
+
+    document
+      .querySelectorAll("[data-close-modal]")
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            closeModal(
+              button.dataset.closeModal
+            );
+
+          }
+        );
+
+      });
+
+
+    // Account
+
+    const accountButton =
+      document.getElementById(
+        "accountButton"
+      );
+
+    if (accountButton) {
+
+      accountButton.addEventListener(
+        "click",
+        openAccountModal
+      );
+
+    }
+
+
+    // Add card buttons
+
+    document
+      .querySelectorAll(
+        "[data-action='add-card']"
+      )
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          openAddCard
+        );
+
+      });
+
+
+    // Escape key
+
+    document.addEventListener(
+      "keydown",
+      event => {
+
+        if (
+          event.key === "Escape"
+        ) {
+          closeAllModals();
+        }
+
+      }
+    );
+
+  }
+
+
+  // ============================================================
+  // ACCOUNT
+  // ============================================================
+
+  function openAccountModal() {
+
+    updateUserInterface();
+
+    openModal(
+      "accountModal"
+    );
+  }
+
+
+  // ============================================================
+  // ADD OWNERSHIP
+  // ============================================================
+
+  function openAddOwnership(cardId) {
+
+    const card =
+      getCard(cardId);
+
+    if (!card) {
+      return;
+    }
+
+    selectedCard =
+      card;
+
+    selectedOwnership =
+      null;
+
+    populateOwnershipForm(
+      null,
+      card
+    );
+
+    closeModal(
+      "cardDetailModal"
+    );
+
+    openModal(
+      "ownershipModal"
+    );
+  }
+
+
+  function openEditOwnership(cardId) {
+
+    const card =
+      getCard(cardId);
+
+    const ownership =
+      getOwnership(cardId);
+
+    if (!card || !ownership) {
+      return;
+    }
+
+    selectedCard =
+      card;
+
+    selectedOwnership =
+      ownership;
+
+    populateOwnershipForm(
+      ownership,
+      card
+    );
+
+    closeModal(
+      "cardDetailModal"
+    );
+
+    openModal(
+      "ownershipModal"
+    );
+  }
+
+
+  function populateOwnershipForm(
+    ownership,
+    card
+  ) {
+
+    const title =
+      document.getElementById(
+        "ownershipModalTitle"
+      );
+
+    if (title) {
+
+      title.textContent =
+        ownership
+          ? "Edit My Card"
+          : "Add To My Collection";
+    }
+
+
+    const cardName =
+      document.getElementById(
+        "ownershipCardName"
+      );
+
+    if (cardName) {
+      cardName.textContent =
+        card?.name || "";
+    }
+
+
+    const quantity =
+      document.getElementById(
+        "ownershipQuantity"
+      );
+
+    if (quantity) {
+      quantity.value =
+        ownership?.quantity ?? 1;
+    }
+
+
+    const possession =
+      document.getElementById(
+        "ownershipPossession"
+      );
+
+    if (possession) {
+      possession.value =
+        ownership?.possession ||
+        "Collection";
+    }
+
+
+    const value =
+      document.getElementById(
+        "ownershipValue"
+      );
+
+    if (value) {
+      value.value =
+        ownership?.value ??
+        getDisplayValue(card);
+    }
+
+
+    const grade =
+      document.getElementById(
+        "ownershipGrade"
+      );
+
+    if (grade) {
+      grade.value =
+        ownership?.grade || "";
+    }
+
+
+    const gradingCompany =
+      document.getElementById(
+        "ownershipGradingCompany"
+      );
+
+    if (gradingCompany) {
+      gradingCompany.value =
+        ownership?.grading_company || "";
+    }
+
+
+    const salePrice =
+      document.getElementById(
+        "ownershipForSalePrice"
+      );
+
+    if (salePrice) {
+      salePrice.value =
+        ownership?.for_sale_price ?? "";
+    }
+
+
+    const purchasePrice =
+      document.getElementById(
+        "ownershipPurchasePrice"
+      );
+
+    if (purchasePrice) {
+      purchasePrice.value =
+        ownership?.purchase_price ?? "";
+    }
+
+
+    const purchaseDate =
+      document.getElementById(
+        "ownershipPurchaseDate"
+      );
+
+    if (purchaseDate) {
+      purchaseDate.value =
+        ownership?.purchase_date
+          ? String(
+              ownership.purchase_date
+            ).substring(0, 10)
+          : "";
+    }
+
+
+    const purchaseSeller =
+      document.getElementById(
+        "ownershipPurchaseSeller"
+      );
+
+    if (purchaseSeller) {
+      purchaseSeller.value =
+        ownership?.purchase_seller || "";
+    }
+
+
+    const notes =
+      document.getElementById(
+        "ownershipNotes"
+      );
+
+    if (notes) {
+      notes.value =
+        ownership?.notes || "";
+    }
+
+  }
+
+
+  // ============================================================
+  // STARTUP
+  // ============================================================
+
+  async function startup() {
+
+    initializeTheme();
+
+    setupEvents();
+
+    showAuthMode("login");
+
+    if (
+      SUPABASE_ANON_KEY.includes(
+        "PASTE_YOUR_SUPABASE"
+      )
+    ) {
+
+      console.warn(
+        "Supabase anon key has not been added yet."
+      );
+
+      setTimeout(() => {
+
+        showToast(
+          "Add your Supabase anon/public key to connect the app.",
+          "info"
+        );
+
+      }, 800);
+    }
+
+
+    const {
+      data
+    } =
+      await supabaseClient.auth.getSession();
+
+    currentUser =
+      data?.session?.user || null;
+
+    if (currentUser) {
+
+      await initializeApp();
+
+    } else {
+
+      showAuthScreen();
+
+    }
+
+
+    supabaseClient.auth.onAuthStateChange(
+      async (
+        event,
+        session
+      ) => {
+
+        currentUser =
+          session?.user || null;
+
+        if (
+          currentUser
+        ) {
+
+          await initializeApp();
+
+        } else {
+
+          showAuthScreen();
+
+        }
+
+      }
+    );
+
+  }
+
+
+  // ============================================================
+  // PART 2 ENDS HERE
+  
+
+  // ============================================================
+  // COMPATIBILITY HELPERS
+  // Keep the existing HTML buttons connected to the current app logic.
+  // ============================================================
+
+  function openAddCardModal() {
+    return openAddCard();
+  }
+
+  function saveNewCard(event) {
+    return saveCardFromForm(event);
+  }
+
+  async function refreshData() {
+    await loadDatabase();
+    showScreen(activeScreen || "home");
+  }
+
+  function handleLogout() {
+    return logout();
+  }
+
+  function saveAccount(event) {
+    return saveAccountProfile(event);
+  }
+
+  function closeModalOnBackdrop(event, id) {
+    if (event && event.target && event.target.id === id) {
+      closeModal(id);
+    }
+  }
+
+  function globalSearch(value) {
+    return performGlobalSearch(value);
+  }
+
+  function homeSearch() {
+    const input = document.getElementById("homeSearchInput");
+    const container = document.getElementById("homeSearchResults");
+    const search = clean(input?.value).toLowerCase();
+
+    if (!container) return;
+
+    if (!search) {
+      container.innerHTML = "";
+      return;
+    }
+
+    const matches = allCards
+      .filter(card => {
+        const text = [
+          card.name, card.sport, card.team, card.card_number,
+          card.card_brand, card.card_series, card.parallel,
+          card.year_made, getSetName(card), card.barcode
+        ].map(clean).join(" ").toLowerCase();
+        return text.includes(search);
+      })
+      .slice(0, 20);
+
+    container.innerHTML = matches.length
+      ? matches.map(card => cardTile(card)).join("")
+      : '<div class="empty-state">No matching cards found.</div>';
+  }
+// PART 3 GOES DIRECTLY BELOW THIS COMMENT.
+  // ============================================================
+
+// ============================================================
+// PART 3 STARTS HERE
+// CARD CREATION / EDITING / OWNERSHIP / PHOTOS / ACCOUNT
+// ============================================================
+
+// ============================================================
+// PART 3 STATE
+// ============================================================
+
+let editingCardId = null;
+let savingCard = false;
+
+const PRICE_FUNCTION_NAME = "refresh-card-price";
+const IDENTIFY_FUNCTION_NAME = "identify-card";
+
+
+// ============================================================
+// GENERAL FORM HELPERS
+// ============================================================
+
+function findField(...names) {
+  for (const name of names) {
+    if (!name) continue;
+
+    const byId = document.getElementById(name);
+    if (byId) return byId;
+
+    const byName = document.querySelector(
+      `[name="${CSS.escape(name)}"]`
+    );
+    if (byName) return byName;
+
+    const byData = document.querySelector(
+      `[data-field="${CSS.escape(name)}"]`
+    );
+    if (byData) return byData;
+  }
+
+  return null;
+}
+
+
+function getFieldValue(...names) {
+  const field = findField(...names);
+
+  if (!field) return "";
+
+  if (
+    field.type === "checkbox" ||
+    field.type === "radio"
+  ) {
+    return field.checked ? field.value || true : "";
+  }
+
+  return field.value ?? "";
+}
+
+
+function getFieldChecked(...names) {
+  const field = findField(...names);
+
+  if (!field) return false;
+
+  return !!field.checked;
+}
+
+
+function setFieldValue(value, ...names) {
+  const field = findField(...names);
+
+  if (!field) return;
+
+  if (
+    field.type === "checkbox" ||
+    field.type === "radio"
+  ) {
+    field.checked = !!value;
+    return;
+  }
+
+  field.value =
+    value === null ||
+    value === undefined
+      ? ""
+      : value;
+}
+
+
+function setFieldChecked(value, ...names) {
+  const field = findField(...names);
+
+  if (!field) return;
+
+  field.checked = !!value;
+}
+
+
+function getFileField(...names) {
+  const field = findField(...names);
+
+  if (!field || field.type !== "file") {
+    return null;
+  }
+
+  return field.files && field.files.length
+    ? field.files[0]
+    : null;
+}
+
+
+function clearFileField(...names) {
+  const field = findField(...names);
+
+  if (!field || field.type !== "file") {
+    return;
+  }
+
+  field.value = "";
+}
+
+
+function setTextIfExists(text, ...names) {
+  const element = findField(...names);
+
+  if (!element) return;
+
+  element.textContent = text ?? "";
+}
+
+
+function showElement(...names) {
+  const element = findField(...names);
+
+  if (element) {
+    element.style.display = "";
+  }
+}
+
+
+function hideElement(...names) {
+  const element = findField(...names);
+
+  if (element) {
+    element.style.display = "none";
+  }
+}
+
+
+// ============================================================
+// MODAL HELPERS
+// ============================================================
+
+function closeModalById(id) {
+  const modal = document.getElementById(id);
+
+  if (!modal) return;
+
+  modal.classList.remove("open");
+  modal.classList.remove("show");
+  modal.classList.add("hidden");
+
+  if (
+    modal.style.display === "flex" ||
+    modal.style.display === "block"
+  ) {
+    modal.style.display = "none";
+  }
+}
+
+
+function openModalSafe(id) {
+  const modal = document.getElementById(id);
+
+  if (!modal) return;
+
+  if (typeof openModal === "function") {
+    openModal(id);
+    return;
+  }
+
+  modal.classList.remove("hidden");
+  modal.classList.add("open");
+  modal.classList.add("show");
+  modal.style.display = "flex";
+}
+
+
+function closeAddCardModal() {
+  closeModalById("addCardModal");
+}
+
+
+function closeOwnershipModal() {
+  closeModalById("ownershipModal");
+}
+
+
+// ============================================================
+// FORM RESET
+// ============================================================
+
+function resetAddCardForm() {
+  const form =
+    document.getElementById("addCardForm") ||
+    document.querySelector("#addCardModal form");
+
+  if (form) {
+    form.reset();
+  }
+
+  const ids = [
+    "cardName",
+    "cardSport",
+    "cardTeam",
+    "cardYear",
+    "cardNumber",
+    "cardSeries",
+    "cardBrand",
+    "cardSetName",
+    "cardParallel",
+    "cardGrade",
+    "cardQuantity",
+    "cardPossession",
+    "cardValue",
+    "cardForSalePrice",
+    "cardPurchasePrice",
+    "cardPurchaseDate",
+    "cardPurchaseSeller",
+    "cardSoldPrice",
+    "cardSoldDate",
+    "cardTradedWith",
+    "cardTradeDate",
+    "cardBarcode",
+    "cardPosition",
+    "cardWeightDivision",
+    "cardSerialNumbering",
+    "cardPrintRun",
+    "cardNotes",
+    "addCardName",
+    "addCardSport",
+    "addCardTeam",
+    "addCardYear",
+    "addCardNumber",
+    "addCardSeries",
+    "addCardBrand",
+    "addCardSetName",
+    "addCardParallel",
+    "addCardGrade",
+    "addCardQuantity",
+    "addCardPossession",
+    "addCardValue",
+    "addCardForSalePrice",
+    "addCardPurchasePrice",
+    "addCardPurchaseDate",
+    "addCardPurchaseSeller",
+    "addCardSoldPrice",
+    "addCardSoldDate",
+    "addCardTradedWith",
+    "addCardTradeDate",
+    "addCardBarcode",
+    "addCardPosition",
+    "addCardWeightDivision",
+    "addCardSerialNumbering",
+    "addCardPrintRun",
+    "addCardNotes"
+  ];
+
+  ids.forEach(id => {
+    const element = document.getElementById(id);
+
+    if (!element) return;
+
+    if (
+      element.type === "checkbox" ||
+      element.type === "radio"
+    ) {
+      element.checked = false;
+    } else if (element.type !== "file") {
+      element.value = "";
+    }
+  });
+
+  [
+    "cardNumbered",
+    "cardRookie",
+    "cardPatch",
+    "cardAutographed",
+    "addCardNumbered",
+    "addCardRookie",
+    "addCardPatch",
+    "addCardAutographed"
+  ].forEach(id => {
+    const element = document.getElementById(id);
+
+    if (element) {
+      element.checked = false;
+    }
+  });
+
+  clearFileField(
+    "cardCatalogFront",
+    "addCardCatalogFront",
+    "catalogFrontImage",
+    "cardFrontImage"
+  );
+
+  clearFileField(
+    "cardCatalogBack",
+    "addCardCatalogBack",
+    "catalogBackImage",
+    "cardBackImage"
+  );
+
+  clearFileField(
+    "cardOwnedFront",
+    "addCardOwnedFront",
+    "ownedFrontImage",
+    "ownedCardFront"
+  );
+
+  clearFileField(
+    "cardOwnedBack",
+    "addCardOwnedBack",
+    "ownedBackImage",
+    "ownedCardBack"
+  );
+}
+
+
+// ============================================================
+// OPEN ADD CARD
+// ============================================================
+
+function openAddCard() {
+  editingCardId = null;
+
+  resetAddCardForm();
+
+  setTextIfExists(
+    "Add Card",
+    "addCardModalTitle",
+    "addCardTitle",
+    "modalAddCardTitle"
+  );
+
+  const saveButton = findField(
+    "saveCardButton",
+    "addCardSaveButton",
+    "saveAddCardButton"
+  );
+
+  if (saveButton) {
+    saveButton.textContent = "Add Card";
+  }
+
+  const modal = document.getElementById("addCardModal");
+
+  if (modal) {
+    modal.dataset.mode = "add";
+  }
+
+  openModalSafe("addCardModal");
+}
+
+
+// ============================================================
+// POPULATE ADD CARD FORM
+// ============================================================
+
+async function populateAddCardForm(card, ownership = null) {
+  if (!card) return;
+
+  setFieldValue(
+    card.name,
+    "cardName",
+    "addCardName"
+  );
+
+  setFieldValue(
+    card.sport,
+    "cardSport",
+    "addCardSport"
+  );
+
+  setFieldValue(
+    card.team,
+    "cardTeam",
+    "addCardTeam"
+  );
+
+  setFieldValue(
+    card.year_made,
+    "cardYear",
+    "addCardYear"
+  );
+
+  setFieldValue(
+    card.card_number,
+    "cardNumber",
+    "addCardNumber"
+  );
+
+  setFieldValue(
+    card.card_series,
+    "cardSeries",
+    "addCardSeries"
+  );
+
+  setFieldValue(
+    card.card_brand,
+    "cardBrand",
+    "addCardBrand"
+  );
+
+  const setName =
+    await getSetName(card.card_set_id);
+
+  setFieldValue(
+    setName,
+    "cardSetName",
+    "addCardSetName"
+  );
+
+  setFieldValue(
+    card.parallel,
+    "cardParallel",
+    "addCardParallel"
+  );
+
+  setFieldValue(
+    card.position,
+    "cardPosition",
+    "addCardPosition"
+  );
+
+  setFieldValue(
+    card.weight_division,
+    "cardWeightDivision",
+    "addCardWeightDivision"
+  );
+
+  setFieldValue(
+    card.serial_numbering,
+    "cardSerialNumbering",
+    "addCardSerialNumbering"
+  );
+
+  setFieldValue(
+    card.print_run,
+    "cardPrintRun",
+    "addCardPrintRun"
+  );
+
+  setFieldValue(
+    card.barcode,
+    "cardBarcode",
+    "addCardBarcode"
+  );
+
+  setFieldValue(
+    card.description,
+    "cardNotes",
+    "addCardNotes"
+  );
+
+  setFieldChecked(
+    card.numbered,
+    "cardNumbered",
+    "addCardNumbered"
+  );
+
+  setFieldChecked(
+    card.rookie,
+    "cardRookie",
+    "addCardRookie"
+  );
+
+  setFieldChecked(
+    card.patch || card.relic,
+    "cardPatch",
+    "addCardPatch"
+  );
+
+  setFieldChecked(
+    card.autographed,
+    "cardAutographed",
+    "addCardAutographed"
+  );
+
+  if (ownership) {
+    setFieldValue(
+      ownership.quantity,
+      "cardQuantity",
+      "addCardQuantity"
+    );
+
+    setFieldValue(
+      ownership.possession,
+      "cardPossession",
+      "addCardPossession"
+    );
+
+    setFieldValue(
+      ownership.value,
+      "cardValue",
+      "addCardValue"
+    );
+
+    setFieldValue(
+      ownership.grade,
+      "cardGrade",
+      "addCardGrade"
+    );
+
+    setFieldValue(
+      ownership.for_sale_price,
+      "cardForSalePrice",
+      "addCardForSalePrice"
+    );
+
+    setFieldValue(
+      ownership.purchase_price,
+      "cardPurchasePrice",
+      "addCardPurchasePrice"
+    );
+
+    setFieldValue(
+      ownership.purchase_date,
+      "cardPurchaseDate",
+      "addCardPurchaseDate"
+    );
+
+    setFieldValue(
+      ownership.purchase_seller,
+      "cardPurchaseSeller",
+      "addCardPurchaseSeller"
+    );
+
+    setFieldValue(
+      ownership.sold_price,
+      "cardSoldPrice",
+      "addCardSoldPrice"
+    );
+
+    setFieldValue(
+      ownership.sold_date,
+      "cardSoldDate",
+      "addCardSoldDate"
+    );
+
+    setFieldValue(
+      ownership.traded_with,
+      "cardTradedWith",
+      "addCardTradedWith"
+    );
+
+    setFieldValue(
+      ownership.trade_date,
+      "cardTradeDate",
+      "addCardTradeDate"
+    );
+  } else {
+    setFieldValue(
+      0,
+      "cardQuantity",
+      "addCardQuantity"
+    );
+
+    setFieldValue(
+      "Collection",
+      "cardPossession",
+      "addCardPossession"
+    );
+  }
+}
+
+
+// ============================================================
+// EDIT CARD
+// ============================================================
+
+async function openEditCard(cardId) {
+  const card =
+    typeof cardId === "object"
+      ? cardId
+      : getCard(cardId);
+
+  if (!card) {
+    showToast(
+      "Card could not be found.",
+      "error"
+    );
+    return;
+  }
+
+  editingCardId = card.card_id;
+
+  resetAddCardForm();
+
+  const ownership =
+    await getOwnership(
+      currentUser?.id,
+      card.card_id
+    );
+
+  await populateAddCardForm(
+    card,
+    ownership
+  );
+
+  setTextIfExists(
+    "Edit Card",
+    "addCardModalTitle",
+    "addCardTitle",
+    "modalAddCardTitle"
+  );
+
+  const saveButton = findField(
+    "saveCardButton",
+    "addCardSaveButton",
+    "saveAddCardButton"
+  );
+
+  if (saveButton) {
+    saveButton.textContent = "Save Changes";
+  }
+
+  const modal =
+    document.getElementById("addCardModal");
+
+  if (modal) {
+    modal.dataset.mode = "edit";
+  }
+
+  closeModalById("cardDetailModal");
+
+  openModalSafe("addCardModal");
+}
+
+
+// ============================================================
+// SET HELPERS
+// ============================================================
+
+async function findOrCreateSet({
+  name,
+  year,
+  sport,
+  brand,
+  series
+}) {
+  const cleanName = clean(name);
+
+  if (!cleanName) {
+    return null;
+  }
+
+  const normalizedYear =
+    year === "" ||
+    year === null ||
+    year === undefined
+      ? null
+      : Number(year);
+
+  const identityKey = makeIdentityKey([
+    cleanName,
+    normalizedYear || "",
+    sport || "",
+    brand || "",
+    series || ""
+  ]);
+
+  let query =
+    await supabaseClient
+      .from("card_sets")
+      .select("*")
+      .eq("identity_key", identityKey)
+      .limit(1);
+
+  if (
+    !query.error &&
+    query.data &&
+    query.data.length
+  ) {
+    return query.data[0];
+  }
+
+  const insertData = {
+    name: cleanName,
+    year: normalizedYear,
+    sport: clean(sport) || null,
+    brand: clean(brand) || null,
+    series: clean(series) || null,
+    identity_key: identityKey,
+    created_by:
+      currentUser?.id || null,
+    verified: false,
+    source: "User Added"
+  };
+
+  const inserted =
+    await supabaseClient
+      .from("card_sets")
+      .insert(insertData)
+      .select("*")
+      .single();
+
+  if (!inserted.error) {
+    allSets.push(inserted.data);
+    return inserted.data;
+  }
+
+  // A duplicate may have been created between
+  // the first lookup and insert. Try one more lookup.
+  const retry =
+    await supabaseClient
+      .from("card_sets")
+      .select("*")
+      .eq("identity_key", identityKey)
+      .limit(1);
+
+  if (
+    !retry.error &&
+    retry.data &&
+    retry.data.length
+  ) {
+    return retry.data[0];
+  }
+
+  console.error(
+    "Could not create card set:",
+    inserted.error
+  );
+
+  throw inserted.error;
+}
+
+
+// ============================================================
+// IMAGE UPLOAD
+// ============================================================
+
+async function uploadCardImage(
+  file,
+  bucket,
+  folder
+) {
+  if (!file || !currentUser) {
+    return null;
+  }
+
+  const safeName =
+    slugify(
+      file.name
+        .replace(/\.[^/.]+$/, "")
+    ) ||
+    "card-image";
+
+  const extension =
+    file.name.includes(".")
+      ? "." +
+        file.name
+          .split(".")
+          .pop()
+          .toLowerCase()
+      : "";
+
+  const path =
+    `${currentUser.id}/${folder}/${Date.now()}-${safeName}${extension}`;
+
+  const result =
+    await supabaseClient
+      .storage
+      .from(bucket)
+      .upload(
+        path,
+        file,
+        {
+          cacheControl: "3600",
+          upsert: false
+        }
+      );
+
+  if (result.error) {
+    console.error(
+      "Image upload failed:",
+      result.error
+    );
+
+    throw result.error;
+  }
+
+  return path;
+}
+
+
+// ============================================================
+// BUILD CARD DATA
+// ============================================================
+
+function buildCardData() {
+  const name = clean(
+    getFieldValue(
+      "cardName",
+      "addCardName"
+    )
+  );
+
+  const sport = clean(
+    getFieldValue(
+      "cardSport",
+      "addCardSport"
+    )
+  );
+
+  const team = clean(
+    getFieldValue(
+      "cardTeam",
+      "addCardTeam"
+    )
+  );
+
+  const yearRaw =
+    getFieldValue(
+      "cardYear",
+      "addCardYear"
+    );
+
+  const year =
+    yearRaw === ""
+      ? null
+      : Number(yearRaw);
+
+  const cardNumber = clean(
+    getFieldValue(
+      "cardNumber",
+      "addCardNumber"
+    )
+  );
+
+  const series = clean(
+    getFieldValue(
+      "cardSeries",
+      "addCardSeries"
+    )
+  );
+
+  const brand = clean(
+    getFieldValue(
+      "cardBrand",
+      "addCardBrand"
+    )
+  );
+
+  const setName = clean(
+    getFieldValue(
+      "cardSetName",
+      "addCardSetName"
+    )
+  );
+
+  const parallel = clean(
+    getFieldValue(
+      "cardParallel",
+      "addCardParallel"
+    )
+  );
+
+  const position = clean(
+    getFieldValue(
+      "cardPosition",
+      "addCardPosition"
+    )
+  );
+
+  const weightDivision = clean(
+    getFieldValue(
+      "cardWeightDivision",
+      "addCardWeightDivision"
+    )
+  );
+
+  const serialNumbering = clean(
+    getFieldValue(
+      "cardSerialNumbering",
+      "addCardSerialNumbering"
+    )
+  );
+
+  const printRunRaw =
+    getFieldValue(
+      "cardPrintRun",
+      "addCardPrintRun"
+    );
+
+  const printRun =
+    printRunRaw === ""
+      ? null
+      : Number(printRunRaw);
+
+  const barcode = clean(
+    getFieldValue(
+      "cardBarcode",
+      "addCardBarcode"
+    )
+  );
+
+  const notes = clean(
+    getFieldValue(
+      "cardNotes",
+      "addCardNotes"
+    )
+  );
+
+  const numbered =
+    getFieldChecked(
+      "cardNumbered",
+      "addCardNumbered"
+    );
+
+  const rookie =
+    getFieldChecked(
+      "cardRookie",
+      "addCardRookie"
+    );
+
+  const patch =
+    getFieldChecked(
+      "cardPatch",
+      "addCardPatch"
+    );
+
+  const autographed =
+    getFieldChecked(
+      "cardAutographed",
+      "addCardAutographed"
+    );
+
+  const identityKey =
+    makeIdentityKey([
+      name,
+      sport,
+      team,
+      year || "",
+      cardNumber,
+      series,
+      brand,
+      setName,
+      parallel
+    ]);
+
+  return {
+    name,
+    sport,
+    team,
+    year,
+    cardNumber,
+    series,
+    brand,
+    setName,
+    parallel,
+    position,
+    weightDivision,
+    serialNumbering,
+    printRun,
+    barcode,
+    notes,
+    numbered,
+    rookie,
+    patch,
+    autographed,
+    identityKey
+  };
+}
+
+
+// ============================================================
+// BUILD OWNERSHIP DATA
+// ============================================================
+
+function buildOwnershipData() {
+  const quantityRaw =
+    getFieldValue(
+      "cardQuantity",
+      "addCardQuantity"
+    );
+
+  let quantity =
+    quantityRaw === ""
+      ? 0
+      : Number(quantityRaw);
+
+  if (!Number.isFinite(quantity)) {
+    quantity = 0;
+  }
+
+  quantity = Math.max(
+    0,
+    Math.floor(quantity)
+  );
+
+  const possession =
+    clean(
+      getFieldValue(
+        "cardPossession",
+        "addCardPossession"
+      )
+    ) ||
+    "Collection";
+
+  const valueRaw =
+    getFieldValue(
+      "cardValue",
+      "addCardValue"
+    );
+
+  const value =
+    valueRaw === ""
+      ? null
+      : numberValue(valueRaw);
+
+  const grade = clean(
+    getFieldValue(
+      "cardGrade",
+      "addCardGrade"
+    )
+  );
+
+  const forSalePriceRaw =
+    getFieldValue(
+      "cardForSalePrice",
+      "addCardForSalePrice"
+    );
+
+  const forSalePrice =
+    forSalePriceRaw === ""
+      ? null
+      : numberValue(
+          forSalePriceRaw
+        );
+
+  const purchasePriceRaw =
+    getFieldValue(
+      "cardPurchasePrice",
+      "addCardPurchasePrice"
+    );
+
+  const purchasePrice =
+    purchasePriceRaw === ""
+      ? null
+      : numberValue(
+          purchasePriceRaw
+        );
+
+  const purchaseDate =
+    getFieldValue(
+      "cardPurchaseDate",
+      "addCardPurchaseDate"
+    ) || null;
+
+  const purchaseSeller = clean(
+    getFieldValue(
+      "cardPurchaseSeller",
+      "addCardPurchaseSeller"
+    )
+  );
+
+  const soldPriceRaw =
+    getFieldValue(
+      "cardSoldPrice",
+      "addCardSoldPrice"
+    );
+
+  const soldPrice =
+    soldPriceRaw === ""
+      ? null
+      : numberValue(
+          soldPriceRaw
+        );
+
+  const soldDate =
+    getFieldValue(
+      "cardSoldDate",
+      "addCardSoldDate"
+    ) || null;
+
+  const tradedWith = clean(
+    getFieldValue(
+      "cardTradedWith",
+      "addCardTradedWith"
+    )
+  );
+
+  const tradeDate =
+    getFieldValue(
+      "cardTradeDate",
+      "addCardTradeDate"
+    ) || null;
+
+  return {
+    quantity,
+    possession,
+    value,
+    grade,
+    for_sale_price: forSalePrice,
+    purchase_price: purchasePrice,
+    purchase_date: purchaseDate,
+    purchase_seller: purchaseSeller || null,
+    sold_price: soldPrice,
+    sold_date: soldDate,
+    traded_with: tradedWith || null,
+    trade_date: tradeDate,
+    notes:
+      clean(
+        getFieldValue(
+          "cardNotes",
+          "addCardNotes"
+        )
+      ) || null
+  };
+}
+
+
+// ============================================================
+// SAVE / UPDATE OWNERSHIP
+// ============================================================
+
+async function saveOwnershipRecord(
+  cardId,
+  ownershipData,
+  frontPhotoPath = null,
+  backPhotoPath = null
+) {
+  if (!currentUser) {
+    throw new Error(
+      "You must be logged in."
+    );
+  }
+
+  const existing =
+    await supabaseClient
+      .from("card_ownership")
+      .select("*")
+      .eq(
+        "user_id",
+        currentUser.id
+      )
+      .eq(
+        "card_id",
+        cardId
+      )
+      .maybeSingle();
+
+  if (existing.error) {
+    throw existing.error;
+  }
+
+  const data = {
+    user_id: currentUser.id,
+    card_id: cardId,
+    quantity:
+      ownershipData.quantity,
+    possession:
+      ownershipData.possession,
+    value:
+      ownershipData.value,
+    grade:
+      ownershipData.grade || null,
+    for_sale_price:
+      ownershipData.for_sale_price,
+    purchase_price:
+      ownershipData.purchase_price,
+    purchase_date:
+      ownershipData.purchase_date,
+    purchase_seller:
+      ownershipData.purchase_seller,
+    sold_price:
+      ownershipData.sold_price,
+    sold_date:
+      ownershipData.sold_date,
+    traded_with:
+      ownershipData.traded_with,
+    trade_date:
+      ownershipData.trade_date,
+    notes:
+      ownershipData.notes
+  };
+
+  if (frontPhotoPath) {
+    data.front_photo_path =
+      frontPhotoPath;
+  }
+
+  if (backPhotoPath) {
+    data.back_photo_path =
+      backPhotoPath;
+  }
+
+  let result;
+
+  if (existing.data) {
+    result =
+      await supabaseClient
+        .from("card_ownership")
+        .update(data)
+        .eq(
+          "user_id",
+          currentUser.id
+        )
+        .eq(
+          "card_id",
+          cardId
+        )
+        .select("*")
+        .single();
+  } else {
+    result =
+      await supabaseClient
+        .from("card_ownership")
+        .insert(data)
+        .select("*")
+        .single();
+  }
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  const existingIndex =
+    allOwnership.findIndex(
+      item =>
+        item.user_id ===
+          currentUser.id &&
+        item.card_id === cardId
+    );
+
+  if (existingIndex >= 0) {
+    allOwnership[existingIndex] =
+      result.data;
+  } else {
+    allOwnership.push(
+      result.data
+    );
+  }
+
+  return result.data;
+}
+
+
+// ============================================================
+// SAVE CARD
+// ============================================================
+
+async function saveCardFromForm(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  if (savingCard) {
+    return;
+  }
+
+  if (!currentUser) {
+    showToast(
+      "Please log in first.",
+      "error"
+    );
+    return;
+  }
+
+  const cardData =
+    buildCardData();
+
+  const ownershipData =
+    buildOwnershipData();
+
+  if (!cardData.name) {
+    showToast(
+      "Please enter the card name.",
+      "error"
+    );
+    return;
+  }
+
+  if (!cardData.sport) {
+    showToast(
+      "Please select a sport.",
+      "error"
+    );
+    return;
+  }
+
+  savingCard = true;
+
+  const saveButton = findField(
+    "saveCardButton",
+    "addCardSaveButton",
+    "saveAddCardButton"
+  );
+
+  const originalButtonText =
+    saveButton
+      ? saveButton.textContent
+      : "";
+
+  if (saveButton) {
+    saveButton.disabled = true;
+    saveButton.textContent =
+      editingCardId
+        ? "Saving..."
+        : "Adding...";
+  }
+
+  try {
+    // --------------------------------------------------------
+    // SET
+    // --------------------------------------------------------
+
+    const cardSet =
+      await findOrCreateSet({
+        name:
+          cardData.setName,
+        year:
+          cardData.year,
+        sport:
+          cardData.sport,
+        brand:
+          cardData.brand,
+        series:
+          cardData.series
+      });
+
+    // --------------------------------------------------------
+    // IMAGE FILES
+    // --------------------------------------------------------
+
+    const catalogFrontFile =
+      getFileField(
+        "cardCatalogFront",
+        "addCardCatalogFront",
+        "catalogFrontImage",
+        "cardFrontImage"
+      );
+
+    const catalogBackFile =
+      getFileField(
+        "cardCatalogBack",
+        "addCardCatalogBack",
+        "catalogBackImage",
+        "cardBackImage"
+      );
+
+    const ownedFrontFile =
+      getFileField(
+        "cardOwnedFront",
+        "addCardOwnedFront",
+        "ownedFrontImage",
+        "ownedCardFront"
+      );
+
+    const ownedBackFile =
+      getFileField(
+        "cardOwnedBack",
+        "addCardOwnedBack",
+        "ownedBackImage",
+        "ownedCardBack"
+      );
+
+    let catalogFrontPath =
+      null;
+
+    let catalogBackPath =
+      null;
+
+    let ownedFrontPath =
+      null;
+
+    let ownedBackPath =
+      null;
+
+    if (catalogFrontFile) {
+      catalogFrontPath =
+        await uploadCardImage(
+          catalogFrontFile,
+          "catalog-images",
+          "front"
+        );
+    }
+
+    if (catalogBackFile) {
+      catalogBackPath =
+        await uploadCardImage(
+          catalogBackFile,
+          "catalog-images",
+          "back"
+        );
+    }
+
+    if (ownedFrontFile) {
+      ownedFrontPath =
+        await uploadCardImage(
+          ownedFrontFile,
+          "card-photos",
+          "front"
+        );
+    }
+
+    if (ownedBackFile) {
+      ownedBackPath =
+        await uploadCardImage(
+          ownedBackFile,
+          "card-photos",
+          "back"
+        );
+    }
+
+    // --------------------------------------------------------
+    // CARD RECORD
+    // --------------------------------------------------------
+
+    const cardRecord = {
+      name:
+        cardData.name,
+
+      card_number:
+        cardData.cardNumber || null,
+
+      card_set_id:
+        cardSet
+          ? cardSet.card_set_id
+          : null,
+
+      sport:
+        cardData.sport || null,
+
+      team:
+        cardData.team || null,
+
+      position:
+        cardData.position || null,
+
+      weight_division:
+        cardData.weightDivision || null,
+
+      year_made:
+        cardData.year,
+
+      card_series:
+        cardData.series || null,
+
+      card_brand:
+        cardData.brand || null,
+
+      parallel:
+        cardData.parallel || null,
+
+      numbered:
+        cardData.numbered,
+
+      print_run:
+        cardData.printRun,
+
+      serial_numbering:
+        cardData.serialNumbering || null,
+
+      rookie:
+        cardData.rookie,
+
+      patch:
+        cardData.patch,
+
+      autographed:
+        cardData.autographed,
+
+      barcode:
+        cardData.barcode || null,
+
+      description:
+        cardData.notes || null,
+
+      source:
+        "User Added",
+
+      verified:
+        false,
+
+      identity_key:
+        cardData.identityKey
+    };
+
+    if (catalogFrontPath) {
+      cardRecord.front_image_path =
+        catalogFrontPath;
+    }
+
+    if (catalogBackPath) {
+      cardRecord.back_image_path =
+        catalogBackPath;
+    }
+
+    let cardResult;
+
+    if (editingCardId) {
+      cardResult =
+        await supabaseClient
+          .from("cards")
+          .update(cardRecord)
+          .eq(
+            "card_id",
+            editingCardId
+          )
+          .select("*")
+          .single();
+    } else {
+      // Try to find an existing catalog card
+      // before creating another one.
+      const existingCard =
+        await supabaseClient
+          .from("cards")
+          .select("*")
+          .eq(
+            "identity_key",
+            cardData.identityKey
+          )
+          .limit(1);
+
+      if (
+        !existingCard.error &&
+        existingCard.data &&
+        existingCard.data.length
+      ) {
+        editingCardId =
+          existingCard.data[0].card_id;
+
+        const updateData = {
+          ...cardRecord
+        };
+
+        // Don't overwrite existing catalog
+        // photos when no new photo was uploaded.
+        if (!catalogFrontPath) {
+          delete updateData.front_image_path;
+        }
+
+        if (!catalogBackPath) {
+          delete updateData.back_image_path;
+        }
+
+        cardResult =
+          await supabaseClient
+            .from("cards")
+            .update(updateData)
+            .eq(
+              "card_id",
+              editingCardId
+            )
+            .select("*")
+            .single();
+      } else {
+        cardResult =
+          await supabaseClient
+            .from("cards")
+            .insert(cardRecord)
+            .select("*")
+            .single();
+      }
+    }
+
+    if (cardResult.error) {
+      throw cardResult.error;
+    }
+
+    const savedCard =
+      cardResult.data;
+
+    editingCardId =
+      savedCard.card_id;
+
+    // --------------------------------------------------------
+    // UPDATE LOCAL CARD LIST
+    // --------------------------------------------------------
+
+    const localIndex =
+      allCards.findIndex(
+        card =>
+          card.card_id ===
+          savedCard.card_id
+      );
+
+    if (localIndex >= 0) {
+      allCards[localIndex] =
+        savedCard;
+    } else {
+      allCards.push(
+        savedCard
+      );
+    }
+
+    // --------------------------------------------------------
+    // OWNERSHIP
+    // --------------------------------------------------------
+
+    const savedOwnership =
+      await saveOwnershipRecord(
+        savedCard.card_id,
+        ownershipData,
+        ownedFrontPath,
+        ownedBackPath
+      );
+
+    // --------------------------------------------------------
+    // XP
+    // --------------------------------------------------------
+
+    if (!editingCardId) {
+      await awardXP(25);
+    }
+
+    // --------------------------------------------------------
+    // REFRESH DATA
+    // --------------------------------------------------------
+
+    await loadDatabase();
+    updateUserInterface();
+
+    closeAddCardModal();
+
+    if (typeof renderAllScreens === "function") {
+      renderAllScreens();
+    }
+
+    showToast(
+      editingCardId
+        ? "Card saved successfully."
+        : "Card added successfully.",
+      "success"
+    );
+
+    // --------------------------------------------------------
+    // BARCODE
+    // --------------------------------------------------------
+
+    if (
+      savedCard.barcode &&
+      typeof generateBarcode === "function"
+    ) {
+      generateBarcode(
+        savedCard.barcode
+      );
+    }
+
+  } catch (error) {
+    console.error(
+      "Save card error:",
+      error
+    );
+
+    showToast(
+      error?.message ||
+        "Unable to save the card.",
+      "error"
+    );
+
+  } finally {
+    savingCard = false;
+
+    if (saveButton) {
+      saveButton.disabled = false;
+      saveButton.textContent =
+        originalButtonText ||
+        (
+          editingCardId
+            ? "Save Changes"
+            : "Add Card"
+        );
+    }
+  }
+}
+
+
+// ============================================================
+// OWNERSHIP EDIT MODAL
+// ============================================================
+
+async function openOwnershipEditor(
+  cardId
+) {
+  const card =
+    getCard(cardId);
+
+  if (!card) {
+    showToast(
+      "Card not found.",
+      "error"
+    );
+    return;
+  }
+
+  selectedCard = card;
+
+  const ownership =
+    await getOwnership(
+      currentUser?.id,
+      cardId
+    );
+
+  setTextIfExists(
+    card.name,
+    "ownershipCardName",
+    "ownershipModalCardName"
+  );
+
+  setTextIfExists(
+    card.name,
+    "ownershipModalTitle"
+  );
+
+  setFieldValue(
+    ownership?.quantity ?? 1,
+    "ownershipQuantity"
+  );
+
+  setFieldValue(
+    ownership?.possession ||
+      "Collection",
+    "ownershipPossession"
+  );
+
+  setFieldValue(
+    ownership?.value ?? "",
+    "ownershipValue"
+  );
+
+  setFieldValue(
+    ownership?.grade ?? "",
+    "ownershipGrade"
+  );
+
+  setFieldValue(
+    ownership?.grading_company ?? "",
+    "ownershipGradingCompany"
+  );
+
+  setFieldValue(
+    ownership?.for_sale_price ?? "",
+    "ownershipForSalePrice"
+  );
+
+  setFieldValue(
+    ownership?.purchase_price ?? "",
+    "ownershipPurchasePrice"
+  );
+
+  setFieldValue(
+    ownership?.purchase_date ?? "",
+    "ownershipPurchaseDate"
+  );
+
+  setFieldValue(
+    ownership?.purchase_seller ?? "",
+    "ownershipPurchaseSeller"
+  );
+
+  setFieldValue(
+    ownership?.sold_price ?? "",
+    "ownershipSoldPrice"
+  );
+
+  setFieldValue(
+    ownership?.sold_date ?? "",
+    "ownershipSoldDate"
+  );
+
+  setFieldValue(
+    ownership?.traded_with ?? "",
+    "ownershipTradedWith"
+  );
+
+  setFieldValue(
+    ownership?.trade_date ?? "",
+    "ownershipTradeDate"
+  );
+
+  setFieldValue(
+    ownership?.notes ?? "",
+    "ownershipNotes"
+  );
+
+  openModalSafe(
+    "ownershipModal"
+  );
+}
+
+
+// ============================================================
+// SAVE OWNERSHIP MODAL
+// ============================================================
+
+async function saveOwnershipFromModal(
+  event
+) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  if (!selectedCard) {
+    showToast(
+      "No card selected.",
+      "error"
+    );
+    return;
+  }
+
+  if (!currentUser) {
+    showToast(
+      "Please log in first.",
+      "error"
+    );
+    return;
+  }
+
+  const quantityRaw =
+    getFieldValue(
+      "ownershipQuantity"
+    );
+
+  let quantity =
+    quantityRaw === ""
+      ? 0
+      : Number(quantityRaw);
+
+  if (!Number.isFinite(quantity)) {
+    quantity = 0;
+  }
+
+  quantity = Math.max(
+    0,
+    Math.floor(quantity)
+  );
+
+  const possession =
+    clean(
+      getFieldValue(
+        "ownershipPossession"
+      )
+    ) ||
+    "Collection";
+
+  const valueRaw =
+    getFieldValue(
+      "ownershipValue"
+    );
+
+  const value =
+    valueRaw === ""
+      ? null
+      : numberValue(valueRaw);
+
+  const grade =
+    clean(
+      getFieldValue(
+        "ownershipGrade"
+      )
+    ) || null;
+
+  const gradingCompany =
+    clean(
+      getFieldValue(
+        "ownershipGradingCompany"
+      )
+    ) || null;
+
+  const forSaleRaw =
+    getFieldValue(
+      "ownershipForSalePrice"
+    );
+
+  const purchaseRaw =
+    getFieldValue(
+      "ownershipPurchasePrice"
+    );
+
+  const soldRaw =
+    getFieldValue(
+      "ownershipSoldPrice"
+    );
+
+  const data = {
+    quantity,
+    possession,
+    value,
+    grade,
+    for_sale_price:
+      forSaleRaw === ""
+        ? null
+        : numberValue(forSaleRaw),
+    purchase_price:
+      purchaseRaw === ""
+        ? null
+        : numberValue(purchaseRaw),
+    purchase_date:
+      getFieldValue(
+        "ownershipPurchaseDate"
+      ) || null,
+    purchase_seller:
+      clean(
+        getFieldValue(
+          "ownershipPurchaseSeller"
+        )
+      ) || null,
+    sold_price:
+      soldRaw === ""
+        ? null
+        : numberValue(soldRaw),
+    sold_date:
+      getFieldValue(
+        "ownershipSoldDate"
+      ) || null,
+    traded_with:
+      clean(
+        getFieldValue(
+          "ownershipTradedWith"
+        )
+      ) || null,
+    trade_date:
+      getFieldValue(
+        "ownershipTradeDate"
+      ) || null,
+    notes:
+      clean(
+        getFieldValue(
+          "ownershipNotes"
+        )
+      ) || null
+  };
+
+  if (gradingCompany) {
+    data.grading_company =
+      gradingCompany;
+  }
+
+  try {
+    await saveOwnershipRecord(
+      selectedCard.card_id,
+      data
+    );
+
+    await loadDatabase();
+    updateUserInterface();
+
+    if (
+      typeof renderAllScreens ===
+      "function"
+    ) {
+      renderAllScreens();
+    }
+
+    closeOwnershipModal();
+
+    showToast(
+      "Collection information saved.",
+      "success"
+    );
+
+  } catch (error) {
+    console.error(
+      "Ownership save error:",
+      error
+    );
+
+    showToast(
+      error?.message ||
+        "Unable to save collection information.",
+      "error"
+    );
+  }
+}
+
+
+// ============================================================
+// DELETE OWNERSHIP
+// ============================================================
+
+async function removeFromMyCollection(
+  cardId
+) {
+  if (!currentUser) {
+    showToast(
+      "Please log in first.",
+      "error"
+    );
+    return;
+  }
+
+  if (
+    !confirm(
+      "Remove this card from your collection?"
+    )
+  ) {
+    return;
+  }
+
+  try {
+    const result =
+      await supabaseClient
+        .from("card_ownership")
+        .delete()
+        .eq(
+          "user_id",
+          currentUser.id
+        )
+        .eq(
+          "card_id",
+          cardId
+        );
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    allOwnership =
+      allOwnership.filter(
+        item =>
+          !(
+            item.user_id ===
+              currentUser.id &&
+            item.card_id === cardId
+          )
+      );
+
+    await loadDatabase();
+
+    updateUserInterface();
+
+    if (
+      typeof renderAllScreens ===
+      "function"
+    ) {
+      renderAllScreens();
+    }
+
+    closeModalById(
+      "cardDetailModal"
+    );
+
+    showToast(
+      "Card removed from your collection.",
+      "success"
+    );
+
+  } catch (error) {
+    console.error(
+      "Remove ownership error:",
+      error
+    );
+
+    showToast(
+      error?.message ||
+        "Unable to remove card.",
+      "error"
+    );
+  }
+}
+
+
+// ============================================================
+// ACCOUNT SAVE
+// ============================================================
+
+async function saveAccountProfile(
+  event
+) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  if (!currentUser) {
+    showToast(
+      "Please log in first.",
+      "error"
+    );
+    return;
+  }
+
+  const displayName =
+    clean(
+      getFieldValue(
+        "accountDisplayName"
+      )
+    );
+
+  const username =
+    clean(
+      getFieldValue(
+        "accountUsername"
+      )
+    );
+
+  const bio =
+    clean(
+      getFieldValue(
+        "accountBio"
+      )
+    );
+
+  try {
+    const updateData = {
+      display_name:
+        displayName || null,
+      username:
+        username || null,
+      bio:
+        bio || null
+    };
+
+    const result =
+      await supabaseClient
+        .from("profiles")
+        .update(updateData)
+        .eq(
+          "user_id",
+          currentUser.id
+        )
+        .select("*")
+        .single();
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    currentProfile =
+      result.data;
+
+    const index =
+      allProfiles.findIndex(
+        profile =>
+          profile.user_id ===
+          currentUser.id
+      );
+
+    if (index >= 0) {
+      allProfiles[index] =
+        result.data;
+    } else {
+      allProfiles.push(
+        result.data
+      );
+    }
+
+    updateUserInterface();
+
+    closeModalById(
+      "accountModal"
+    );
+
+    showToast(
+      "Account updated.",
+      "success"
+    );
+
+  } catch (error) {
+    console.error(
+      "Account save error:",
+      error
+    );
+
+    showToast(
+      error?.message ||
+        "Unable to update account.",
+      "error"
+    );
+  }
+}
+
+
+// ============================================================
+// XP / LEVEL
+// ============================================================
+
+async function awardXP(amount) {
+  if (
+    !currentUser ||
+    !currentProfile ||
+    !amount
+  ) {
+    return;
+  }
+
+  const currentXP =
+    Number(
+      currentProfile.xp || 0
+    );
+
+  const newXP =
+    currentXP +
+    Number(amount);
+
+  const newLevel =
+    Math.floor(
+      newXP / 100
+    ) + 1;
+
+  const result =
+    await supabaseClient
+      .from("profiles")
+      .update({
+        xp: newXP,
+        level: newLevel
+      })
+      .eq(
+        "user_id",
+        currentUser.id
+      )
+      .select("*")
+      .single();
+
+  if (result.error) {
+    console.warn(
+      "Could not award XP:",
+      result.error
+    );
+    return;
+  }
+
+  currentProfile =
+    result.data;
+
+  const index =
+    allProfiles.findIndex(
+      profile =>
+        profile.user_id ===
+        currentUser.id
+    );
+
+  if (index >= 0) {
+    allProfiles[index] =
+      result.data;
+  }
+}
+
+
+// ============================================================
+// BARCODE GENERATION
+// ============================================================
+
+function generateBarcode(
+  value,
+  targetId = "barcodeCanvas"
+) {
+  if (
+    !value ||
+    typeof JsBarcode ===
+      "undefined"
+  ) {
+    return;
+  }
+
+  let target =
+    document.getElementById(
+      targetId
+    );
+
+  if (!target) {
+    target =
+      document.querySelector(
+        "#cardBarcodeSvg"
+      );
+  }
+
+  if (!target) {
+    return;
+  }
+
+  try {
+    JsBarcode(
+      target,
+      String(value),
+      {
+        format: "CODE128",
+        displayValue: true,
+        width: 2,
+        height: 60,
+        margin: 10
+      }
+    );
+  } catch (error) {
+    console.warn(
+      "Barcode generation failed:",
+      error
+    );
+  }
+}
+
+
+// ============================================================
+// PRICE REFRESH
+// ============================================================
+
+async function refreshCardPrice(
+  cardId
+) {
+  if (!cardId) {
+    cardId =
+      selectedCard?.card_id;
+  }
+
+  if (!cardId) {
+    showToast(
+      "No card selected.",
+      "error"
+    );
+    return;
+  }
+
+  if (!currentUser) {
+    showToast(
+      "Please log in first.",
+      "error"
+    );
+    return;
+  }
+
+  showToast(
+    "Refreshing price...",
+    "info"
+  );
+
+  try {
+    const result =
+      await supabaseClient
+        .functions
+        .invoke(
+          PRICE_FUNCTION_NAME,
+          {
+            body: {
+              card_id: cardId
+            }
+          }
+        );
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    await loadDatabase();
+    updateUserInterface();
+
+    if (
+      typeof renderAllScreens ===
+      "function"
+    ) {
+      renderAllScreens();
+    }
+
+    if (
+      selectedCard &&
+      selectedCard.card_id ===
+        cardId
+    ) {
+      selectedCard =
+        getCard(cardId);
+    }
+
+    showToast(
+      "Price information refreshed.",
+      "success"
+    );
+
+  } catch (error) {
+    console.error(
+      "Price refresh error:",
+      error
+    );
+
+    showToast(
+      "Price refresh is not connected yet. The card database is working; the pricing service still needs its secure Supabase Edge Function.",
+      "info"
+    );
+  }
+}
+
+
+// ============================================================
+// AI CARD IDENTIFICATION HOOK
+// ============================================================
+
+async function identifyCardFromImage(
+  file
+) {
+  if (!file) {
+    showToast(
+      "Please select a card image.",
+      "error"
+    );
+    return null;
+  }
+
+  try {
+    const base64 =
+      await fileToBase64(file);
+
+    const result =
+      await supabaseClient
+        .functions
+        .invoke(
+          IDENTIFY_FUNCTION_NAME,
+          {
+            body: {
+              image:
+                base64,
+              file_name:
+                file.name
+            }
+          }
+        );
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    const data =
+      result.data?.card ||
+      result.data;
+
+    if (!data) {
+      throw new Error(
+        "No card information was returned."
+      );
+    }
+
+    fillCardFormFromAI(
+      data
+    );
+
+    showToast(
+      "Card information identified. Review it before saving.",
+      "success"
+    );
+
+    return data;
+
+  } catch (error) {
+    console.error(
+      "AI identification error:",
+      error
+    );
+
+    showToast(
+      "AI card identification is not connected yet. The secure Edge Function still needs to be added.",
+      "info"
+    );
+
+    return null;
+  }
+}
+
+
+function fileToBase64(file) {
+  return new Promise(
+    (resolve, reject) => {
+      const reader =
+        new FileReader();
+
+      reader.onload = () => {
+        const result =
+          String(
+            reader.result || ""
+          );
+
+        const comma =
+          result.indexOf(",");
+
+        resolve(
+          comma >= 0
+            ? result.substring(
+                comma + 1
+              )
+            : result
+        );
+      };
+
+      reader.onerror =
+        reject;
+
+      reader.readAsDataURL(
+        file
+      );
+    }
+  );
+}
+
+
+// ============================================================
+// FILL CARD FORM FROM AI
+// ============================================================
+
+function fillCardFormFromAI(
+  data
+) {
+  setFieldValue(
+    data.name,
+    "cardName",
+    "addCardName"
+  );
+
+  setFieldValue(
+    data.sport,
+    "cardSport",
+    "addCardSport"
+  );
+
+  setFieldValue(
+    data.team,
+    "cardTeam",
+    "addCardTeam"
+  );
+
+  setFieldValue(
+    data["Team"],
+    "cardTeam",
+    "addCardTeam"
+  );
+
+  setFieldValue(
+    data.position,
+    "cardPosition",
+    "addCardPosition"
+  );
+
+  setFieldValue(
+    data["Position"],
+    "cardPosition",
+    "addCardPosition"
+  );
+
+  setFieldValue(
+    data["Weight Division"],
+    "cardWeightDivision",
+    "addCardWeightDivision"
+  );
+
+  setFieldValue(
+    data.weight_division,
+    "cardWeightDivision",
+    "addCardWeightDivision"
+  );
+
+  setFieldValue(
+    data["Card Number"],
+    "cardNumber",
+    "addCardNumber"
+  );
+
+  setFieldValue(
+    data.card_number,
+    "cardNumber",
+    "addCardNumber"
+  );
+
+  setFieldValue(
+    data["Card Series"],
+    "cardSeries",
+    "addCardSeries"
+  );
+
+  setFieldValue(
+    data.card_series,
+    "cardSeries",
+    "addCardSeries"
+  );
+
+  setFieldValue(
+    data["Card Brand"],
+    "cardBrand",
+    "addCardBrand"
+  );
+
+  setFieldValue(
+    data.card_brand,
+    "cardBrand",
+    "addCardBrand"
+  );
+
+  setFieldValue(
+    data["Year Made"],
+    "cardYear",
+    "addCardYear"
+  );
+
+  setFieldValue(
+    data.year_made,
+    "cardYear",
+    "addCardYear"
+  );
+
+  setFieldValue(
+    data.parallel,
+    "cardParallel",
+    "addCardParallel"
+  );
+
+  setFieldValue(
+    data["Parallel"],
+    "cardParallel",
+    "addCardParallel"
+  );
+
+  setFieldValue(
+    data["Set Name"],
+    "cardSetName",
+    "addCardSetName"
+  );
+
+  setFieldValue(
+    data.set_name,
+    "cardSetName",
+    "addCardSetName"
+  );
+
+  setFieldValue(
+    data.barcode,
+    "cardBarcode",
+    "addCardBarcode"
+  );
+
+  setFieldChecked(
+    data.numbered,
+    "cardNumbered",
+    "addCardNumbered"
+  );
+
+  setFieldChecked(
+    data.rookie,
+    "cardRookie",
+    "addCardRookie"
+  );
+
+  setFieldChecked(
+    data.patch,
+    "cardPatch",
+    "addCardPatch"
+  );
+
+  setFieldChecked(
+    data.autographed,
+    "cardAutographed",
+    "addCardAutographed"
+  );
+}
+
+
+// ============================================================
+// FILTER FOR SALE / SOLD / TRADED
+// ============================================================
+
+function getStatusFilterValue(
+  status
+) {
+  if (
+    status === "For Sale"
+  ) {
+    return getFieldValue(
+      "salePossessionFilter",
+      "forSalePossessionFilter"
+    );
+  }
+
+  if (
+    status === "Sold"
+  ) {
+    return getFieldValue(
+      "soldPossessionFilter"
+    );
+  }
+
+  if (
+    status === "Traded"
+  ) {
+    return getFieldValue(
+      "tradedPossessionFilter"
+    );
+  }
+
+  return "";
+}
+
+
+// ============================================================
+// OVERRIDE STATUS RENDERING WITH FILTER SUPPORT
+// ============================================================
+
+function getFilteredOwnerships(
+  status
+) {
+  let rows =
+    allOwnership.filter(
+      ownership =>
+        ownership.possession ===
+        status
+    );
+
+  if (!rows.length) {
+    return rows;
+  }
+
+  let search = "";
+
+  if (
+    status === "For Sale"
+  ) {
+    search =
+      getFieldValue(
+        "saleSearch",
+        "forSaleSearch"
+      );
+  } else if (
+    status === "Sold"
+  ) {
+    search =
+      getFieldValue(
+        "soldSearch"
+      );
+  } else if (
+    status === "Traded"
+  ) {
+    search =
+      getFieldValue(
+        "tradedSearch"
+      );
+  }
+
+  search =
+    clean(search)
+      .toLowerCase();
+
+  if (!search) {
+    return rows;
+  }
+
+  return rows.filter(
+    ownership => {
+      const card =
+        getCard(
+          ownership.card_id
+        );
+
+      const haystack = [
+        card?.name,
+        card?.team,
+        card?.sport,
+        card?.card_number,
+        card?.card_series,
+        card?.card_brand,
+        card?.parallel,
+        ownership?.possession,
+        ownership?.traded_with
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(
+        search
+      );
+    }
+  );
+}
+
+
+// ============================================================
+// CARD DETAIL ACTIONS
+// ============================================================
+
+function editSelectedCard() {
+  if (!selectedCard) {
+    showToast(
+      "No card selected.",
+      "error"
+    );
+    return;
+  }
+
+  openEditCard(
+    selectedCard.card_id
+  );
+}
+
+
+function editSelectedOwnership() {
+  if (!selectedCard) {
+    showToast(
+      "No card selected.",
+      "error"
+    );
+    return;
+  }
+
+  openOwnershipEditor(
+    selectedCard.card_id
+  );
+}
+
+
+// ============================================================
+// ADMIN DELETE CARD
+// ============================================================
+
+async function deleteCatalogCard(
+  cardId
+) {
+  if (!currentUser) {
+    showToast(
+      "Please log in first.",
+      "error"
+    );
+    return;
+  }
+
+  const role =
+    currentProfile?.role;
+
+  if (
+    role !== "admin"
+  ) {
+    showToast(
+      "Only administrators can delete catalog cards.",
+      "error"
+    );
+    return;
+  }
+
+  const ownershipCount =
+    allOwnership.filter(
+      item =>
+        item.card_id ===
+        cardId
+    ).length;
+
+  if (ownershipCount > 0) {
+    showToast(
+      "This card has ownership records and cannot be deleted from the catalog.",
+      "error"
+    );
+    return;
+  }
+
+  if (
+    !confirm(
+      "Delete this catalog card permanently?"
+    )
+  ) {
+    return;
+  }
+
+  try {
+    const result =
+      await supabaseClient
+        .from("cards")
+        .delete()
+        .eq(
+          "card_id",
+          cardId
+        );
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    allCards =
+      allCards.filter(
+        card =>
+          card.card_id !==
+          cardId
+      );
+
+    closeModalById(
+      "cardDetailModal"
+    );
+
+    updateUserInterface();
+
+    if (
+      typeof renderAllScreens ===
+      "function"
+    ) {
+      renderAllScreens();
+    }
+
+    showToast(
+      "Catalog card deleted.",
+      "success"
+    );
+
+  } catch (error) {
+    console.error(
+      "Delete card error:",
+      error
+    );
+
+    showToast(
+      error?.message ||
+        "Unable to delete card.",
+      "error"
+    );
+  }
+}
+
+
+// ============================================================
+// ACCOUNT MODAL POPULATION
+// ============================================================
+
+function populateAccountModal() {
+  if (!currentProfile) {
+    return;
+  }
+
+  setFieldValue(
+    currentProfile.display_name ||
+      "",
+    "accountDisplayName"
+  );
+
+  setFieldValue(
+    currentProfile.username ||
+      "",
+    "accountUsername"
+  );
+
+  setFieldValue(
+    currentProfile.bio ||
+      "",
+    "accountBio"
+  );
+
+  setTextIfExists(
+    currentProfile.xp || 0,
+    "accountXP",
+    "profileXP"
+  );
+
+  setTextIfExists(
+    currentProfile.level || 1,
+    "accountLevel",
+    "profileLevel"
+  );
+}
+
+
+// ============================================================
+// OVERRIDE ACCOUNT OPEN IF NEEDED
+// ============================================================
+
+const originalOpenAccountModal =
+  typeof openAccountModal ===
+  "function"
+    ? openAccountModal
+    : null;
+
+if (
+  originalOpenAccountModal
+) {
+  // Keep the existing function.
+  // populateAccountModal() is called
+  // whenever the account button is used.
+}
+
+
+// ============================================================
+// ADD CARD FORM EVENTS
+// ============================================================
+
+function setupPart3Events() {
+
+  // ----------------------------------------------------------
+  // ADD CARD FORM
+  // ----------------------------------------------------------
+
+  const addCardForm =
+    document.getElementById(
+      "addCardForm"
+    ) ||
+    document.querySelector(
+      "#addCardModal form"
+    );
+
+  if (addCardForm) {
+    addCardForm.addEventListener(
+      "submit",
+      saveCardFromForm
+    );
+  }
+
+  // ----------------------------------------------------------
+  // OWNERSHIP FORM
+  // ----------------------------------------------------------
+
+  const ownershipForm =
+    document.getElementById(
+      "ownershipForm"
+    ) ||
+    document.querySelector(
+      "#ownershipModal form"
+    );
+
+  if (ownershipForm) {
+    ownershipForm.addEventListener(
+      "submit",
+      saveOwnershipFromModal
+    );
+  }
+
+  // ----------------------------------------------------------
+  // ACCOUNT FORM
+  // ----------------------------------------------------------
+
+  const accountForm =
+    document.getElementById(
+      "accountForm"
+    ) ||
+    document.querySelector(
+      "#accountModal form"
+    );
+
+  if (accountForm) {
+    accountForm.addEventListener(
+      "submit",
+      saveAccountProfile
+    );
+  }
+
+  // ----------------------------------------------------------
+  // SAVE ACCOUNT BUTTON
+  // ----------------------------------------------------------
+
+  [
+    "saveAccountButton",
+    "accountSaveButton"
+  ].forEach(id => {
+    const button =
+      document.getElementById(id);
+
+    if (!button) return;
+
+    button.addEventListener(
+      "click",
+      saveAccountProfile
+    );
+  });
+
+  // ----------------------------------------------------------
+  // ADD CARD BUTTONS
+  // ----------------------------------------------------------
+
+  document
+    .querySelectorAll(
+      '[data-action="add-card"], [data-action="addCard"]'
+    )
+    .forEach(button => {
+      button.addEventListener(
+        "click",
+        openAddCard
+      );
+    });
+
+  // ----------------------------------------------------------
+  // CLOSE BUTTONS
+  // ----------------------------------------------------------
+
+  document
+    .querySelectorAll(
+      '[data-close="addCardModal"]'
+    )
+    .forEach(button => {
+      button.addEventListener(
+        "click",
+        closeAddCardModal
+      );
+    });
+
+  document
+    .querySelectorAll(
+      '[data-close="ownershipModal"]'
+    )
+    .forEach(button => {
+      button.addEventListener(
+        "click",
+        closeOwnershipModal
+      );
+    });
+
+  // ----------------------------------------------------------
+  // AI SCAN BUTTON
+  // ----------------------------------------------------------
+
+  document
+    .querySelectorAll(
+      '[data-action="scan-card"], [data-action="identify-card"]'
+    )
+    .forEach(button => {
+      button.addEventListener(
+        "click",
+        async () => {
+
+          const file =
+            getFileField(
+              "cardScanImage",
+              "scanCardImage",
+              "identifyCardImage"
+            );
+
+          await identifyCardFromImage(
+            file
+          );
+        }
+      );
+    });
+
+  // ----------------------------------------------------------
+  // PRICE REFRESH BUTTONS
+  // ----------------------------------------------------------
+
+  document
+    .querySelectorAll(
+      '[data-action="refresh-price"], [data-action="refresh-card-price"]'
+    )
+    .forEach(button => {
+      button.addEventListener(
+        "click",
+        () => {
+          refreshCardPrice(
+            selectedCard?.card_id
+          );
+        }
+      );
+    });
+
+  // ----------------------------------------------------------
+  // EDIT CARD BUTTONS
+  // ----------------------------------------------------------
+
+  document
+    .querySelectorAll(
+      '[data-action="edit-card"]'
+    )
+    .forEach(button => {
+      button.addEventListener(
+        "click",
+        () => {
+          editSelectedCard();
+        }
+      );
+    });
+
+  // ----------------------------------------------------------
+  // EDIT OWNERSHIP BUTTONS
+  // ----------------------------------------------------------
+
+  document
+    .querySelectorAll(
+      '[data-action="edit-ownership"]'
+    )
+    .forEach(button => {
+      button.addEventListener(
+        "click",
+        () => {
+          editSelectedOwnership();
+        }
+      );
+    });
+
+  // ----------------------------------------------------------
+  // ACCOUNT BUTTON
+  // ----------------------------------------------------------
+
+  const accountButton =
+    document.getElementById(
+      "accountButton"
+    );
+
+  if (accountButton) {
+    accountButton.addEventListener(
+      "click",
+      () => {
+        populateAccountModal();
+      }
+    );
+  }
+}
+
+
+// ============================================================
+// MAKE ACCOUNT MODAL UPDATE AUTOMATIC
+// ============================================================
+
+function refreshAccountModal() {
+  populateAccountModal();
+}
+
+
+// ============================================================
+// FIX TOTAL COLLECTION VALUE CALCULATION
+// ============================================================
+
+function getTotalCollectionValue() {
+  if (!currentUser) {
+    return 0;
+  }
+
+  return allOwnership
+    .filter(
+      ownership =>
+        ownership.user_id ===
+        currentUser.id
+    )
+    .reduce(
+      (total, ownership) => {
+
+        const directTotal =
+          numberValue(
+            ownership.total_value
+          );
+
+        if (
+          directTotal > 0
+        ) {
+          return (
+            total +
+            directTotal
+          );
+        }
+
+        const value =
+          numberValue(
+            ownership.value
+          );
+
+        const quantity =
+          numberValue(
+            ownership.quantity
+          );
+
+        return (
+          total +
+          value *
+            quantity
+        );
+      },
+      0
+    );
+}
+
+
+// ============================================================
+// SAFE SHOW TOAST
+// ============================================================
+
+if (
+  typeof showToast !==
+  "function"
+) {
+  window.showToast =
+    function (
+      message
+    ) {
+      alert(message);
+    };
+}
+
+
+// ============================================================
+// ACCOUNT MODAL HOOK
+// ============================================================
+
+document.addEventListener(
+  "click",
+  event => {
+
+    const button =
+      event.target.closest(
+        "#accountButton"
+      );
+
+    if (!button) {
+      return;
+    }
+
+    setTimeout(
+      () => {
+        populateAccountModal();
+      },
+      50
+    );
+  }
+);
+
+
+// ============================================================
+// CARD DETAIL GLOBAL ACTIONS
+// ============================================================
+
+window.openEditCard =
+  openEditCard;
+
+window.refreshCardPrice =
+  refreshCardPrice;
+
+window.openAddCard =
+  openAddCard;
+
+window.openOwnershipEditor =
+  openOwnershipEditor;
+
+window.saveOwnershipFromModal =
+  saveOwnershipFromModal;
+
+window.saveCardFromForm =
+  saveCardFromForm;
+
+window.saveAccountProfile =
+  saveAccountProfile;
+
+window.removeFromMyCollection =
+  removeFromMyCollection;
+
+window.deleteCatalogCard =
+  deleteCatalogCard;
+
+window.generateBarcode =
+  generateBarcode;
+
+window.identifyCardFromImage =
+  identifyCardFromImage;
+
+
+// ============================================================
+// CLOSE MODALS WHEN CLICKING OUTSIDE
+// ============================================================
+
+document.addEventListener(
+  "click",
+  event => {
+
+    const target =
+      event.target;
+
+    if (
+      target.classList &&
+      target.classList.contains(
+        "modal"
+      )
+    ) {
+      target.classList.remove(
+        "open"
+      );
+
+      target.classList.remove(
+        "show"
+      );
+
+      if (
+        target.id ===
+          "addCardModal" ||
+        target.id ===
+          "ownershipModal" ||
+        target.id ===
+          "accountModal"
+      ) {
+        target.style.display =
+          "none";
+      }
+    }
+  }
+);
+
+
+// ============================================================
+// ESCAPE KEY CLOSES MODALS
+// ============================================================
+
+document.addEventListener(
+  "keydown",
+  event => {
+
+    if (
+      event.key !==
+      "Escape"
+    ) {
+      return;
+    }
+
+    [
+      "addCardModal",
+      "ownershipModal",
+      "accountModal",
+      "cardDetailModal",
+      "setDetailModal"
+    ].forEach(id => {
+      closeModalById(id);
+    });
+  }
+);
+
+
+// ============================================================
+// FINAL STARTUP
+// ============================================================
+
+setupPart3Events();
+
+
+// ============================================================
+// START THE APPLICATION
+// ============================================================
+
+if (
+  typeof startup ===
+  "function"
+) {
+  startup();
+}
+
+
+// ============================================================
+// PART 3 ENDS HERE
+// ============================================================
+
+</script>    
+</body>
+</html>
