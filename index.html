@@ -3482,6 +3482,416 @@
 
 
   // ============================================================
+  // GOOGLE SHEETS CATALOG
+  // ============================================================
+
+  const GOOGLE_CATALOG_SHEET_ID =
+    "11AXYyiJEzQDKZjIvtz0UppIR_By5aF6vv5-KNqvy4zI";
+
+  const GOOGLE_CATALOG_SPORT =
+    "Baseball";
+
+
+  function googleSheetValue(row, key) {
+    if (!row) {
+      return "";
+    }
+
+    const value =
+      row[key] ??
+      row[key.toLowerCase()] ??
+      row[key.toUpperCase()];
+
+    return value === null || value === undefined
+      ? ""
+      : value;
+  }
+
+
+  function sheetBoolean(value) {
+    const text =
+      clean(value).toLowerCase();
+
+    return (
+      text === "true" ||
+      text === "yes" ||
+      text === "y" ||
+      text === "1"
+    );
+  }
+
+
+  async function loadGoogleSheetTab(sheetName) {
+
+    const url =
+      "https://docs.google.com/spreadsheets/d/" +
+      GOOGLE_CATALOG_SHEET_ID +
+      "/gviz/tq?tqx=out:json&sheet=" +
+      encodeURIComponent(sheetName);
+
+    const response =
+      await fetch(url, {
+        method: "GET",
+        cache: "no-store"
+      });
+
+    if (!response.ok) {
+      throw new Error(
+        "Google Sheets returned HTTP " +
+        response.status
+      );
+    }
+
+    const text =
+      await response.text();
+
+    const start =
+      text.indexOf("{");
+
+    const end =
+      text.lastIndexOf("}");
+
+    if (start < 0 || end <= start) {
+      throw new Error(
+        "Google Sheets returned an unreadable response."
+      );
+    }
+
+    let payload;
+
+    try {
+      payload =
+        JSON.parse(
+          text.slice(start, end + 1)
+        );
+    } catch (error) {
+      throw new Error(
+        "Google Sheets returned invalid JSON."
+      );
+    }
+
+    if (
+      payload.status === "error" ||
+      payload.errors?.length
+    ) {
+      const message =
+        payload.errors?.[0]?.detailed_message ||
+        payload.errors?.[0]?.message ||
+        "Google Sheets query failed.";
+
+      throw new Error(message);
+    }
+
+    const table =
+      payload.table;
+
+    if (!table) {
+      return [];
+    }
+
+    const columns =
+      (table.cols || []).map(
+        (column, index) =>
+          clean(column.label) ||
+          "column_" + index
+      );
+
+    return (table.rows || []).map(row => {
+
+      const output = {};
+
+      columns.forEach((column, index) => {
+
+        const cell =
+          row.c?.[index];
+
+        output[column] =
+          cell?.v ??
+          cell?.f ??
+          "";
+
+      });
+
+      return output;
+    });
+  }
+
+
+  function normalizeGoogleSetRows(rows) {
+
+    return rows
+      .map((row, index) => {
+
+        const year =
+          clean(
+            googleSheetValue(row, "year")
+          );
+
+        const brand =
+          clean(
+            googleSheetValue(row, "brand")
+          );
+
+        const setName =
+          clean(
+            googleSheetValue(row, "set_name")
+          );
+
+        const series =
+          clean(
+            googleSheetValue(row, "series")
+          );
+
+        const setId =
+          clean(
+            googleSheetValue(row, "set_id")
+          ) ||
+          makeIdentityKey([
+            GOOGLE_CATALOG_SPORT,
+            year,
+            brand,
+            setName,
+            series
+          ]) ||
+          "sheet-set-" + index;
+
+        return {
+          card_set_id: setId,
+          name: setName,
+          sport: GOOGLE_CATALOG_SPORT,
+          year_made: year,
+          card_brand: brand,
+          card_series: series,
+          card_count:
+            googleSheetValue(row, "card_count"),
+          description:
+            googleSheetValue(row, "description"),
+          source:
+            googleSheetValue(row, "source"),
+          source_url:
+            googleSheetValue(row, "source_url"),
+          verified:
+            sheetBoolean(
+              googleSheetValue(row, "verified")
+            )
+        };
+      })
+      .filter(set => set.name);
+  }
+
+
+  function normalizeGoogleCardRows(rows, sets) {
+
+    const setMap =
+      new Map();
+
+    sets.forEach(set => {
+
+      const key =
+        makeIdentityKey([
+          set.year_made,
+          set.card_brand,
+          set.name,
+          set.card_series
+        ]);
+
+      setMap.set(key, set.card_set_id);
+    });
+
+    return rows
+      .map((row, index) => {
+
+        const year =
+          clean(
+            googleSheetValue(row, "year")
+          );
+
+        const brand =
+          clean(
+            googleSheetValue(row, "brand")
+          );
+
+        const setName =
+          clean(
+            googleSheetValue(row, "set_name")
+          );
+
+        const series =
+          clean(
+            googleSheetValue(row, "series")
+          );
+
+        const explicitSetId =
+          clean(
+            googleSheetValue(row, "set_id")
+          );
+
+        const setKey =
+          makeIdentityKey([
+            year,
+            brand,
+            setName,
+            series
+          ]);
+
+        const cardId =
+          clean(
+            googleSheetValue(row, "card_id")
+          ) ||
+          clean(
+            googleSheetValue(row, "id")
+          ) ||
+          makeIdentityKey([
+            GOOGLE_CATALOG_SPORT,
+            year,
+            brand,
+            setName,
+            googleSheetValue(row, "card_number"),
+            googleSheetValue(row, "player_name"),
+            googleSheetValue(row, "parallel"),
+            googleSheetValue(row, "variant")
+          ]) ||
+          "sheet-card-" + index;
+
+        const player =
+          clean(
+            googleSheetValue(row, "player_name")
+          );
+
+        const cardNumber =
+          clean(
+            googleSheetValue(row, "card_number")
+          );
+
+        const name =
+          player ||
+          (
+            setName
+              ? setName +
+                (
+                  cardNumber
+                    ? " #" + cardNumber
+                    : ""
+                )
+              : "Card"
+          );
+
+        const cardSetId =
+          explicitSetId ||
+          setMap.get(setKey) ||
+          (
+            setName
+              ? makeIdentityKey([
+                  GOOGLE_CATALOG_SPORT,
+                  year,
+                  brand,
+                  setName,
+                  series
+                ])
+              : ""
+          );
+
+        return {
+          card_id: cardId,
+          card_set_id: cardSetId,
+          name: name,
+          sport: GOOGLE_CATALOG_SPORT,
+          team:
+            googleSheetValue(row, "team"),
+          league:
+            googleSheetValue(row, "league"),
+          card_number: cardNumber,
+          card_series: series,
+          card_brand: brand,
+          parallel:
+            googleSheetValue(row, "parallel"),
+          variant:
+            googleSheetValue(row, "variant"),
+          year_made: year,
+          player_name: player,
+          rookie:
+            sheetBoolean(
+              googleSheetValue(row, "rookie")
+            ),
+          autographed:
+            sheetBoolean(
+              googleSheetValue(row, "autograph")
+            ),
+          relic:
+            sheetBoolean(
+              googleSheetValue(row, "relic")
+            ),
+          patch:
+            sheetBoolean(
+              googleSheetValue(row, "patch")
+            ),
+          numbered:
+            sheetBoolean(
+              googleSheetValue(row, "numbered")
+            ),
+          print_run:
+            googleSheetValue(row, "print_run"),
+          insert_card:
+            sheetBoolean(
+              googleSheetValue(row, "insert")
+            ),
+          short_print:
+            sheetBoolean(
+              googleSheetValue(row, "short_print")
+            ),
+          variation:
+            googleSheetValue(row, "variation"),
+          barcode:
+            googleSheetValue(row, "barcode"),
+          notes:
+            googleSheetValue(row, "notes"),
+          source:
+            googleSheetValue(row, "source"),
+          source_url:
+            googleSheetValue(row, "source_url"),
+          verified:
+            sheetBoolean(
+              googleSheetValue(row, "verified")
+            )
+        };
+      })
+      .filter(card => card.card_id);
+  }
+
+
+  async function loadCatalogFromGoogleSheets() {
+
+    showToast(
+      "Loading the catalog from Google Sheets...",
+      "info"
+    );
+
+    const [
+      cardRows,
+      setRows
+    ] =
+      await Promise.all([
+        loadGoogleSheetTab("Cards"),
+        loadGoogleSheetTab("Sets")
+      ]);
+
+    const sets =
+      normalizeGoogleSetRows(setRows);
+
+    const cards =
+      normalizeGoogleCardRows(
+        cardRows,
+        sets
+      );
+
+    return {
+      cards,
+      sets
+    };
+  }
+
+
+  // ============================================================
   // DATABASE LOAD
   // ============================================================
 
@@ -3521,30 +3931,55 @@
       "info"
     );
 
+    let catalogCards = [];
+    let catalogSets = [];
+
+    try {
+
+      const googleCatalog =
+        await loadCatalogFromGoogleSheets();
+
+      catalogCards =
+        googleCatalog.cards;
+
+      catalogSets =
+        googleCatalog.sets;
+
+      console.log(
+        "Google Sheets catalog loaded:",
+        catalogCards.length,
+        "cards and",
+        catalogSets.length,
+        "sets"
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Google Sheets catalog error:",
+        error
+      );
+
+      databaseLoadErrors.push({
+        table: "Google Sheets Catalog",
+        message:
+          error?.message ||
+          String(error)
+      });
+
+      showToast(
+        "The Google Sheets catalog could not be loaded. Check that the sheet is shared for web access.",
+        "error"
+      );
+    }
+
     const [
-      cards,
-      sets,
       ownership,
       profiles,
       prices,
       sports
     ] =
       await Promise.all([
-
-        // Catalog Project
-        safeTableLoad(
-          catalogSupabase,
-          "catalog",
-          "cards",
-          "*"
-        ),
-
-        safeTableLoad(
-          catalogSupabase,
-          "catalog",
-          "card_sets",
-          "*"
-        ),
 
         // User Project
         safeTableLoad(
@@ -3561,7 +3996,7 @@
           "*"
         ),
 
-        // Pricing belongs with the catalog.
+        // Pricing remains in Supabase.
         safeTableLoad(
           catalogSupabase,
           "catalog",
@@ -3579,7 +4014,7 @@
       ]);
 
     allCards =
-      cards.sort(
+      catalogCards.sort(
         (a, b) =>
           clean(a.name).localeCompare(
             clean(b.name)
@@ -3587,7 +4022,7 @@
       );
 
     allSets =
-      sets.sort(
+      catalogSets.sort(
         (a, b) =>
           clean(a.name).localeCompare(
             clean(b.name)
@@ -3629,7 +4064,7 @@
       );
     } else {
       showToast(
-        "Both databases connected successfully.",
+        "Catalog loaded from Google Sheets.",
         "success"
       );
     }
