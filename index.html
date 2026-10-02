@@ -739,21 +739,65 @@
 
     /* Add Card layout improvements */
     #addCardModal .modal {
-      width: min(1100px, 96vw);
+      width: min(1200px, 96vw);
+      max-height: 94vh;
     }
 
     #addCardModal .modal-body {
-      max-height: calc(92vh - 132px);
+      max-height: calc(94vh - 145px);
       overflow-y: auto;
+      padding: 22px;
+    }
+
+    #addCardModal .form-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    #addCardModal .form-group {
+      min-width: 0;
+    }
+
+    #addCardModal .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    #addCardModal .form-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    #addCardModal .field {
+      min-height: 42px;
+    }
+
+    #addCardModal textarea.field {
+      min-height: 90px;
+      resize: vertical;
     }
 
     #addCardModal .panel {
       background: var(--surface-2);
       border: 1px solid var(--border);
       border-radius: 12px;
+      padding: 15px !important;
     }
 
-    @media (max-width: 700px) {
+    #addCardModal .modal-footer {
+      position: sticky;
+      bottom: 0;
+      background: var(--surface);
+      z-index: 3;
+    }
+
+    @media (max-width: 900px) {
+      #addCardModal .form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 600px) {
       #addCardModal .form-grid {
         grid-template-columns: 1fr;
       }
@@ -3793,6 +3837,8 @@
   // DATABASE LOAD
   // ============================================================
 
+  let databaseLoadErrors = [];
+
   async function safeTableLoad(table, select = "*") {
 
     const result =
@@ -3807,10 +3853,12 @@
         result.error
       );
 
-      showToast(
-        "Could not load " + table + ".",
-        "error"
-      );
+      databaseLoadErrors.push({
+        table,
+        message:
+          result.error.message ||
+          String(result.error)
+      });
 
       return [];
     }
@@ -3821,8 +3869,10 @@
 
   async function loadDatabase() {
 
+    databaseLoadErrors = [];
+
     showToast(
-      "Loading card database...",
+      "Connecting to the card database...",
       "info"
     );
 
@@ -3905,10 +3955,28 @@
 
     renderAllScreens();
 
-    showToast(
-      "Database loaded.",
-      "success"
-    );
+    if (databaseLoadErrors.length) {
+
+      const details =
+        databaseLoadErrors
+          .map(error =>
+            error.table + ": " + error.message
+          )
+          .join(" | ");
+
+      showToast(
+        "Database connection has errors: " + details,
+        "error"
+      );
+
+    } else {
+
+      showToast(
+        "Database connected successfully.",
+        "success"
+      );
+
+    }
   }
 
 
@@ -4024,12 +4092,15 @@
     activeScreen =
       screenName;
 
+    // Hide every screen using the same hidden class
+    // used by the HTML, then explicitly reveal the
+    // requested screen.
     document
       .querySelectorAll(".screen")
       .forEach(screen => {
 
-        screen.style.display =
-          "none";
+        screen.classList.add("hidden");
+        screen.style.display = "none";
       });
 
     const screen =
@@ -4037,10 +4108,25 @@
         "screen-" + screenName
       );
 
-    if (screen) {
-      screen.style.display = "";
+    if (!screen) {
+      console.error(
+        "Screen not found:",
+        screenName
+      );
+
+      showToast(
+        "The " + screenName + " page could not be opened.",
+        "error"
+      );
+
+      return;
     }
 
+    screen.classList.remove("hidden");
+    screen.style.display = "";
+
+    // Support both the current onclick navigation
+    // and any buttons using data-screen.
     document
       .querySelectorAll("[data-screen]")
       .forEach(button => {
@@ -4053,7 +4139,40 @@
 
       });
 
-    renderScreen(screenName);
+    document
+      .querySelectorAll(".nav-btn")
+      .forEach(button => {
+
+        button.classList.remove("active");
+
+      });
+
+    const navButton =
+      document.getElementById(
+        "nav" +
+        screenName.charAt(0).toUpperCase() +
+        screenName.slice(1)
+      );
+
+    if (navButton) {
+      navButton.classList.add("active");
+    }
+
+    try {
+      renderScreen(screenName);
+    } catch (error) {
+      console.error(
+        "Error rendering screen:",
+        screenName,
+        error
+      );
+
+      showToast(
+        "There was an error loading this page: " +
+        String(error?.message || error),
+        "error"
+      );
+    }
   }
 
 
