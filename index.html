@@ -3040,16 +3040,33 @@
   // SUPABASE CONFIGURATION
   // ============================================================
 
+  // ============================================================
+  // SUPABASE CONFIGURATION
+  // ============================================================
+  // Project 1: users, profiles, ownership, and account data.
   const SUPABASE_URL =
     "https://nsctktkfwrxgerrjkqij.supabase.co";
 
   const SUPABASE_ANON_KEY =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zY3RrdGtmd3J4Z2VycmprcWlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxOTIzMDksImV4cCI6MjEwNTc2ODMwOX0.PItvtdZJ49bEJfxapw7k6baipiG0KjObSJoWsf_XOc8";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzIiwicmVmIjoibnNjdGt0a2Z3cnhnZXJyamtxaWoiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc5MDE5MjMwOSwiZXhwIjoyMTA1NzY4MzA5fQ.PItvtdZJ49bEJfxapw7k6baipiG0KjObSJoWsf_XOc8";
 
   const supabaseClient =
     window.supabase.createClient(
       SUPABASE_URL,
       SUPABASE_ANON_KEY
+    );
+
+  // Project 2: complete sports-card catalog.
+  const CATALOG_SUPABASE_URL =
+    "https://hwsegdikyvqlyrabsrag.supabase.co";
+
+  const CATALOG_SUPABASE_KEY =
+    "sb_publishable_62SKsGQ_iZEMi6jLhyqEKA_9El70_-K";
+
+  const catalogSupabase =
+    window.supabase.createClient(
+      CATALOG_SUPABASE_URL,
+      CATALOG_SUPABASE_KEY
     );
 
 
@@ -3769,7 +3786,7 @@
       const {
         data
       } =
-        supabaseClient.storage
+        catalogSupabase.storage
           .from("catalog-images")
           .getPublicUrl(path);
 
@@ -3839,22 +3856,20 @@
 
   let databaseLoadErrors = [];
 
-  async function safeTableLoad(table, select = "*") {
-
+  async function safeTableLoad(client, source, table, select = "*") {
     const result =
-      await supabaseClient
+      await client
         .from(table)
         .select(select);
 
     if (result.error) {
-
       console.error(
-        "Supabase error loading " + table,
+        "Supabase error loading " + source + "." + table,
         result.error
       );
 
       databaseLoadErrors.push({
-        table,
+        table: source + "." + table,
         message:
           result.error.message ||
           String(result.error)
@@ -3868,7 +3883,6 @@
 
 
   async function loadDatabase() {
-
     databaseLoadErrors = [];
 
     showToast(
@@ -3886,32 +3900,47 @@
     ] =
       await Promise.all([
 
+        // Catalog Project
         safeTableLoad(
+          catalogSupabase,
+          "catalog",
           "cards",
           "*"
         ),
 
         safeTableLoad(
+          catalogSupabase,
+          "catalog",
           "card_sets",
           "*"
         ),
 
+        // User Project
         safeTableLoad(
+          supabaseClient,
+          "users",
           "card_ownership",
           "*"
         ),
 
         safeTableLoad(
+          supabaseClient,
+          "users",
           "profiles",
           "*"
         ),
 
+        // Pricing belongs with the catalog.
         safeTableLoad(
+          catalogSupabase,
+          "catalog",
           "card_prices",
           "*"
         ),
 
         safeTableLoad(
+          supabaseClient,
+          "users",
           "sports",
           "*"
         )
@@ -3956,7 +3985,6 @@
     renderAllScreens();
 
     if (databaseLoadErrors.length) {
-
       const details =
         databaseLoadErrors
           .map(error =>
@@ -3968,14 +3996,11 @@
         "Database connection has errors: " + details,
         "error"
       );
-
     } else {
-
       showToast(
-        "Database connected successfully.",
+        "Both databases connected successfully.",
         "success"
       );
-
     }
   }
 
@@ -5180,7 +5205,7 @@
                         set.front_image_path
                       ).startsWith("http")
                         ? set.front_image_path
-                        : supabaseClient.storage
+                        : catalogSupabase.storage
                             .from("catalog-images")
                             .getPublicUrl(
                               set.front_image_path
@@ -7514,7 +7539,7 @@ async function findOrCreateSet({
   ]);
 
   let query =
-    await supabaseClient
+    await catalogSupabase
       .from("card_sets")
       .select("*")
       .eq("identity_key", identityKey)
@@ -7542,7 +7567,7 @@ async function findOrCreateSet({
   };
 
   const inserted =
-    await supabaseClient
+    await catalogSupabase
       .from("card_sets")
       .insert(insertData)
       .select("*")
@@ -7556,7 +7581,7 @@ async function findOrCreateSet({
   // A duplicate may have been created between
   // the first lookup and insert. Try one more lookup.
   const retry =
-    await supabaseClient
+    await catalogSupabase
       .from("card_sets")
       .select("*")
       .eq("identity_key", identityKey)
@@ -7611,8 +7636,15 @@ async function uploadCardImage(
   const path =
     `${currentUser.id}/${folder}/${Date.now()}-${safeName}${extension}`;
 
+  // Catalog images live in the catalog project.
+  // User-owned photos remain in the user project.
+  const storageClient =
+    bucket === "catalog-images"
+      ? catalogSupabase
+      : supabaseClient;
+
   const result =
-    await supabaseClient
+    await storageClient
       .storage
       .from(bucket)
       .upload(
@@ -8346,7 +8378,7 @@ async function saveCardFromForm(event) {
 
     if (editingCardId) {
       cardResult =
-        await supabaseClient
+        await catalogSupabase
           .from("cards")
           .update(cardRecord)
           .eq(
@@ -8359,7 +8391,7 @@ async function saveCardFromForm(event) {
       // Try to find an existing catalog card
       // before creating another one.
       const existingCard =
-        await supabaseClient
+        await catalogSupabase
           .from("cards")
           .select("*")
           .eq(
@@ -8391,7 +8423,7 @@ async function saveCardFromForm(event) {
         }
 
         cardResult =
-          await supabaseClient
+          await catalogSupabase
             .from("cards")
             .update(updateData)
             .eq(
@@ -8402,7 +8434,7 @@ async function saveCardFromForm(event) {
             .single();
       } else {
         cardResult =
-          await supabaseClient
+          await catalogSupabase
             .from("cards")
             .insert(cardRecord)
             .select("*")
@@ -9700,7 +9732,7 @@ async function deleteCatalogCard(
 
   try {
     const result =
-      await supabaseClient
+      await catalogSupabase
         .from("cards")
         .delete()
         .eq(
