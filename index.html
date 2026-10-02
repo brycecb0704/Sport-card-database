@@ -1123,7 +1123,28 @@
         min-height: 300px;
       }
     }
-  </style>
+  
+/* SIMPLE ADD CARD */
+.simple-add-choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.simple-add-option{min-height:180px;border:2px solid var(--border);border-radius:16px;background:var(--panel);padding:24px 18px;text-align:center;transition:.15s}
+.simple-add-option:hover{border-color:var(--primary);background:var(--primary-soft);transform:translateY(-2px)}
+.simple-add-option-icon{font-size:42px;margin-bottom:12px}
+.simple-add-option-title{font-size:17px;font-weight:800;margin-bottom:7px}
+.simple-add-option-text{color:var(--muted);font-size:12px;line-height:1.5}
+.simple-add-photo-box{border:2px dashed var(--border);border-radius:14px;padding:24px;text-align:center;margin-bottom:16px}
+.simple-add-photo-preview{max-width:280px;max-height:360px;margin:16px auto 0;display:block;border-radius:10px;object-fit:contain}
+.simple-add-library-results{display:grid;gap:8px;margin-top:14px;max-height:430px;overflow-y:auto}
+.simple-add-library-result{display:flex;align-items:center;gap:12px;width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--panel);text-align:left;color:inherit}
+.simple-add-library-result:hover{border-color:var(--primary);background:var(--primary-soft)}
+.simple-add-library-image{width:54px;height:72px;border-radius:6px;background:var(--border);object-fit:cover;flex-shrink:0}
+.simple-add-library-name{font-weight:800;font-size:13px;margin-bottom:4px}
+.simple-add-library-meta{color:var(--muted);font-size:11px;line-height:1.5}
+.simple-add-manual-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.simple-add-manual-grid .form-group.full{grid-column:1/-1}
+@media(max-width:900px){.simple-add-choice-grid{grid-template-columns:1fr}.simple-add-manual-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.simple-add-manual-grid{grid-template-columns:1fr}.simple-add-manual-grid .form-group.full{grid-column:auto}}
+
+</style>
 </head>
 
 <body>
@@ -2258,635 +2279,245 @@
     class="modal-backdrop hidden"
     onclick="closeModalOnBackdrop(event, 'addCardModal')">
 
-    <div class="modal">
+    <div class="modal modal-large">
 
       <div class="modal-header">
-
-        <h3>
-          Add Card
-        </h3>
-
-        <button
-          class="modal-close"
-          onclick="closeModal('addCardModal')">
-
-          ×
-
-        </button>
-
+        <h3 id="addCardModalTitle">Add Card</h3>
+        <button class="modal-close" onclick="closeModal('addCardModal')">×</button>
       </div>
-
 
       <form id="addCardForm" onsubmit="saveNewCard(event)">
 
         <div class="modal-body">
 
-          <div class="panel" style="box-shadow:none; margin:0 0 15px;">
+          <!-- CHOICE SCREEN -->
+          <div id="addCardChoiceMode">
 
-            <strong>
-              Card Catalog
-            </strong>
+            <div class="panel" style="box-shadow:none;margin:0 0 18px;">
+              <strong>How would you like to add this card?</strong>
+              <div style="font-size:12px;color:var(--muted);margin-top:5px;">
+                Pick the easiest option. You can review the card before saving.
+              </div>
+            </div>
 
-            <div
-              style="font-size:12px; color:var(--muted); margin-top:4px;">
+            <div class="simple-add-choice-grid">
 
-              If the card already exists in the catalog, the existing card will be used instead of creating a duplicate.
+              <button type="button" class="simple-add-option" onclick="showAddCardMode('photo')">
+                <div class="simple-add-option-icon">📷</div>
+                <div class="simple-add-option-title">Add Photo</div>
+                <div class="simple-add-option-text">
+                  Take a picture or choose a card photo. We'll identify it and fill in the details.
+                </div>
+              </button>
 
+              <button type="button" class="simple-add-option" onclick="showAddCardMode('library')">
+                <div class="simple-add-option-icon">📚</div>
+                <div class="simple-add-option-title">Choose From Library</div>
+                <div class="simple-add-option-text">
+                  Search cards already in the catalog and add one to your collection.
+                </div>
+              </button>
+
+              <button type="button" class="simple-add-option" onclick="showAddCardMode('manual')">
+                <div class="simple-add-option-icon">✏️</div>
+                <div class="simple-add-option-title">Enter Manually</div>
+                <div class="simple-add-option-text">
+                  Enter the basic card information yourself.
+                </div>
+              </button>
+
+            </div>
+          </div>
+
+          <!-- PHOTO MODE -->
+          <div id="addCardPhotoMode" class="hidden">
+
+            <button type="button" class="btn" onclick="showAddCardMode('choice')">
+              ← Back
+            </button>
+
+            <div class="simple-add-photo-box" style="margin-top:14px;">
+              <div style="font-size:34px;">📷</div>
+              <strong>Take or choose a card photo</strong>
+              <div style="font-size:12px;color:var(--muted);margin:6px 0 14px;">
+                A clear photo of the front works best.
+              </div>
+
+              <input
+                id="addCardPhoto"
+                class="field"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onchange="previewAddCardPhoto(event)">
+
+              <div id="addCardPhotoStatus" style="font-size:12px;color:var(--muted);margin-top:10px;"></div>
+
+              <img
+                id="addCardPhotoPreview"
+                class="simple-add-photo-preview hidden"
+                alt="Card preview">
+            </div>
+
+            <button
+              type="button"
+              id="identifyNewCardButton"
+              class="btn btn-primary"
+              onclick="identifyNewCardPhoto()">
+              Identify Card
+            </button>
+
+          </div>
+
+          <!-- LIBRARY MODE -->
+          <div id="addCardLibraryMode" class="hidden">
+
+            <button type="button" class="btn" onclick="showAddCardMode('choice')">
+              ← Back
+            </button>
+
+            <div class="form-group" style="margin-top:14px;">
+              <label class="form-label">Search Card Library</label>
+              <input
+                id="addCardLibrarySearch"
+                class="field"
+                type="search"
+                placeholder="Player, card number, set, brand, year..."
+                oninput="searchAddCardLibrary()">
+            </div>
+
+            <div id="addCardLibraryResults" class="simple-add-library-results">
+              <div class="empty-state">
+                Start typing to search the catalog.
+              </div>
             </div>
 
           </div>
 
+          <!-- MANUAL / REVIEW MODE -->
+          <div id="addCardManualMode" class="hidden">
 
-          <div class="form-grid">
+            <button type="button" class="btn" onclick="showAddCardMode('choice')">
+              ← Back
+            </button>
 
+            <div class="panel" style="box-shadow:none;margin:14px 0 15px;">
+              <strong>Card Information</strong>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+                Review the information and change anything that needs corrected.
+              </div>
+            </div>
 
-            <div class="form-group full">
+            <div class="simple-add-manual-grid">
 
-              <label class="form-label">
-                Card Name *
-              </label>
+              <div class="form-group full">
+                <label class="form-label">Card Name *</label>
+                <input id="addCardName" class="field" type="text" required>
+              </div>
 
-              <input
-                id="addCardName"
-                class="field"
-                type="text"
-                required>
+              <div class="form-group">
+                <label class="form-label">Sport</label>
+                <input id="addCardSport" class="field" type="text" placeholder="Baseball, Football, UFC...">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Team</label>
+                <input id="addCardTeam" class="field" type="text">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Year</label>
+                <input id="addCardYear" class="field" type="number">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Card Number</label>
+                <input id="addCardNumber" class="field" type="text">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Series</label>
+                <input id="addCardSeries" class="field" type="text">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Brand</label>
+                <input id="addCardBrand" class="field" type="text">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Set Name</label>
+                <input id="addCardSetName" class="field" type="text">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Parallel</label>
+                <input id="addCardParallel" class="field" type="text">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Grade</label>
+                <input id="addCardGrade" class="field" type="text">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Quantity</label>
+                <input id="addCardQuantity" class="field" type="number" min="1" value="1">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Possession</label>
+                <select id="addCardPossession" class="field">
+                  <option value="Collection">Collection</option>
+                  <option value="For Sale">For Sale</option>
+                  <option value="Sold">Sold</option>
+                  <option value="Traded">Traded</option>
+                </select>
+              </div>
+
+              <div class="form-group full">
+                <label class="form-label">Notes</label>
+                <textarea id="addCardNotes" class="field" rows="3"></textarea>
+              </div>
 
             </div>
 
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Sport
-              </label>
-
-              <input
-                id="addCardSport"
-                class="field"
-                type="text"
-                placeholder="Baseball, Football, UFC...">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Team
-              </label>
-
-              <input
-                id="addCardTeam"
-                class="field"
-                type="text">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Year Made
-              </label>
-
-              <input
-                id="addCardYear"
-                class="field"
-                type="number">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Card Number
-              </label>
-
-              <input
-                id="addCardNumber"
-                class="field"
-                type="text">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Card Series
-              </label>
-
-              <input
-                id="addCardSeries"
-                class="field"
-                type="text">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Card Brand
-              </label>
-
-              <input
-                id="addCardBrand"
-                class="field"
-                type="text">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Set Name
-              </label>
-
-              <input
-                id="addCardSetName"
-                class="field"
-                type="text">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Parallel
-              </label>
-
-              <input
-                id="addCardParallel"
-                class="field"
-                type="text">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Grade
-              </label>
-
-              <input
-                id="addCardGrade"
-                class="field"
-                type="text"
-                placeholder="Raw, PSA 10, BGS 9.5...">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Quantity
-              </label>
-
-              <input
-                id="addCardQuantity"
-                class="field"
-                type="number"
-                min="0"
-                value="1">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Possession
-              </label>
-
-              <select
-                id="addCardPossession"
-                class="field">
-
-                <option value="Collection">
-                  Collection
-                </option>
-
-                <option value="For Sale">
-                  For Sale
-                </option>
-
-                <option value="Sold">
-                  Sold
-                </option>
-
-                <option value="Traded">
-                  Traded
-                </option>
-
-              </select>
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Value
-              </label>
-
-              <input
-                id="addCardValue"
-                class="field"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                For Sale Price
-              </label>
-
-              <input
-                id="addCardForSalePrice"
-                class="field"
-                type="number"
-                min="0"
-                step="0.01">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Purchase Price
-              </label>
-
-              <input
-                id="addCardPurchasePrice"
-                class="field"
-                type="number"
-                min="0"
-                step="0.01">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Purchase Date
-              </label>
-
-              <input
-                id="addCardPurchaseDate"
-                class="field"
-                type="date">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Seller
-              </label>
-
-              <input
-                id="addCardPurchaseSeller"
-                class="field"
-                type="text">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Sold Price
-              </label>
-
-              <input
-                id="addCardSoldPrice"
-                class="field"
-                type="number"
-                min="0"
-                step="0.01">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Sold Date
-              </label>
-
-              <input
-                id="addCardSoldDate"
-                class="field"
-                type="date">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Traded With
-              </label>
-
-              <input
-                id="addCardTradedWith"
-                class="field"
-                type="text">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Trade Date
-              </label>
-
-              <input
-                id="addCardTradeDate"
-                class="field"
-                type="date">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Barcode
-              </label>
-
-              <input
-                id="addCardBarcode"
-                class="field"
-                type="text">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Position
-              </label>
-
-              <input
-                id="addCardPosition"
-                class="field"
-                type="text">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Weight Division
-              </label>
-
-              <input
-                id="addCardWeightDivision"
-                class="field"
-                type="text">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Serial Numbering
-              </label>
-
-              <input
-                id="addCardSerialNumbering"
-                class="field"
-                type="text"
-                placeholder="e.g. 17/25">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Print Run
-              </label>
-
-              <input
-                id="addCardPrintRun"
-                class="field"
-                type="number"
-                min="0">
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Numbered
-              </label>
-
-              <select
-                id="addCardNumbered"
-                class="field">
-
-                <option value="false">
-                  No
-                </option>
-
-                <option value="true">
-                  Yes
-                </option>
-
-              </select>
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Rookie
-              </label>
-
-              <select
-                id="addCardRookie"
-                class="field">
-
-                <option value="false">
-                  No
-                </option>
-
-                <option value="true">
-                  Yes
-                </option>
-
-              </select>
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Patch / Relic
-              </label>
-
-              <select
-                id="addCardPatch"
-                class="field">
-
-                <option value="false">
-                  No
-                </option>
-
-                <option value="true">
-                  Yes
-                </option>
-
-              </select>
-
-            </div>
-
-
-            <div class="form-group">
-
-              <label class="form-label">
-                Autographed
-              </label>
-
-              <select
-                id="addCardAutographed"
-                class="field">
-
-                <option value="false">
-                  No
-                </option>
-
-                <option value="true">
-                  Yes
-                </option>
-
-              </select>
-
-            </div>
-
-
-            <div class="form-group full">
-
-              <label class="form-label">
-                Front Catalog Image
-              </label>
-
-              <input
-                id="addCatalogFront"
-                class="field"
-                type="file"
-                accept="image/*">
-
-            </div>
-
-
-            <div class="form-group full">
-
-              <label class="form-label">
-                Back Catalog Image
-              </label>
-
-              <input
-                id="addCatalogBack"
-                class="field"
-                type="file"
-                accept="image/*">
-
-            </div>
-
-
-            <div class="form-group full">
-
-              <label class="form-label">
-                Your Card Front Photo
-              </label>
-
-              <input
-                id="addOwnedFront"
-                class="field"
-                type="file"
-                accept="image/*">
-
-            </div>
-
-
-            <div class="form-group full">
-
-              <label class="form-label">
-                Your Card Back Photo
-              </label>
-
-              <input
-                id="addOwnedBack"
-                class="field"
-                type="file"
-                accept="image/*">
-
-            </div>
-
-
-            <div class="form-group full">
-
-              <label class="form-label">
-                Notes
-              </label>
-
-              <textarea
-                id="addCardNotes"
-                class="field"
-                placeholder="Anything else about this card..."></textarea>
-
+            <!-- Legacy fields kept so existing save/edit logic continues to work. -->
+            <div style="display:none;">
+              <input id="addCardPosition">
+              <input id="addCardWeightDivision">
+              <input id="addCardSerialNumbering">
+              <input id="addCardPrintRun">
+              <input id="addCardBarcode">
+
+              <select id="addCardNumbered"><option value="">No</option><option value="true">Yes</option></select>
+              <select id="addCardRookie"><option value="">No</option><option value="true">Yes</option></select>
+              <select id="addCardPatch"><option value="">No</option><option value="true">Yes</option></select>
+              <select id="addCardAutographed"><option value="">No</option><option value="true">Yes</option></select>
+
+              <input id="addCardValue">
+              <input id="addCardForSalePrice">
+              <input id="addCardPurchasePrice">
+              <input id="addCardPurchaseDate">
+              <input id="addCardPurchaseSeller">
+              <input id="addCardSoldPrice">
+              <input id="addCardSoldDate">
+              <input id="addCardTradedWith">
+              <input id="addCardTradeDate">
+
+              <input id="addCatalogFront" type="file" accept="image/*">
+              <input id="addCatalogBack" type="file" accept="image/*">
+              <input id="addOwnedFront" type="file" accept="image/*">
+              <input id="addOwnedBack" type="file" accept="image/*">
             </div>
 
           </div>
 
         </div>
 
-
         <div class="modal-footer">
-
-          <button
-            type="button"
-            class="btn"
-            onclick="closeModal('addCardModal')">
-
-            Cancel
-
-          </button>
-
-          <button
-            id="saveCardButton"
-            type="submit"
-            class="btn btn-primary">
-
-            Add Card
-
-          </button>
-
+          <button type="button" class="btn" onclick="closeModal('addCardModal')">Cancel</button>
+          <button id="saveCardButton" type="submit" class="btn btn-primary hidden">Add Card</button>
         </div>
 
       </form>
@@ -2896,7 +2527,7 @@
   </div>
 
 
-  <!-- ==========================================
+<!-- ==========================================
        ACCOUNT MODAL
        ========================================== -->
 
@@ -7196,8 +6827,190 @@ function resetAddCardForm() {
 
 
 // ============================================================
+// SIMPLE ADD CARD FLOW
+// ============================================================
+
+function showAddCardMode(mode) {
+  const choice = document.getElementById("addCardChoiceMode");
+  const photo = document.getElementById("addCardPhotoMode");
+  const library = document.getElementById("addCardLibraryMode");
+  const manual = document.getElementById("addCardManualMode");
+  const saveButton = findField("saveCardButton", "addCardSaveButton", "saveAddCardButton");
+
+  [choice, photo, library, manual].forEach(el => {
+    if (el) el.classList.add("hidden");
+  });
+
+  if (mode === "photo" && photo) photo.classList.remove("hidden");
+  else if (mode === "library" && library) library.classList.remove("hidden");
+  else if (mode === "manual" && manual) manual.classList.remove("hidden");
+  else if (choice) choice.classList.remove("hidden");
+
+  if (saveButton) {
+    saveButton.classList.toggle("hidden", mode !== "manual");
+  }
+
+  if (mode === "library") {
+    const input = document.getElementById("addCardLibrarySearch");
+    if (input) {
+      input.focus();
+      searchAddCardLibrary();
+    }
+  }
+}
+
+function previewAddCardPhoto(event) {
+  const file = event?.target?.files?.[0];
+  const preview = document.getElementById("addCardPhotoPreview");
+  const status = document.getElementById("addCardPhotoStatus");
+
+  if (!file) {
+    if (preview) {
+      preview.src = "";
+      preview.classList.add("hidden");
+    }
+    if (status) status.textContent = "";
+    return;
+  }
+
+  if (preview) {
+    preview.src = URL.createObjectURL(file);
+    preview.classList.remove("hidden");
+  }
+
+  if (status) {
+    status.textContent = file.name;
+  }
+}
+
+function copyPhotoToOwnedField(file) {
+  if (!file) return;
+
+  const input = document.getElementById("addOwnedFront");
+  if (!input) return;
+
+  try {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+  } catch (error) {
+    console.warn("Could not copy photo to ownership field:", error);
+  }
+}
+
+async function identifyNewCardPhoto() {
+  const input = document.getElementById("addCardPhoto");
+  const file = input?.files?.[0];
+
+  if (!file) {
+    showToast("Please choose a card photo first.", "error");
+    return;
+  }
+
+  const button = document.getElementById("identifyNewCardButton");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Identifying...";
+  }
+
+  try {
+    const data = await identifyCardFromImage(file);
+    copyPhotoToOwnedField(file);
+
+    if (data) {
+      showAddCardMode("manual");
+    }
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Identify Card";
+    }
+  }
+}
+
+function getAddCardLibraryCards() {
+  return Array.isArray(allCards) ? allCards : [];
+}
+
+function searchAddCardLibrary() {
+  const input = document.getElementById("addCardLibrarySearch");
+  const container = document.getElementById("addCardLibraryResults");
+  if (!container) return;
+
+  const search = clean(input?.value).toLowerCase();
+
+  if (!search) {
+    container.innerHTML = '<div class="empty-state">Start typing to search the catalog.</div>';
+    return;
+  }
+
+  const matches = getAddCardLibraryCards()
+    .filter(card => {
+      const text = [
+        card.name,
+        card.card_number,
+        card.card_series,
+        card.card_brand,
+        card.sport,
+        card.team,
+        card.parallel,
+        card.year_made,
+        getSetName(card)
+      ].map(clean).join(" ").toLowerCase();
+
+      return text.includes(search);
+    })
+    .slice(0, 100);
+
+  container.innerHTML = matches.length
+    ? matches.map(card => {
+        const image = getCardImage(card, "front") || "";
+        const meta = [
+          card.year_made,
+          card.card_brand,
+          card.card_series,
+          getSetName(card),
+          card.card_number ? "#" + card.card_number : ""
+        ].filter(Boolean).join(" • ");
+
+        return `
+          <button type="button" class="simple-add-library-result" onclick="chooseCardFromLibrary('${escapeHtml(card.card_id)}')">
+            ${image ? `<img class="simple-add-library-image" src="${escapeHtml(image)}" alt="">` : '<div class="simple-add-library-image"></div>'}
+            <div>
+              <div class="simple-add-library-name">${escapeHtml(card.name || "Unnamed Card")}</div>
+              <div class="simple-add-library-meta">${escapeHtml(meta || card.sport || "Catalog Card")}</div>
+            </div>
+          </button>
+        `;
+      }).join("")
+    : '<div class="empty-state">No matching cards found.</div>';
+}
+
+async function chooseCardFromLibrary(cardId) {
+  const card = getCard(cardId);
+
+  if (!card) {
+    showToast("That catalog card could not be found.", "error");
+    return;
+  }
+
+  await populateAddCardForm(card, null);
+
+  setFieldValue(1, "cardQuantity", "addCardQuantity");
+  setTextIfExists("Add Card", "addCardModalTitle", "addCardTitle", "modalAddCardTitle");
+
+  const modal = document.getElementById("addCardModal");
+  if (modal) modal.dataset.mode = "add";
+
+  showAddCardMode("manual");
+  showToast("Card selected from the catalog. Review it before saving.", "success");
+}
+
+
+// ============================================================
 // OPEN ADD CARD
 // ============================================================
+
 
 function openAddCard() {
   editingCardId = null;
@@ -7227,6 +7040,7 @@ function openAddCard() {
     modal.dataset.mode = "add";
   }
 
+  showAddCardMode("choice");
   openModalSafe("addCardModal");
 }
 
@@ -7502,6 +7316,7 @@ async function openEditCard(cardId) {
 
   closeModalById("cardDetailModal");
 
+  showAddCardMode("manual");
   openModalSafe("addCardModal");
 }
 
