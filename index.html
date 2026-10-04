@@ -4635,6 +4635,12 @@
 
   function getCatalogFilteredCards() {
 
+    catalogDisplayLimit =
+      Number.isFinite(catalogDisplayLimit) &&
+      catalogDisplayLimit > 0
+        ? catalogDisplayLimit
+        : 100;
+
     const search =
       clean(
         document.getElementById(
@@ -4718,6 +4724,8 @@
   }
 
 
+  let catalogDisplayLimit = 100;
+
   function renderCatalog() {
 
     const cards =
@@ -4742,20 +4750,49 @@
       return;
     }
 
+    if (!cards.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🃏</div>
+          <h3>No cards found</h3>
+          <p>
+            Try changing your search or filters.
+          </p>
+        </div>
+      `;
+      return;
+    }
+
+    const visibleCards =
+      cards.slice(0, catalogDisplayLimit);
+
     container.innerHTML =
-      cards.length
-        ? cards
-            .map(card => cardTile(card))
-            .join("")
-        : `
-            <div class="empty-state">
-              <div class="empty-icon">🃏</div>
-              <h3>No cards found</h3>
-              <p>
-                Try changing your search or filters.
-              </p>
-            </div>
-          `;
+      visibleCards
+        .map(card => cardTile(card))
+        .join("");
+
+    if (visibleCards.length < cards.length) {
+      container.innerHTML += `
+        <div style="text-align:center; padding:20px;">
+          <button
+            type="button"
+            class="primary-btn"
+            onclick="loadMoreCatalogCards()"
+          >
+            Load More Cards
+          </button>
+          <div style="margin-top:8px; opacity:.7;">
+            Showing ${visibleCards.length.toLocaleString()}
+            of ${cards.length.toLocaleString()} cards
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  function loadMoreCatalogCards() {
+    catalogDisplayLimit += 100;
+    renderCatalog();
   }
 
 
