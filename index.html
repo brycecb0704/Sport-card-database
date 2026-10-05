@@ -6738,6 +6738,11 @@
 let editingCardId = null;
 let savingCard = false;
 
+// When a card is chosen from the Google Sheets master catalog,
+// keep its existing catalog ID so Add Card creates ownership
+// without creating a duplicate catalog record in Supabase.
+let selectedCatalogCardId = null;
+
 const PRICE_FUNCTION_NAME = "refresh-card-price";
 const IDENTIFY_FUNCTION_NAME = "identify-card";
 
@@ -6928,6 +6933,10 @@ function closeOwnershipModal() {
 // ============================================================
 
 function resetAddCardForm() {
+  // A fresh Add Card starts without a previously selected
+  // master-catalog card.
+  selectedCatalogCardId = null;
+
   const form =
     document.getElementById("addCardForm") ||
     document.querySelector("#addCardModal form");
@@ -7223,6 +7232,11 @@ async function chooseCardFromLibrary(cardId) {
     return;
   }
 
+  // Remember the exact Google Sheets catalog card that was selected.
+  // The save step will create only the user's ownership record.
+  selectedCatalogCardId = card.card_id;
+  editingCardId = null;
+
   await populateAddCardForm(card, null);
 
   setFieldValue(1, "cardQuantity", "addCardQuantity");
@@ -7323,8 +7337,10 @@ async function populateAddCardForm(card, ownership = null) {
     "addCardBrand"
   );
 
+  // getSetName expects the full card object, not just the set ID.
+  // The previous call passed card.card_set_id and therefore returned blank.
   const setName =
-    await getSetName(card.card_set_id);
+    getSetName(card);
 
   setFieldValue(
     setName,
@@ -8232,23 +8248,32 @@ async function saveCardFromForm(event) {
   }
 
   try {
+    const usingMasterCatalogCard =
+      !!selectedCatalogCardId;
+
     // --------------------------------------------------------
     // SET
     // --------------------------------------------------------
 
-    const cardSet =
-      await findOrCreateSet({
-        name:
-          cardData.setName,
-        year:
-          cardData.year,
-        sport:
-          cardData.sport,
-        brand:
-          cardData.brand,
-        series:
-          cardData.series
-      });
+    // Library selections already have a set from the Google Sheets
+    // master catalog. Do not create a duplicate Supabase set/card.
+    let cardSet = null;
+
+    if (!usingMasterCatalogCard) {
+      cardSet =
+        await findOrCreateSet({
+          name:
+            cardData.setName,
+          year:
+            cardData.year,
+          sport:
+            cardData.sport,
+          brand:
+            cardData.brand,
+          series:
+            cardData.series
+        });
+    }
 
     // --------------------------------------------------------
     // IMAGE FILES
@@ -8298,7 +8323,9 @@ async function saveCardFromForm(event) {
     let ownedBackPath =
       null;
 
-    if (catalogFrontFile) {
+    // A library selection already belongs to the master catalog.
+    // Only manual/AI-created cards may upload catalog images here.
+    if (!usingMasterCatalogCard && catalogFrontFile) {
       catalogFrontPath =
         await uploadCardImage(
           catalogFrontFile,
@@ -8307,7 +8334,7 @@ async function saveCardFromForm(event) {
         );
     }
 
-    if (catalogBackFile) {
+    if (!usingMasterCatalogCard && catalogBackFile) {
       catalogBackPath =
         await uploadCardImage(
           catalogBackFile,
@@ -8338,138 +8365,106 @@ async function saveCardFromForm(event) {
     // CARD RECORD
     // --------------------------------------------------------
 
-    const cardRecord = {
-      name:
-        cardData.name,
+    let savedCard = null;
+    let createdNewCatalogCard = false;
 
-      card_number:
-        cardData.cardNumber || null,
+    if (usingMasterCatalogCard) {
+      savedCard =
+        getCard(selectedCatalogCardId);
 
-      card_set_id:
-        cardSet
-          ? cardSet.card_set_id
-          : null,
-
-      sport:
-        cardData.sport || null,
-
-      team:
-        cardData.team || null,
-
-      position:
-        cardData.position || null,
-
-      weight_division:
-        cardData.weightDivision || null,
-
-      year_made:
-        cardData.year,
-
-      card_series:
-        cardData.series || null,
-
-      card_brand:
-        cardData.brand || null,
-
-      parallel:
-        cardData.parallel || null,
-
-      numbered:
-        cardData.numbered,
-
-      print_run:
-        cardData.printRun,
-
-      serial_numbering:
-        cardData.serialNumbering || null,
-
-      rookie:
-        cardData.rookie,
-
-      patch:
-        cardData.patch,
-
-      autographed:
-        cardData.autographed,
-
-      barcode:
-        cardData.barcode || null,
-
-      description:
-        cardData.notes || null,
-
-      source:
-        "User Added",
-
-      verified:
-        false,
-
-      identity_key:
-        cardData.identityKey
-    };
-
-    if (catalogFrontPath) {
-      cardRecord.front_image_path =
-        catalogFrontPath;
-    }
-
-    if (catalogBackPath) {
-      cardRecord.back_image_path =
-        catalogBackPath;
-    }
-
-    let cardResult;
-
-    if (editingCardId) {
-      cardResult =
-        await catalogSupabase
-          .from("cards")
-          .update(cardRecord)
-          .eq(
-            "card_id",
-            editingCardId
-          )
-          .select("*")
-          .single();
+      if (!savedCard) {
+        throw new Error(
+          "The selected catalog card is no longer available. Please search the catalog again."
+        );
+      }
     } else {
-      // Try to find an existing catalog card
-      // before creating another one.
-      const existingCard =
-        await catalogSupabase
-          .from("cards")
-          .select("*")
-          .eq(
-            "identity_key",
-            cardData.identityKey
-          )
-          .limit(1);
+      const cardRecord = {
+        name:
+          cardData.name,
 
-      if (
-        !existingCard.error &&
-        existingCard.data &&
-        existingCard.data.length
-      ) {
-        editingCardId =
-          existingCard.data[0].card_id;
+        card_number:
+          cardData.cardNumber || null,
 
-        const updateData = {
-          ...cardRecord
-        };
+        card_set_id:
+          cardSet
+            ? cardSet.card_set_id
+            : null,
 
-        // Don't overwrite existing catalog
-        // photos when no new photo was uploaded.
-        if (!catalogFrontPath) {
-          delete updateData.front_image_path;
-        }
+        sport:
+          cardData.sport || null,
 
-        if (!catalogBackPath) {
-          delete updateData.back_image_path;
-        }
+        team:
+          cardData.team || null,
 
+        position:
+          cardData.position || null,
+
+        weight_division:
+          cardData.weightDivision || null,
+
+        year_made:
+          cardData.year,
+
+        card_series:
+          cardData.series || null,
+
+        card_brand:
+          cardData.brand || null,
+
+        parallel:
+          cardData.parallel || null,
+
+        numbered:
+          cardData.numbered,
+
+        print_run:
+          cardData.printRun,
+
+        serial_numbering:
+          cardData.serialNumbering || null,
+
+        rookie:
+          cardData.rookie,
+
+        patch:
+          cardData.patch,
+
+        autographed:
+          cardData.autographed,
+
+        barcode:
+          cardData.barcode || null,
+
+        description:
+          cardData.notes || null,
+
+        source:
+          "User Added",
+
+        verified:
+          false,
+
+        identity_key:
+          cardData.identityKey
+      };
+
+      if (catalogFrontPath) {
+        cardRecord.front_image_path =
+          catalogFrontPath;
+      }
+
+      if (catalogBackPath) {
+        cardRecord.back_image_path =
+          catalogBackPath;
+      }
+
+      let cardResult;
+
+      if (editingCardId) {
         cardResult =
           await catalogSupabase
             .from("cards")
-            .update(updateData)
+            .update(cardRecord)
             .eq(
               "card_id",
               editingCardId
@@ -8477,21 +8472,66 @@ async function saveCardFromForm(event) {
             .select("*")
             .single();
       } else {
-        cardResult =
+        // Try to find an existing Supabase catalog card
+        // before creating another one for a manual/AI entry.
+        const existingCard =
           await catalogSupabase
             .from("cards")
-            .insert(cardRecord)
             .select("*")
-            .single();
+            .eq(
+              "identity_key",
+              cardData.identityKey
+            )
+            .limit(1);
+
+        if (
+          !existingCard.error &&
+          existingCard.data &&
+          existingCard.data.length
+        ) {
+          editingCardId =
+            existingCard.data[0].card_id;
+
+          const updateData = {
+            ...cardRecord
+          };
+
+          if (!catalogFrontPath) {
+            delete updateData.front_image_path;
+          }
+
+          if (!catalogBackPath) {
+            delete updateData.back_image_path;
+          }
+
+          cardResult =
+            await catalogSupabase
+              .from("cards")
+              .update(updateData)
+              .eq(
+                "card_id",
+                editingCardId
+              )
+              .select("*")
+              .single();
+        } else {
+          cardResult =
+            await catalogSupabase
+              .from("cards")
+              .insert(cardRecord)
+              .select("*")
+              .single();
+
+          createdNewCatalogCard = true;
+        }
       }
-    }
 
-    if (cardResult.error) {
-      throw cardResult.error;
-    }
+      if (cardResult.error) {
+        throw cardResult.error;
+      }
 
-    const savedCard =
-      cardResult.data;
+      savedCard = cardResult.data;
+    }
 
     editingCardId =
       savedCard.card_id;
@@ -8532,7 +8572,7 @@ async function saveCardFromForm(event) {
     // XP
     // --------------------------------------------------------
 
-    if (!editingCardId) {
+    if (createdNewCatalogCard || usingMasterCatalogCard) {
       await awardXP(25);
     }
 
@@ -8550,11 +8590,17 @@ async function saveCardFromForm(event) {
     }
 
     showToast(
-      editingCardId
-        ? "Card saved successfully."
-        : "Card added successfully.",
+      usingMasterCatalogCard
+        ? "Card added to your collection."
+        : editingCardId
+          ? "Card saved successfully."
+          : "Card added successfully.",
       "success"
     );
+
+    // The ownership record is now saved; clear the temporary
+    // master-catalog selection before the next Add Card.
+    selectedCatalogCardId = null;
 
     // --------------------------------------------------------
     // BARCODE
