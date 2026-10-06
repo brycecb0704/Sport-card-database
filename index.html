@@ -2977,18 +2977,9 @@
       SUPABASE_ANON_KEY
     );
 
-  // Project 2: complete sports-card catalog.
-  const CATALOG_SUPABASE_URL =
-    "https://hwsegdikyvqlyrabsrag.supabase.co";
-
-  const CATALOG_SUPABASE_KEY =
-    "sb_publishable_62SKsGQ_iZEMi6jLhyqEKA_9El70_-K";
-
-  const catalogSupabase =
-    window.supabase.createClient(
-      CATALOG_SUPABASE_URL,
-      CATALOG_SUPABASE_KEY
-    );
+  // The main Supabase project now owns the application catalog bridge too.
+  // Google Sheets remains the master external catalog.
+  const catalogSupabase = supabaseClient;
 
 
   // ============================================================
@@ -3824,6 +3815,29 @@
   }
 
   async function loadGoogleSheetTab(sheetName) {
+    const cacheKey =
+      "sportsCardCatalog_" + sheetName;
+
+    const cached =
+      localStorage.getItem(cacheKey);
+
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+
+        if (
+          parsed &&
+          parsed.timestamp &&
+          Array.isArray(parsed.rows) &&
+          Date.now() - parsed.timestamp < 15 * 60 * 1000
+        ) {
+          return parsed.rows;
+        }
+      } catch (error) {
+        localStorage.removeItem(cacheKey);
+      }
+    }
+
     const url =
       "https://docs.google.com/spreadsheets/d/" +
       GOOGLE_CATALOG_SHEET_ID +
@@ -3831,7 +3845,7 @@
       encodeURIComponent(sheetName);
 
     const response = await fetch(url, {
-      cache: "no-store"
+      cache: "default"
     });
 
     if (!response.ok) {
@@ -3863,7 +3877,7 @@
           .replace(/^_|_$/g, "")
     );
 
-    return (table.rows || []).map(row => {
+    const rows = (table.rows || []).map(row => {
       const result = {};
       (row.c || []).forEach((cell, index) => {
         result[cols[index] || ("column_" + index)] =
@@ -3871,6 +3885,20 @@
       });
       return result;
     });
+
+    try {
+      localStorage.setItem(
+        cacheKey,
+        JSON.stringify({
+          timestamp: Date.now(),
+          rows
+        })
+      );
+    } catch (error) {
+      console.warn("Catalog cache could not be saved:", error);
+    }
+
+    return rows;
   }
 
   function makeGoogleSetId(row) {
@@ -8327,6 +8355,93 @@ function buildOwnershipData() {
 
 
 // ============================================================
+// SUPABASE CATALOG BRIDGE
+// Google Sheets card_id -> Supabase cards.id UUID
+// ============================================================
+
+async function ensureSupabaseCard(catalogCard) {
+  if (!catalogCard || !catalogCard.card_id) {
+    throw new Error("The selected catalog card is missing its card ID.");
+  }
+
+  const existing =
+    await supabaseClient
+      .from("cards")
+      .select("*")
+      .eq("card_id", catalogCard.card_id)
+      .maybeSingle();
+
+  if (existing.error) {
+    throw existing.error;
+  }
+
+  if (existing.data) {
+    return existing.data;
+  }
+
+  const sport =
+    allSports.find(
+      item =>
+        clean(item.name).toLowerCase() ===
+        clean(catalogCard.sport).toLowerCase()
+    );
+
+  const identityKey =
+    makeIdentityKey([
+      catalogCard.card_id
+    ]);
+
+  const cardRecord = {
+    card_id: catalogCard.card_id,
+    name: catalogCard.name || "Catalog Card",
+    card_number: catalogCard.card_number || null,
+    sport_id: sport?.id || null,
+    year_made:
+      catalogCard.year_made === "" ||
+      catalogCard.year_made == null
+        ? null
+        : Number(catalogCard.year_made),
+    card_series: catalogCard.card_series || null,
+    card_brand: catalogCard.card_brand || null,
+    parallel: catalogCard.parallel || null,
+    variant_type: catalogCard.variant || null,
+    numbered: !!catalogCard.numbered,
+    print_run:
+      catalogCard.print_run === "" ||
+      catalogCard.print_run == null
+        ? null
+        : Number(catalogCard.print_run),
+    rookie: !!catalogCard.rookie,
+    patch: !!catalogCard.patch,
+    relic: !!catalogCard.relic,
+    autographed: !!catalogCard.autographed,
+    insert_card: !!catalogCard.insert_card,
+    short_print: !!catalogCard.short_print,
+    variation: !!catalogCard.variation,
+    barcode: catalogCard.barcode || null,
+    description: catalogCard.notes || null,
+    source: catalogCard.source || "Google Sheets",
+    source_url: catalogCard.source_url || null,
+    verified: !!catalogCard.verified,
+    identity_key: identityKey
+  };
+
+  const inserted =
+    await supabaseClient
+      .from("cards")
+      .insert(cardRecord)
+      .select("*")
+      .single();
+
+  if (inserted.error) {
+    throw inserted.error;
+  }
+
+  return inserted.data;
+}
+
+
+// ============================================================
 // SAVE / UPDATE OWNERSHIP
 // ============================================================
 
@@ -8639,154 +8754,99 @@ async function saveCardFromForm(event) {
     let createdNewCatalogCard = false;
 
     if (usingMasterCatalogCard) {
-      savedCard =
+      const googleCard =
         getCard(selectedCatalogCardId);
 
-      if (!savedCard) {
+      if (!googleCard) {
         throw new Error(
           "The selected catalog card is no longer available. Please search the catalog again."
         );
       }
+
+      savedCard =
+        await ensureSupabaseCard(googleCard);
     } else {
+      const sport =
+        allSports.find(
+          item =>
+            clean(item.name).toLowerCase() ===
+            clean(cardData.sport).toLowerCase()
+        );
+
       const cardRecord = {
-        name:
-          cardData.name,
-
-        card_number:
-          cardData.cardNumber || null,
-
-        card_set_id:
-          cardSet
-            ? cardSet.card_set_id
-            : null,
-
-        sport:
-          cardData.sport || null,
-
-        team:
-          cardData.team || null,
-
-        position:
-          cardData.position || null,
-
-        weight_division:
-          cardData.weightDivision || null,
-
-        year_made:
-          cardData.year,
-
-        card_series:
-          cardData.series || null,
-
-        card_brand:
-          cardData.brand || null,
-
-        parallel:
-          cardData.parallel || null,
-
-        numbered:
-          cardData.numbered,
-
-        print_run:
-          cardData.printRun,
-
-        serial_numbering:
-          cardData.serialNumbering || null,
-
-        rookie:
-          cardData.rookie,
-
-        patch:
-          cardData.patch,
-
-        autographed:
-          cardData.autographed,
-
-        barcode:
-          cardData.barcode || null,
-
-        description:
-          cardData.notes || null,
-
-        source:
-          "User Added",
-
-        verified:
-          false,
-
+        name: cardData.name,
+        card_id:
+          cardData.identityKey ||
+          makeIdentityKey([
+            cardData.year,
+            cardData.brand,
+            cardData.setName,
+            cardData.series,
+            cardData.cardNumber,
+            cardData.name,
+            cardData.parallel
+          ]),
+        card_number: cardData.cardNumber || null,
+        sport_id: sport?.id || null,
+        year_made: cardData.year,
+        card_series: cardData.series || null,
+        card_brand: cardData.brand || null,
+        parallel: cardData.parallel || null,
+        variant_type: cardData.variant || null,
+        numbered: !!cardData.numbered,
+        print_run: cardData.printRun || null,
+        serial_numbering: cardData.serialNumbering || null,
+        rookie: !!cardData.rookie,
+        patch: !!cardData.patch,
+        relic: !!cardData.relic,
+        autographed: !!cardData.autographed,
+        insert_card: !!cardData.insertCard,
+        short_print: !!cardData.shortPrint,
+        variation: !!cardData.variation,
+        barcode: cardData.barcode || null,
+        description: cardData.notes || null,
+        source: "User Added",
+        verified: false,
         identity_key:
-          cardData.identityKey
+          cardData.identityKey ||
+          makeIdentityKey([
+            cardData.year,
+            cardData.brand,
+            cardData.setName,
+            cardData.series,
+            cardData.cardNumber,
+            cardData.name,
+            cardData.parallel
+          ])
       };
-
-      if (catalogFrontPath) {
-        cardRecord.front_image_path =
-          catalogFrontPath;
-      }
-
-      if (catalogBackPath) {
-        cardRecord.back_image_path =
-          catalogBackPath;
-      }
 
       let cardResult;
 
       if (editingCardId) {
         cardResult =
-          await catalogSupabase
+          await supabaseClient
             .from("cards")
             .update(cardRecord)
-            .eq(
-              "card_id",
-              editingCardId
-            )
+            .eq("card_id", editingCardId)
             .select("*")
             .single();
       } else {
-        // Try to find an existing Supabase catalog card
-        // before creating another one for a manual/AI entry.
         const existingCard =
-          await catalogSupabase
+          await supabaseClient
             .from("cards")
             .select("*")
-            .eq(
-              "identity_key",
-              cardData.identityKey
-            )
-            .limit(1);
+            .eq("card_id", cardRecord.card_id)
+            .maybeSingle();
 
-        if (
-          !existingCard.error &&
-          existingCard.data &&
-          existingCard.data.length
-        ) {
-          editingCardId =
-            existingCard.data[0].card_id;
+        if (existingCard.error) {
+          throw existingCard.error;
+        }
 
-          const updateData = {
-            ...cardRecord
-          };
-
-          if (!catalogFrontPath) {
-            delete updateData.front_image_path;
-          }
-
-          if (!catalogBackPath) {
-            delete updateData.back_image_path;
-          }
-
-          cardResult =
-            await catalogSupabase
-              .from("cards")
-              .update(updateData)
-              .eq(
-                "card_id",
-                editingCardId
-              )
-              .select("*")
-              .single();
+        if (existingCard.data) {
+          cardResult = { data: existingCard.data, error: null };
         } else {
           cardResult =
-            await catalogSupabase
+            await supabaseClient
               .from("cards")
               .insert(cardRecord)
               .select("*")
@@ -8832,7 +8892,7 @@ async function saveCardFromForm(event) {
 
     const savedOwnership =
       await saveOwnershipRecord(
-        savedCard.card_id,
+        savedCard.id,
         ownershipData,
         ownedFrontPath,
         ownedBackPath
