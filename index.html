@@ -8529,18 +8529,30 @@ async function saveOwnershipRecord(
           cardId
         )
         .select("*")
-        .single();
+        .maybeSingle();
   } else {
     result =
       await supabaseClient
         .from("card_ownership")
         .insert(data)
         .select("*")
-        .single();
+        .maybeSingle();
   }
 
   if (result.error) {
     throw result.error;
+  }
+
+  // A successful write can occasionally return no row when the
+  // post-write SELECT is filtered by RLS. Do not turn that into
+  // a false save failure.
+  if (!result.data) {
+    result.data = {
+      ...data,
+      total_value:
+        numberValue(data.value) *
+        numberValue(data.quantity)
+    };
   }
 
   const existingIndex =
@@ -9414,11 +9426,11 @@ async function saveAccountProfile(
         .from("profiles")
         .update(updateData)
         .eq(
-          "user_id",
+          "id",
           currentUser.id
         )
         .select("*")
-        .single();
+        .maybeSingle();
 
     if (result.error) {
       throw result.error;
@@ -9430,7 +9442,7 @@ async function saveAccountProfile(
     const index =
       allProfiles.findIndex(
         profile =>
-          profile.user_id ===
+          profile.id ===
           currentUser.id
       );
 
@@ -9504,11 +9516,11 @@ async function awardXP(amount) {
         level: newLevel
       })
       .eq(
-        "user_id",
+        "id",
         currentUser.id
       )
       .select("*")
-      .single();
+      .maybeSingle();
 
   if (result.error) {
     console.warn(
@@ -9524,7 +9536,7 @@ async function awardXP(amount) {
   const index =
     allProfiles.findIndex(
       profile =>
-        profile.user_id ===
+        profile.id ===
         currentUser.id
     );
 
