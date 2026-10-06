@@ -2992,6 +2992,7 @@
   let allCards = [];
   let allSets = [];
   let allOwnership = [];
+  let allSupabaseCards = [];
   let allProfiles = [];
   let allPrices = [];
   let allSports = [];
@@ -3576,11 +3577,70 @@
 
   function getCard(cardId) {
 
-    return allCards.find(
+    // Normal catalog lookup: Google Sheets card_id.
+    const googleCard = allCards.find(
       card =>
         String(card.card_id) ===
         String(cardId)
-    ) || null;
+    );
+
+    if (googleCard) {
+      return googleCard;
+    }
+
+    // Ownership stores the Supabase cards.id UUID.
+    // Resolve that UUID back to the Google master card.
+    const bridgeCard = allSupabaseCards.find(
+      card =>
+        String(card.id) ===
+        String(cardId)
+    );
+
+    if (bridgeCard?.card_id) {
+      const masterCard = allCards.find(
+        card =>
+          String(card.card_id) ===
+          String(bridgeCard.card_id)
+      );
+
+      if (masterCard) {
+        return masterCard;
+      }
+    }
+
+    // Manual cards may not exist in Google Sheets yet.
+    // Return a display-compatible Supabase card as a fallback.
+    if (bridgeCard) {
+      return {
+        card_id: bridgeCard.card_id || bridgeCard.id,
+        id: bridgeCard.id,
+        name: bridgeCard.name || "Catalog Card",
+        sport: bridgeCard.sport || "",
+        team: bridgeCard.team || "",
+        card_number: bridgeCard.card_number || "",
+        card_series: bridgeCard.card_series || "",
+        card_brand: bridgeCard.card_brand || "",
+        parallel: bridgeCard.parallel || "",
+        variant: bridgeCard.variant_type || "",
+        year_made: bridgeCard.year_made || null,
+        barcode: bridgeCard.barcode || "",
+        rookie: !!bridgeCard.rookie,
+        autographed: !!bridgeCard.autographed,
+        relic: !!bridgeCard.relic,
+        patch: !!bridgeCard.patch,
+        numbered: !!bridgeCard.numbered,
+        print_run: bridgeCard.print_run || null,
+        insert_card: !!bridgeCard.insert_card,
+        short_print: !!bridgeCard.short_print,
+        variation: !!bridgeCard.variation,
+        notes: bridgeCard.note || bridgeCard.description || "",
+        source: bridgeCard.source || "",
+        source_url: bridgeCard.source_url || "",
+        verified: !!bridgeCard.verified
+      };
+    }
+
+    return null;
   }
 
 
@@ -4068,7 +4128,8 @@
       ownership,
       profiles,
       prices,
-      sports
+      sports,
+      supabaseCards
     ] = await Promise.all([
 
       safeTableLoad(
@@ -4097,6 +4158,13 @@
         "users",
         "sports",
         "*"
+      ),
+
+      safeTableLoad(
+        supabaseClient,
+        "users",
+        "cards",
+        "*"
       )
 
     ]);
@@ -4120,6 +4188,7 @@
         );
 
     allOwnership = ownership;
+    allSupabaseCards = supabaseCards;
     allProfiles = profiles;
     allPrices = prices;
     allSports = sports;
@@ -8454,6 +8523,17 @@ async function saveOwnershipRecord(
     );
   }
 
+  // Accept either a Supabase cards.id UUID or the Google master
+  // catalog card_id. Ownership itself must always store the UUID.
+  const bridgeCard = allSupabaseCards.find(
+    card =>
+      String(card.id) === String(cardId) ||
+      String(card.card_id) === String(cardId)
+  );
+
+  const resolvedCardId =
+    bridgeCard?.id || cardId;
+
   const existing =
     await supabaseClient
       .from("card_ownership")
@@ -8464,7 +8544,7 @@ async function saveOwnershipRecord(
       )
       .eq(
         "card_id",
-        cardId
+        resolvedCardId
       )
       .maybeSingle();
 
@@ -8474,7 +8554,7 @@ async function saveOwnershipRecord(
 
   const data = {
     user_id: currentUser.id,
-    card_id: cardId,
+    card_id: resolvedCardId,
     quantity:
       ownershipData.quantity,
     possession:
@@ -8526,7 +8606,7 @@ async function saveOwnershipRecord(
         )
         .eq(
           "card_id",
-          cardId
+          resolvedCardId
         )
         .select("*")
         .maybeSingle();
@@ -8560,7 +8640,7 @@ async function saveOwnershipRecord(
       item =>
         item.user_id ===
           currentUser.id &&
-        item.card_id === cardId
+        item.card_id === resolvedCardId
     );
 
   if (existingIndex >= 0) {
