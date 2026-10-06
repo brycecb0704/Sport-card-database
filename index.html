@@ -7882,11 +7882,16 @@ async function findOrCreateSet({
   }
 
   const normalizedYear =
-    year === "" ||
-    year === null ||
-    year === undefined
+    year === "" || year == null
       ? null
       : Number(year);
+
+  const sportRecord =
+    allSports.find(
+      item =>
+        clean(item.name).toLowerCase() ===
+        clean(sport).toLowerCase()
+    );
 
   const identityKey = makeIdentityKey([
     cleanName,
@@ -7896,67 +7901,59 @@ async function findOrCreateSet({
     series || ""
   ]);
 
-  let query =
-    await catalogSupabase
+  const query =
+    await supabaseClient
       .from("card_sets")
       .select("*")
       .eq("identity_key", identityKey)
       .limit(1);
 
-  if (
-    !query.error &&
-    query.data &&
-    query.data.length
-  ) {
+  if (!query.error && query.data?.length) {
     return query.data[0];
   }
 
   const insertData = {
     name: cleanName,
     year: normalizedYear,
-    sport: clean(sport) || null,
+    sport_id: sportRecord?.id || null,
     brand: clean(brand) || null,
     series: clean(series) || null,
     identity_key: identityKey,
-    created_by:
-      currentUser?.id || null,
+    created_by: currentUser?.id || null,
     verified: false,
     source: "User Added"
   };
 
   const inserted =
-    await catalogSupabase
+    await supabaseClient
       .from("card_sets")
       .insert(insertData)
       .select("*")
       .single();
 
   if (!inserted.error) {
-    allSets.push(inserted.data);
+    allSets.push({
+      card_set_id: inserted.data.id,
+      id: inserted.data.id,
+      name: inserted.data.name,
+      year_made: inserted.data.year,
+      card_brand: inserted.data.brand,
+      card_series: inserted.data.series
+    });
+
     return inserted.data;
   }
 
-  // A duplicate may have been created between
-  // the first lookup and insert. Try one more lookup.
   const retry =
-    await catalogSupabase
+    await supabaseClient
       .from("card_sets")
       .select("*")
       .eq("identity_key", identityKey)
       .limit(1);
 
-  if (
-    !retry.error &&
-    retry.data &&
-    retry.data.length
-  ) {
+  if (!retry.error && retry.data?.length) {
     return retry.data[0];
   }
-
-  console.error(
-    "Could not create card set:",
-    inserted.error
-  );
 
   throw inserted.error;
 }
