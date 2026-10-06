@@ -8784,6 +8784,7 @@ async function saveCardFromForm(event) {
             cardData.parallel
           ]),
         card_number: cardData.cardNumber || null,
+        card_set_id: cardSet?.id || null,
         sport_id: sport?.id || null,
         year_made: cardData.year,
         card_series: cardData.series || null,
