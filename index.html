@@ -517,8 +517,9 @@
 
     .card-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(245px, 1fr));
-      gap: 14px;
+      grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+      gap: 16px;
+      align-items: start;
     }
 
     .card-tile {
@@ -536,47 +537,105 @@
       border-color: var(--accent);
     }
 
-    .card-image {
-      height: 230px;
+    /* Current cardTile layout */
+    .card-tile-image {
+      position: relative;
+      height: 235px;
       background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
     }
 
-    .card-image img {
+    .card-tile-image img {
+      display: block;
       width: 100%;
       height: 100%;
       object-fit: contain;
+      background: var(--surface-2);
     }
 
-    .card-image-placeholder {
+    .card-placeholder {
+      width: 100%;
+      height: 100%;
+      min-height: 235px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
       color: var(--muted);
-      font-size: 44px;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .card-placeholder div {
+      font-size: 30px;
+      opacity: .55;
+    }
+
+    .card-tile-badges {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      max-width: calc(100% - 20px);
     }
 
     .card-tile-body {
-      padding: 14px;
+      padding: 14px 15px 15px;
     }
 
-    .card-name {
-      font-weight: 800;
+    .card-tile-body h3 {
+      margin: 0;
       font-size: 16px;
       line-height: 1.25;
+      font-weight: 800;
+      min-height: 40px;
     }
 
-    .card-meta {
+    .card-subtitle {
       margin-top: 5px;
       color: var(--muted);
       font-size: 12px;
-      line-height: 1.45;
+      line-height: 1.35;
+      min-height: 16px;
     }
 
-    .card-value {
-      margin-top: 12px;
-      font-size: 18px;
+    .card-tile-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 11px;
+    }
+
+    .card-tile-bottom strong {
+      font-size: 16px;
       font-weight: 800;
+    }
+
+    .quantity-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .card-owners {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.3;
     }
 
     .card-badges {
@@ -895,12 +954,20 @@
       width: min(1180px, 96vw);
       max-height: 92vh;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     #cardDetailModal .modal-body {
       padding: 0;
-      max-height: calc(92vh - 125px);
+      min-height: 0;
+      flex: 1 1 auto;
       overflow-y: auto;
+    }
+
+    #cardDetailModal .modal-footer {
+      flex: 0 0 auto;
+      background: var(--surface);
     }
 
     .card-detail-layout {
@@ -943,7 +1010,13 @@
       align-items: center;
       justify-content: center;
       color: var(--muted);
-      font-size: 52px;
+      font-size: 13px;
+      gap: 8px;
+    }
+
+    .card-placeholder.large div {
+      font-size: 42px;
+      opacity: .55;
     }
 
     .card-detail-info {
@@ -4802,7 +4875,10 @@
     return `
       <article
         class="card-tile"
-        onclick="openCardDetail('${escapeHtml(card.card_id)}')"
+        data-card-id="${escapeHtml(card.card_id)}"
+        tabindex="0"
+        role="button"
+        aria-label="Open ${escapeHtml(card.name || "card")}"
       >
 
         <div class="card-tile-image">
@@ -4818,8 +4894,8 @@
               `
               : `
                 <div class="card-placeholder">
-                  <div>🃏</div>
-                  <span>No Image</span>
+                  <div>▧</div>
+                  <span>No image available</span>
                 </div>
               `
           }
@@ -5911,7 +5987,8 @@
                 `
                 : `
                   <div class="card-placeholder large">
-                    🃏
+                    <div>▧</div>
+                    <span>No image available</span>
                   </div>
                 `
             }
@@ -6427,6 +6504,50 @@
   // ============================================================
 
   function setupEvents() {
+
+    // Card tiles use data attributes instead of inline onclick handlers.
+    document.addEventListener("click", event => {
+
+      const tile =
+        event.target.closest(".card-tile");
+
+      if (!tile) {
+        return;
+      }
+
+      const cardId =
+        tile.dataset.cardId;
+
+      if (cardId) {
+        openCardDetail(cardId);
+      }
+    });
+
+    document.addEventListener("keydown", event => {
+
+      if (
+        event.key !== "Enter" &&
+        event.key !== " "
+      ) {
+        return;
+      }
+
+      const tile =
+        event.target.closest(".card-tile");
+
+      if (!tile) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const cardId =
+        tile.dataset.cardId;
+
+      if (cardId) {
+        openCardDetail(cardId);
+      }
+    });
 
     // Navigation
 
