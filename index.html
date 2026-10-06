@@ -3658,9 +3658,29 @@
 
     return allProfiles.find(
       profile =>
-        String(profile.user_id) ===
+        String(profile.id) ===
         String(userId)
     ) || null;
+  }
+
+
+  // Ownership rows store the Supabase cards.id UUID, while the
+  // Google master catalog uses its stable text card_id. Resolve
+  // either form before looking up ownership.
+  function resolveOwnershipCardId(cardId) {
+
+    if (!cardId) {
+      return null;
+    }
+
+    const bridgeCard =
+      allSupabaseCards.find(
+        card =>
+          String(card.id) === String(cardId) ||
+          String(card.card_id) === String(cardId)
+      );
+
+    return bridgeCard?.id || cardId;
   }
 
 
@@ -3674,10 +3694,13 @@
       return null;
     }
 
+    const resolvedCardId =
+      resolveOwnershipCardId(cardId);
+
     return allOwnership.find(
       ownership =>
         String(ownership.card_id) ===
-          String(cardId) &&
+          String(resolvedCardId) &&
         String(ownership.user_id) ===
           String(id)
     ) || null;
@@ -3686,10 +3709,13 @@
 
   function getOwnershipsForCard(cardId) {
 
+    const resolvedCardId =
+      resolveOwnershipCardId(cardId);
+
     return allOwnership.filter(
       ownership =>
         String(ownership.card_id) ===
-        String(cardId)
+        String(resolvedCardId)
     );
   }
 
@@ -9388,6 +9414,9 @@ async function removeFromMyCollection(
   }
 
   try {
+    const resolvedCardId =
+      resolveOwnershipCardId(cardId);
+
     const result =
       await supabaseClient
         .from("card_ownership")
@@ -9398,7 +9427,7 @@ async function removeFromMyCollection(
         )
         .eq(
           "card_id",
-          cardId
+          resolvedCardId
         );
 
     if (result.error) {
@@ -9411,7 +9440,8 @@ async function removeFromMyCollection(
           !(
             item.user_id ===
               currentUser.id &&
-            item.card_id === cardId
+            String(item.card_id) ===
+              String(resolvedCardId)
           )
       );
 
