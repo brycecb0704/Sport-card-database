@@ -5238,6 +5238,8 @@
         .map(card => cardTile(card))
         .join("");
 
+    wireCardTiles(container);
+
     if (visibleCards.length < cards.length) {
       container.innerHTML += `
         <div style="text-align:center; padding:20px;">
@@ -5409,6 +5411,8 @@
               </p>
             </div>
           `;
+
+    wireCardTiles(container);
   }
 
 
@@ -5468,6 +5472,8 @@
               </p>
             </div>
           `;
+
+    wireCardTiles(grid);
   }
 
 
@@ -5945,6 +5951,48 @@
     }
 
     openCardDetail(card.card_id);
+  }
+
+  
+  function wireCardTiles(container) {
+
+    if (!container) {
+      return;
+    }
+
+    const tiles =
+      container.querySelectorAll(".card-tile");
+
+    tiles.forEach(tile => {
+
+      tile.removeAttribute("onclick");
+
+      tile.addEventListener("click", event => {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        openCardTile(tile);
+
+      });
+
+      tile.addEventListener("keydown", event => {
+
+        if (
+          event.key !== "Enter" &&
+          event.key !== " "
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        openCardTile(tile);
+
+      });
+
+    });
   }
 
 
