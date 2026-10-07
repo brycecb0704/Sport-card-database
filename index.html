@@ -4875,7 +4875,7 @@
     return `
       <article
         class="card-tile"
-        data-card-id="${escapeHtml(card.card_id)}"
+        data-card-id="${encodeURIComponent(String(card.card_id || ""))}"
         tabindex="0"
         role="button"
         aria-label="Open ${escapeHtml(card.name || "card")}"
@@ -6515,10 +6515,18 @@
         return;
       }
 
-      const cardId =
+      const encodedCardId =
         tile.dataset.cardId;
 
-      if (cardId) {
+      if (encodedCardId) {
+        let cardId = encodedCardId;
+
+        try {
+          cardId = decodeURIComponent(encodedCardId);
+        } catch (error) {
+          // Keep the raw value if decoding fails.
+        }
+
         openCardDetail(cardId);
       }
     });
@@ -6541,10 +6549,18 @@
 
       event.preventDefault();
 
-      const cardId =
+      const encodedCardId =
         tile.dataset.cardId;
 
-      if (cardId) {
+      if (encodedCardId) {
+        let cardId = encodedCardId;
+
+        try {
+          cardId = decodeURIComponent(encodedCardId);
+        } catch (error) {
+          // Keep the raw value if decoding fails.
+        }
+
         openCardDetail(cardId);
       }
     });
