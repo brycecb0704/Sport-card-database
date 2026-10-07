@@ -3117,6 +3117,15 @@
   let allPrices = [];
   let allSports = [];
 
+  // Performance indexes. These keep normal card/set/ownership lookups
+  // O(1) instead of repeatedly scanning tens of thousands of records.
+  let cardById = new Map();
+  let setById = new Map();
+  let supabaseCardById = new Map();
+  let supabaseCardByCatalogId = new Map();
+  let ownershipByUserCard = new Map();
+  let ownershipsByCard = new Map();
+
   let selectedCard = null;
   let selectedOwnership = null;
 
@@ -3698,11 +3707,8 @@
   function getCard(cardId) {
 
     // 1. Normal catalog lookup: Google Sheets card_id.
-    const googleCard = allCards.find(
-      card =>
-        String(card.card_id) ===
-        String(cardId)
-    );
+    const googleCard =
+      cardById.get(String(cardId));
 
     if (googleCard) {
       return googleCard;
@@ -3710,21 +3716,15 @@
 
     // 2. Ownership stores the Supabase cards.id UUID.
     // Resolve that UUID back to the Google master card.
-    const bridgeCard = allSupabaseCards.find(
-      card =>
-        String(card.id) ===
-        String(cardId)
-    );
+    const bridgeCard =
+      supabaseCardById.get(String(cardId));
 
     if (bridgeCard) {
 
       // The normal bridge is cards.card_id -> Google card_id.
       if (bridgeCard.card_id) {
-        const masterCard = allCards.find(
-          card =>
-            String(card.card_id) ===
-            String(bridgeCard.card_id)
-        );
+        const masterCard =
+          cardById.get(String(bridgeCard.card_id));
 
         if (masterCard) {
           return masterCard;
@@ -3847,12 +3847,11 @@
 
 
   function getSet(setId) {
-
-    return allSets.find(
-      item =>
-        String(item.card_set_id) ===
-        String(setId)
-    ) || null;
+    if (!setId) return null;
+    return (
+      setById.get(String(setId)) ||
+      null
+    );
   }
 
 
@@ -3870,10 +3869,12 @@
   // and prices use the UUID from public.cards.id.
   function getSupabaseCard(cardId) {
     if (!cardId) return null;
-    return allSupabaseCards.find(card =>
-      String(card.id) === String(cardId) ||
-      String(card.card_id) === String(cardId)
-    ) || null;
+
+    return (
+      supabaseCardById.get(String(cardId)) ||
+      supabaseCardByCatalogId.get(String(cardId)) ||
+      null
+    );
   }
 
   function resolveSupabaseCardId(cardId) {
@@ -3892,41 +3893,36 @@
     const id = userId || currentUser?.id;
     if (!id || !cardId) return null;
 
-    const direct = allOwnership.find(ownership =>
-      String(ownership.card_id) === String(cardId) &&
-      String(ownership.user_id) === String(id)
-    );
+    const userKey = String(id);
+    const directKey =
+      userKey + "|" + String(cardId);
+
+    const direct =
+      ownershipByUserCard.get(directKey);
+
     if (direct) return direct;
 
-    const resolvedCardId = resolveSupabaseCardId(cardId);
-    const bridged = allOwnership.find(ownership =>
-      String(ownership.card_id) === String(resolvedCardId) &&
-      String(ownership.user_id) === String(id)
-    );
-    if (bridged) return bridged;
+    const resolvedCardId =
+      resolveSupabaseCardId(cardId);
 
-    return allOwnership.find(ownership => {
-      if (String(ownership.user_id) !== String(id)) return false;
-      const catalogCard = getCard(ownership.card_id);
-      return catalogCard &&
-        String(catalogCard.card_id) === String(resolveCatalogCardId(cardId));
-    }) || null;
+    return (
+      ownershipByUserCard.get(
+        userKey + "|" + String(resolvedCardId)
+      ) || null
+    );
   }
 
   function getOwnershipsForCard(cardId) {
     if (!cardId) return [];
-    const resolvedCardId = resolveSupabaseCardId(cardId);
-    const direct = allOwnership.filter(ownership =>
-      String(ownership.card_id) === String(resolvedCardId)
-    );
-    if (direct.length) return direct;
 
-    const catalogCardId = resolveCatalogCardId(cardId);
-    return allOwnership.filter(ownership => {
-      const catalogCard = getCard(ownership.card_id);
-      return catalogCard &&
-        String(catalogCard.card_id) === String(catalogCardId);
-    });
+    const resolvedCardId =
+      resolveSupabaseCardId(cardId);
+
+    return (
+      ownershipsByCard.get(String(resolvedCardId)) ||
+      ownershipsByCard.get(String(cardId)) ||
+      []
+    );
   }
 
   function getPrice(cardId) {
@@ -4468,6 +4464,88 @@
     allProfiles = profiles;
     allPrices = prices;
     allSports = sports;
+
+    // Build lookup indexes once after loading instead of doing
+    // repeated Array.find/filter scans throughout the UI.
+    cardById = new Map(
+      allCards.map(card => [
+        String(card.card_id),
+        card
+      ])
+    );
+
+    setById = new Map(
+      allSets.map(set => [
+        String(set.card_set_id),
+        set
+      ])
+    );
+
+    supabaseCardById = new Map(
+      allSupabaseCards.map(card => [
+        String(card.id),
+        card
+      ])
+    );
+
+    supabaseCardByCatalogId = new Map(
+      allSupabaseCards
+        .filter(card => card.card_id)
+        .map(card => [
+          String(card.card_id),
+          card
+        ])
+    );
+
+    ownershipByUserCard = new Map();
+    ownershipsByCard = new Map();
+
+    allOwnership.forEach(ownershipRow => {
+      const rawCardId = String(ownershipRow.card_id || "");
+      const userId = String(ownershipRow.user_id || "");
+
+      if (rawCardId) {
+        if (!ownershipsByCard.has(rawCardId)) {
+          ownershipsByCard.set(rawCardId, []);
+        }
+        ownershipsByCard.get(rawCardId).push(ownershipRow);
+      }
+
+      if (userId && rawCardId) {
+        ownershipByUserCard.set(
+          userId + "|" + rawCardId,
+          ownershipRow
+        );
+      }
+
+      const bridge =
+        supabaseCardById.get(rawCardId) ||
+        supabaseCardByCatalogId.get(rawCardId);
+
+      if (bridge) {
+        const supabaseId = String(bridge.id || "");
+        const catalogId = String(bridge.card_id || "");
+
+        [supabaseId, catalogId].forEach(key => {
+          if (!key) return;
+
+          if (!ownershipsByCard.has(key)) {
+            ownershipsByCard.set(key, []);
+          }
+
+          if (!ownershipsByCard.get(key).includes(ownershipRow)) {
+            ownershipsByCard.get(key).push(ownershipRow);
+          }
+
+          if (userId) {
+            ownershipByUserCard.set(
+              userId + "|" + key,
+              ownershipRow
+            );
+          }
+        });
+      }
+    });
 
     currentProfile =
       getProfile(currentUser?.id);
