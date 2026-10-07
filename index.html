@@ -1528,6 +1528,32 @@
 @media(max-width:900px){.simple-add-choice-grid{grid-template-columns:1fr}.simple-add-manual-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.simple-add-manual-grid{grid-template-columns:1fr}.simple-add-manual-grid .form-group.full{grid-column:auto}}
 
+    /* Visual polish */
+    .card-tile { box-shadow: 0 5px 18px rgba(15,23,42,.07); transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+    .card-tile:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(15,23,42,.12); }
+    .card-tile-image { height: 220px; }
+    .card-placeholder { min-height: 220px; background: linear-gradient(135deg,var(--surface-2),var(--surface)); }
+    .card-placeholder div { font-size: 26px; }
+    .card-placeholder span { font-size: 12px; }
+    .card-tile-body { padding: 13px 14px 14px; }
+    .card-tile-body h3 { min-height: 0; margin-bottom: 6px; }
+    .card-sport-meta { font-weight: 700; }
+    .card-tile-price { letter-spacing: -.01em; }
+    .card-detail-layout { gap: 28px; padding: 26px; }
+    .detail-image-box { min-height: 360px; background: linear-gradient(145deg,var(--surface-2),var(--surface)); }
+    .detail-title-row { margin-bottom: 16px; }
+    .detail-value { min-width: 150px; }
+    .detail-fields > div { padding: 13px 15px; }
+    .detail-fields strong { font-size: 14px; }
+    .price-empty { display:flex; flex-direction:column; gap:4px; }
+    .price-empty strong { color:var(--text); }
+    .price-empty span { color:var(--muted); font-size:12px; }
+    .detail-actions { position:sticky; bottom:0; z-index:2; padding-top:14px; margin-top:22px; background:var(--surface); }
+    @media (max-width:760px) {
+      .card-tile-image,.card-placeholder { min-height:200px; height:200px; }
+      .card-detail-layout { padding:16px; gap:18px; }
+      .detail-image-box { min-height:240px; }
+    }
 </style>
 </head>
 
@@ -3840,78 +3866,106 @@
   }
 
 
-  // Ownership rows store the Supabase cards.id UUID, while the
-  // Google master catalog uses its stable text card_id. Resolve
-  // either form before looking up ownership.
-  function resolveOwnershipCardId(cardId) {
-
-    if (!cardId) {
-      return null;
-    }
-
-    const bridgeCard =
-      allSupabaseCards.find(
-        card =>
-          String(card.id) === String(cardId) ||
-          String(card.card_id) === String(cardId)
-      );
-
-    return bridgeCard?.id || cardId;
-  }
-
-
-  function getOwnership(cardId, userId = null) {
-
-    const id =
-      userId ||
-      currentUser?.id;
-
-    if (!id) {
-      return null;
-    }
-
-    const resolvedCardId =
-      resolveOwnershipCardId(cardId);
-
-    return allOwnership.find(
-      ownership =>
-        String(ownership.card_id) ===
-          String(resolvedCardId) &&
-        String(ownership.user_id) ===
-          String(id)
+  // Google Sheets uses the stable text card_id. Supabase ownership
+  // and prices use the UUID from public.cards.id.
+  function getSupabaseCard(cardId) {
+    if (!cardId) return null;
+    return allSupabaseCards.find(card =>
+      String(card.id) === String(cardId) ||
+      String(card.card_id) === String(cardId)
     ) || null;
   }
 
-
-  function getOwnershipsForCard(cardId) {
-
-    const resolvedCardId =
-      resolveOwnershipCardId(cardId);
-
-    return allOwnership.filter(
-      ownership =>
-        String(ownership.card_id) ===
-        String(resolvedCardId)
-    );
+  function resolveSupabaseCardId(cardId) {
+    if (!cardId) return null;
+    const bridgeCard = getSupabaseCard(cardId);
+    return bridgeCard?.id || cardId;
   }
 
+  function resolveCatalogCardId(cardId) {
+    if (!cardId) return null;
+    const bridgeCard = getSupabaseCard(cardId);
+    return bridgeCard?.card_id || cardId;
+  }
+
+  function getOwnership(cardId, userId = null) {
+    const id = userId || currentUser?.id;
+    if (!id || !cardId) return null;
+
+    const direct = allOwnership.find(ownership =>
+      String(ownership.card_id) === String(cardId) &&
+      String(ownership.user_id) === String(id)
+    );
+    if (direct) return direct;
+
+    const resolvedCardId = resolveSupabaseCardId(cardId);
+    const bridged = allOwnership.find(ownership =>
+      String(ownership.card_id) === String(resolvedCardId) &&
+      String(ownership.user_id) === String(id)
+    );
+    if (bridged) return bridged;
+
+    return allOwnership.find(ownership => {
+      if (String(ownership.user_id) !== String(id)) return false;
+      const catalogCard = getCard(ownership.card_id);
+      return catalogCard &&
+        String(catalogCard.card_id) === String(resolveCatalogCardId(cardId));
+    }) || null;
+  }
+
+  function getOwnershipsForCard(cardId) {
+    if (!cardId) return [];
+    const resolvedCardId = resolveSupabaseCardId(cardId);
+    const direct = allOwnership.filter(ownership =>
+      String(ownership.card_id) === String(resolvedCardId)
+    );
+    if (direct.length) return direct;
+
+    const catalogCardId = resolveCatalogCardId(cardId);
+    return allOwnership.filter(ownership => {
+      const catalogCard = getCard(ownership.card_id);
+      return catalogCard &&
+        String(catalogCard.card_id) === String(catalogCardId);
+    });
+  }
 
   function getPrice(cardId) {
+    if (!cardId) return null;
+    const resolvedCardId = resolveSupabaseCardId(cardId);
+    return allPrices
+      .filter(price =>
+        String(price.card_id) === String(resolvedCardId) ||
+        String(price.card_id) === String(cardId)
+      )
+      .sort((a,b) => new Date(b.fetched_at || 0) - new Date(a.fetched_at || 0))[0] || null;
+  }
 
-    const prices =
-      allPrices
-        .filter(
-          price =>
-            String(price.card_id) ===
-            String(cardId)
-        )
-        .sort(
-          (a, b) =>
-            new Date(b.fetched_at || 0) -
-            new Date(a.fetched_at || 0)
-        );
+  function isWeightDivisionSport(sport) {
+    const normalized = clean(sport).toLowerCase().replace(/[^a-z0-9]+/g, "");
+    return ["ufc","mma","mixedmartialarts","boxing","wrestling","kickboxing","martialarts","judo","jiujitsu","bjj"].includes(normalized);
+  }
 
-    return prices[0] || null;
+  function getSportCardMeta(card) {
+    if (!card) return "";
+    return isWeightDivisionSport(card.sport) ? clean(card.weight_division) : clean(card.team);
+  }
+
+  function buildCardDetailFields(card) {
+    const fields = [];
+    fields.push({ label: "Sport", value: card.sport });
+    if (isWeightDivisionSport(card.sport)) {
+      if (card.weight_division) fields.push({ label: "Weight Division", value: card.weight_division });
+    } else if (card.team) {
+      fields.push({ label: "Team", value: card.team });
+    }
+    fields.push({ label: "Card Number", value: card.card_number });
+    fields.push({ label: "Set", value: getSetName(card) });
+    if (card.parallel) fields.push({ label: "Parallel", value: card.parallel });
+    if (!isWeightDivisionSport(card.sport) && card.position) fields.push({ label: "Position", value: card.position });
+    if (card.barcode) fields.push({ label: "Barcode", value: card.barcode });
+    return fields.filter(field => clean(field.value)).map(field =>
+      `<div><label>${escapeHtml(field.label)}</label><strong>${escapeHtml(field.value)}</strong></div>`
+    ).join("");
   }
 
 
@@ -5065,10 +5119,26 @@
 
           </div>
 
+          ${
+            getSportCardMeta(card)
+              ? '<div class="card-subtitle card-sport-meta">' +
+                escapeHtml(
+                  isWeightDivisionSport(card.sport)
+                    ? "Weight: " + getSportCardMeta(card)
+                    : getSportCardMeta(card)
+                ) +
+                '</div>'
+              : ""
+          }
+
           <div class="card-tile-bottom">
 
-            <strong>
-              ${money(value)}
+            <strong class="card-tile-price">
+              ${
+                numberValue(value) > 0
+                  ? money(value)
+                  : "Price on card"
+              }
             </strong>
 
             ${
@@ -6215,11 +6285,15 @@
               <span>Estimated Value</span>
 
               <strong>
-                ${money(
-                  price?.estimated_value ||
-                  selectedOwnership?.value ||
-                  0
-                )}
+                ${
+                  price && Number.isFinite(Number(price.estimated_value))
+                    ? money(price.estimated_value)
+                    : (
+                        selectedOwnership && Number(selectedOwnership.value) > 0
+                          ? money(selectedOwnership.value)
+                          : "Not available"
+                      )
+                }
               </strong>
 
             </div>
@@ -6235,65 +6309,8 @@
 
 
           <div class="detail-fields">
-
-            <div>
-              <label>Sport</label>
-              <strong>
-                ${escapeHtml(card.sport || "—")}
-              </strong>
-            </div>
-
-            <div>
-              <label>Team</label>
-              <strong>
-                ${escapeHtml(card.team || "—")}
-              </strong>
-            </div>
-
-            <div>
-              <label>Card Number</label>
-              <strong>
-                ${escapeHtml(card.card_number || "—")}
-              </strong>
-            </div>
-
-            <div>
-              <label>Set</label>
-              <strong>
-                ${escapeHtml(getSetName(card) || "—")}
-              </strong>
-            </div>
-
-            <div>
-              <label>Parallel</label>
-              <strong>
-                ${escapeHtml(card.parallel || "—")}
-              </strong>
-            </div>
-
-            <div>
-              <label>Position</label>
-              <strong>
-                ${escapeHtml(card.position || "—")}
-              </strong>
-            </div>
-
-            <div>
-              <label>Weight Division</label>
-              <strong>
-                ${escapeHtml(card.weight_division || "—")}
-              </strong>
-            </div>
-
-            <div>
-              <label>Barcode</label>
-              <strong>
-                ${escapeHtml(card.barcode || "—")}
-              </strong>
-            </div>
-
+            ${buildCardDetailFields(card)}
           </div>
-
 
           <div class="detail-section">
 
@@ -6490,8 +6507,9 @@
 
                 `
                 : `
-                  <div class="empty-inline">
-                    No pricing data has been added yet.
+                  <div class="empty-inline price-empty">
+                    <strong>No price recorded for this card yet.</strong>
+                    <span>Pricing appears here when a verified price record exists.</span>
                   </div>
                 `
             }
@@ -6532,7 +6550,7 @@
               class="btn btn-secondary"
               onclick="refreshCardPrice('${escapeHtml(card.card_id)}')"
             >
-              Refresh Price
+              ${price ? "Refresh Price" : "Get Price"}
             </button>
 
           </div>
@@ -9984,6 +10002,9 @@ async function refreshCardPrice(
     return;
   }
 
+  const resolvedPriceCardId =
+    resolveSupabaseCardId(cardId);
+
   showToast(
     "Refreshing price...",
     "info"
@@ -9997,7 +10018,7 @@ async function refreshCardPrice(
           PRICE_FUNCTION_NAME,
           {
             body: {
-              card_id: cardId
+              card_id: resolvedPriceCardId
             }
           }
         );
