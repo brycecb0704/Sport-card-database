@@ -523,6 +523,7 @@
     }
 
     .card-tile {
+      position: relative;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -535,6 +536,26 @@
     .card-tile:hover {
       transform: translateY(-2px);
       border-color: var(--accent);
+    }
+
+    .card-tile-button {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: inherit;
+      background: transparent;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .card-tile-button:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: -3px;
     }
 
     /* Current cardTile layout */
@@ -4879,11 +4900,14 @@
       <article
         class="card-tile"
         data-card-tile-key="${tileKey}"
-        tabindex="0"
-        role="button"
-        aria-label="Open ${escapeHtml(card.name || "card")}"
-        onclick="openCardTile(this)"
       >
+
+        <button
+          type="button"
+          class="card-tile-button"
+          aria-label="Open ${escapeHtml(card.name || "card")} details"
+          onclick="openCardTile(this.parentElement)"
+        ></button>
 
         <div class="card-tile-image">
 
@@ -5950,56 +5974,28 @@
       return;
     }
 
-    openCardDetail(card.card_id);
+    // Pass the actual card object so the detail view does not
+    // need to perform another catalog lookup.
+    openCardDetail(card);
   }
 
   
   function wireCardTiles(container) {
-
-    if (!container) {
-      return;
-    }
-
-    const tiles =
-      container.querySelectorAll(".card-tile");
-
-    tiles.forEach(tile => {
-
-      tile.removeAttribute("onclick");
-
-      tile.addEventListener("click", event => {
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        openCardTile(tile);
-
-      });
-
-      tile.addEventListener("keydown", event => {
-
-        if (
-          event.key !== "Enter" &&
-          event.key !== " "
-        ) {
-          return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        openCardTile(tile);
-
-      });
-
-    });
+    // Card tiles now contain their own native button.
+    // Kept as a compatibility hook for existing render calls.
+    return;
   }
 
 
-  function openCardDetail(cardId) {
+  function openCardDetail(cardOrId) {
 
+    // Card tiles pass the already-resolved catalog object.
+    // Other callers may still pass a card ID.
     const card =
-      getCard(cardId);
+      cardOrId &&
+      typeof cardOrId === "object"
+        ? cardOrId
+        : getCard(cardOrId);
 
     if (!card) {
       showToast(
@@ -6580,54 +6576,7 @@
 
   function setupEvents() {
 
-    // Card tiles use data attributes instead of inline onclick handlers.
-    document.addEventListener("click", event => {
-
-      const tile =
-        event.target.closest(".card-tile");
-
-      if (!tile) {
-        return;
-      }
-
-      const card =
-        cardTileRegistry.get(
-          tile.dataset.cardTileKey
-        );
-
-      if (card) {
-        openCardDetail(card.card_id);
-      }
-    });
-
-    document.addEventListener("keydown", event => {
-
-      if (
-        event.key !== "Enter" &&
-        event.key !== " "
-      ) {
-        return;
-      }
-
-      const tile =
-        event.target.closest(".card-tile");
-
-      if (!tile) {
-        return;
-      }
-
-      event.preventDefault();
-
-      const card =
-        cardTileRegistry.get(
-          tile.dataset.cardTileKey
-        );
-
-      if (card) {
-        openCardDetail(card.card_id);
-      }
-    });
-
+    // Card tiles use a real button rendered inside each tile.
     // Navigation
 
     document
