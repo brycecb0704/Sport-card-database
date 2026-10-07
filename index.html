@@ -3915,6 +3915,36 @@
     return bridgeCard?.card_id || cardId;
   }
 
+  async function resolveOwnershipCardId(cardId) {
+    if (!cardId) return null;
+
+    const mapped =
+      resolveSupabaseCardId(cardId);
+
+    // If the in-memory bridge already resolves to a UUID, use it.
+    if (
+      mapped &&
+      mapped !== cardId
+    ) {
+      return mapped;
+    }
+
+    // Fall back to the live cards table. This handles older ownership
+    // rows and cards whose bridge record was not loaded into the browser.
+    const result =
+      await supabaseClient
+        .from("cards")
+        .select("id")
+        .eq("card_id", cardId)
+        .maybeSingle();
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    return result.data?.id || mapped || cardId;
+  }
+
   function getOwnership(cardId, userId = null) {
     const id = userId || currentUser?.id;
     if (!id || !cardId) return null;
@@ -6360,7 +6390,7 @@
     // Verify ownership directly against Supabase so a stale browser
     // index cannot report a false unowned state.
     const resolvedOwnershipCardId =
-      resolveSupabaseCardId(card.card_id);
+      await resolveOwnershipCardId(card.card_id);
 
     let liveOwnership = null;
     let liveOwners = [];
@@ -7252,33 +7282,53 @@
   // ADD OWNERSHIP
   // ============================================================
 
-  function openAddOwnership(cardId) {
+  async function openAddOwnership(cardId) {
 
     const card =
       getCard(cardId);
 
     if (!card) {
+      showToast("Card could not be found.", "error");
       return;
     }
 
-    selectedCard =
-      card;
+    if (!currentUser) {
+      showToast("Please log in first.", "error");
+      return;
+    }
 
-    selectedOwnership =
-      null;
+    try {
+      // Make sure every catalog card has a Supabase bridge record
+      // before the ownership form is opened.
+      await ensureSupabaseCard(card);
+      await loadDatabase();
 
-    populateOwnershipForm(
-      null,
-      card
-    );
+      selectedCard =
+        card;
 
-    closeModal(
-      "cardDetailModal"
-    );
+      selectedOwnership =
+        getOwnership(card.card_id);
 
-    openModal(
-      "ownershipModal"
-    );
+      populateOwnershipForm(
+        selectedOwnership,
+        card
+      );
+
+      closeModal(
+        "cardDetailModal"
+      );
+
+      openModal(
+        "ownershipModal"
+      );
+    } catch (error) {
+      console.error("Add ownership bridge error:", error);
+      showToast(
+        error?.message ||
+          "Unable to prepare this card for your collection.",
+        "error"
+      );
+    }
   }
 
 
@@ -9915,7 +9965,7 @@ async function removeFromMyCollection(
 
   try {
     const resolvedCardId =
-      resolveOwnershipCardId(cardId);
+      await resolveOwnershipCardId(cardId);
 
     const result =
       await supabaseClient
