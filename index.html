@@ -6259,19 +6259,45 @@
       return;
     }
 
-    selectedCard =
-      card;
+    selectedCard = card;
+
+    // Verify ownership directly against Supabase so a stale browser
+    // index cannot report a false unowned state.
+    const resolvedOwnershipCardId =
+      resolveSupabaseCardId(card.card_id);
+
+    let liveOwnership = null;
+    let liveOwners = [];
+
+    if (resolvedOwnershipCardId) {
+      const ownershipQuery =
+        await supabaseClient
+          .from("card_ownership")
+          .select("*")
+          .eq("card_id", resolvedOwnershipCardId);
+
+      if (!ownershipQuery.error) {
+        liveOwners = ownershipQuery.data || [];
+        liveOwnership =
+          liveOwners.find(
+            ownership =>
+              String(ownership.user_id) ===
+              String(currentUser?.id)
+          ) || null;
+      }
+    }
 
     selectedOwnership =
+      liveOwnership ||
       getOwnership(card.card_id);
 
     const price =
       getPrice(card.card_id);
 
     const owners =
-      getOwnershipsForCard(
-        card.card_id
-      );
+      liveOwners.length
+        ? liveOwners
+        : getOwnershipsForCard(card.card_id);
 
     const frontImage =
       getCardImage(
@@ -6621,6 +6647,13 @@
                   >
                     Edit My Card
                   </button>
+
+                  <button
+                    class="btn btn-danger"
+                    onclick="removeFromMyCollection('${escapeHtml(card.card_id)}')"
+                  >
+                    Remove From My Collection
+                  </button>
                 `
                 : `
                   <button
@@ -6631,13 +6664,6 @@
                   </button>
                 `
             }
-
-            <button
-              class="btn btn-secondary"
-              onclick="openEditCard('${escapeHtml(card.card_id)}')"
-            >
-              Edit Catalog Card
-            </button>
 
             <button
               class="btn btn-secondary"
@@ -8257,6 +8283,10 @@ async function populateAddCardForm(card, ownership = null) {
 // ============================================================
 
 async function openEditCard(cardId) {
+  if (currentProfile?.role !== "admin") {
+    showToast("Only administrators can edit catalog cards.", "error");
+    return;
+  }
   const card =
     typeof cardId === "object"
       ? cardId
@@ -8275,10 +8305,7 @@ async function openEditCard(cardId) {
   resetAddCardForm();
 
   const ownership =
-    await getOwnership(
-      currentUser?.id,
-      card.card_id
-    );
+    getOwnership(card.card_id);
 
   await populateAddCardForm(
     card,
