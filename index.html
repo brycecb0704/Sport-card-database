@@ -4463,8 +4463,8 @@
 
     updateUserInterface();
     populateAllFilters();
-    renderAllScreens();
 
+    // Render only the active screen. All other screens are lazy-loaded.
     if (databaseLoadErrors.length) {
       const details =
         databaseLoadErrors
@@ -4494,6 +4494,10 @@
     }
 
     showApplication();
+
+    // Show the shell immediately; do not block the visible page on
+    // catalog/database work.
+    showScreen(activeScreen || "home");
 
     await loadDatabase();
 
@@ -4733,18 +4737,9 @@
   }
 
 
+  // Compatibility helper. Never render every screen during startup.
   function renderAllScreens() {
-
-    renderHome();
-    renderCatalog();
-    renderCollection();
-    renderForSale();
-    renderSold();
-    renderTraded();
-    renderSets();
-    renderCommunity();
-    renderLeaderboard();
-    renderAdmin();
+    renderScreen(activeScreen || "home");
   }
 
 
@@ -5710,17 +5705,26 @@
       return;
     }
 
+    const cardCountsBySet = new Map();
+
+    allCards.forEach(card => {
+      const setId = String(card.card_set_id || "");
+      if (!setId) return;
+      cardCountsBySet.set(
+        setId,
+        (cardCountsBySet.get(setId) || 0) + 1
+      );
+    });
+
     container.innerHTML =
       allSets.length
         ? allSets
             .map(set => {
 
               const cardCount =
-                allCards.filter(
-                  card =>
-                    String(card.card_set_id) ===
-                    String(set.card_set_id)
-                ).length;
+                cardCountsBySet.get(
+                  String(set.card_set_id)
+                ) || 0;
 
               const image =
                 set.front_image_path
@@ -5907,20 +5911,20 @@
       return;
     }
 
-    const cardsWithOwners =
-      allCards
-        .filter(
-          card =>
-            getOwnershipsForCard(
-              card.card_id
-            ).some(
-              ownership =>
-                numberValue(
-                  ownership.quantity
-                ) > 0
-            )
-        )
-        .slice(0, 60);
+    const communityCardIds = new Set();
+
+    allOwnership.forEach(ownership => {
+      if (numberValue(ownership.quantity) <= 0) return;
+      const catalogCardId = resolveCatalogCardId(ownership.card_id);
+      if (catalogCardId) communityCardIds.add(String(catalogCardId));
+    });
+
+    const cardsWithOwners = [];
+    for (const cardId of communityCardIds) {
+      const card = getCard(cardId);
+      if (card) cardsWithOwners.push(card);
+      if (cardsWithOwners.length >= 60) break;
+    }
 
     container.innerHTML =
       cardsWithOwners.length
