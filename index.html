@@ -4840,6 +4840,9 @@
 
   function cardTile(card, options = {}) {
 
+    const tileKey = String(nextCardTileKey++);
+    cardTileRegistry.set(tileKey, card);
+
     const ownership =
       getOwnership(
         card.card_id,
@@ -4875,10 +4878,11 @@
     return `
       <article
         class="card-tile"
-        data-card-index="${allCards.indexOf(card)}"
+        data-card-tile-key="${tileKey}"
         tabindex="0"
         role="button"
         aria-label="Open ${escapeHtml(card.name || "card")}"
+        onclick="openCardTile(this)"
       >
 
         <div class="card-tile-image">
@@ -5921,6 +5925,29 @@
   // CARD DETAIL
   // ============================================================
 
+  function openCardTile(tile) {
+
+    if (!tile) {
+      return;
+    }
+
+    const card =
+      cardTileRegistry.get(
+        tile.dataset.cardTileKey
+      );
+
+    if (!card) {
+      showToast(
+        "This card could not be opened. Please refresh the page.",
+        "error"
+      );
+      return;
+    }
+
+    openCardDetail(card.card_id);
+  }
+
+
   function openCardDetail(cardId) {
 
     const card =
@@ -6515,17 +6542,13 @@
         return;
       }
 
-      const cardIndex =
-        Number(tile.dataset.cardIndex);
-
-      if (
-        Number.isInteger(cardIndex) &&
-        cardIndex >= 0 &&
-        allCards[cardIndex]
-      ) {
-        openCardDetail(
-          allCards[cardIndex].card_id
+      const card =
+        cardTileRegistry.get(
+          tile.dataset.cardTileKey
         );
+
+      if (card) {
+        openCardDetail(card.card_id);
       }
     });
 
@@ -6547,17 +6570,13 @@
 
       event.preventDefault();
 
-      const cardIndex =
-        Number(tile.dataset.cardIndex);
-
-      if (
-        Number.isInteger(cardIndex) &&
-        cardIndex >= 0 &&
-        allCards[cardIndex]
-      ) {
-        openCardDetail(
-          allCards[cardIndex].card_id
+      const card =
+        cardTileRegistry.get(
+          tile.dataset.cardTileKey
         );
+
+      if (card) {
+        openCardDetail(card.card_id);
       }
     });
 
@@ -7263,6 +7282,12 @@
 
 let editingCardId = null;
 let savingCard = false;
+
+// Stable registry for rendered card tiles. The tile gets only a
+// simple numeric key; the actual card object stays in JavaScript.
+// This avoids HTML escaping problems with long catalog IDs.
+const cardTileRegistry = new Map();
+let nextCardTileKey = 1;
 
 // When a card is chosen from the Google Sheets master catalog,
 // keep its existing catalog ID so Add Card creates ownership
