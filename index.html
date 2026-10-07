@@ -4265,7 +4265,7 @@
     }));
   }
 
-  function normalizeGoogleCardRows(rows, sets) {
+  async function normalizeGoogleCardRows(rows, sets) {
     const setMap = new Map();
 
     sets.forEach(set => {
@@ -4281,7 +4281,10 @@
       );
     });
 
-    return rows.map((row, index) => {
+    const cards = [];
+
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
       const year = googleSheetValue(row, "year");
       const brand = googleSheetValue(row, "brand");
       const setName = googleSheetValue(row, "set_name");
@@ -4350,7 +4353,15 @@
         source_url: googleSheetValue(row, "source_url"),
         verified: sheetBoolean(googleSheetValue(row, "verified"))
       };
-    });
+
+      cards.push(card);
+
+      if (index > 0 && index % 1000 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    }
+
+    return cards;
   }
 
   async function loadCatalogFromGoogleSheets() {
@@ -4360,7 +4371,7 @@
     ]);
 
     const sets = normalizeGoogleSetRows(setRows);
-    const cards = normalizeGoogleCardRows(cardRows, sets);
+    const cards = await normalizeGoogleCardRows(cardRows, sets);
 
     return {
       cards: cards,
