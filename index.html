@@ -4304,7 +4304,7 @@
       const playerName =
         googleSheetValue(row, "player_name");
 
-      return {
+      const card = {
         card_id:
           googleSheetValue(row, "card_id") ||
           googleSheetValue(row, "id") ||
