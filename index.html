@@ -2681,6 +2681,32 @@
 
 
   <!-- ==========================================
+       CARD DATA VIEWER MODAL
+       ========================================== -->
+
+  <div
+    id="cardDataModal"
+    class="modal-backdrop hidden"
+    onclick="closeModalOnBackdrop(event, 'cardDataModal')">
+
+    <div class="modal">
+
+      <div class="modal-header">
+        <h3>Card Data</h3>
+        <button class="modal-close" onclick="closeModal('cardDataModal')">×</button>
+      </div>
+
+      <div id="cardDataBody" class="modal-body"></div>
+
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal('cardDataModal')">Close</button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ==========================================
        ADD CARD MODAL
        ========================================== -->
 
@@ -6241,6 +6267,76 @@
   }
 
 
+  function openCardDataViewer(cardId) {
+
+    const card =
+      typeof cardId === "object"
+        ? cardId
+        : getCard(cardId);
+
+    if (!card) {
+      showToast("Card data could not be found.", "error");
+      return;
+    }
+
+    const body = document.getElementById("cardDataBody");
+    if (!body) return;
+
+    const rows = [
+      ["Catalog ID", card.card_id],
+      ["Name", card.name],
+      ["Sport", card.sport],
+      ["Team", isWeightDivisionSport(card.sport) ? "" : card.team],
+      ["Position", isWeightDivisionSport(card.sport) ? "" : card.position],
+      ["Weight Division", isWeightDivisionSport(card.sport) ? card.weight_division : ""],
+      ["Year", card.year_made],
+      ["Brand", card.card_brand],
+      ["Set", getSetName(card)],
+      ["Series", card.card_series],
+      ["Card Number", card.card_number],
+      ["Parallel", card.parallel],
+      ["Variant", card.variant],
+      ["Numbered", yesNo(card.numbered)],
+      ["Print Run", card.print_run],
+      ["Serial Numbering", card.serial_numbering],
+      ["Rookie", yesNo(card.rookie)],
+      ["Autograph", yesNo(card.autographed)],
+      ["Relic", yesNo(card.relic)],
+      ["Patch", yesNo(card.patch)],
+      ["Insert", yesNo(card.insert_card)],
+      ["Short Print", yesNo(card.short_print)],
+      ["Variation", yesNo(card.variation)],
+      ["Barcode", card.barcode],
+      ["Description / Notes", card.notes],
+      ["Source", card.source],
+      ["Source URL", card.source_url],
+      ["Verified", yesNo(card.verified)]
+    ].filter(row => clean(row[1]) !== "");
+
+    body.innerHTML = `
+      <div style="margin-bottom:16px;">
+        <strong>${escapeHtml(card.name || "Card")}</strong>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+          Read-only catalog information
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table style="min-width:0;">
+          <tbody>
+            ${rows.map(row => `
+              <tr>
+                <th style="width:190px;">${escapeHtml(row[0])}</th>
+                <td>${escapeHtml(row[1])}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    openModal("cardDataModal");
+  }
+
   function openCardDetail(cardOrId) {
 
     // Card tiles pass the already-resolved catalog object.
@@ -6637,6 +6733,26 @@
 
 
           <div class="detail-actions">
+
+            <button
+              class="btn"
+              onclick="openCardDataViewer('${escapeHtml(card.card_id)}')"
+            >
+              View Card Data
+            </button>
+
+            ${
+              currentProfile?.role === "admin"
+                ? `
+                  <button
+                    class="btn btn-warning"
+                    onclick="openEditCard('${escapeHtml(card.card_id)}')"
+                  >
+                    Edit Card Data
+                  </button>
+                `
+                : ""
+            }
 
             ${
               selectedOwnership
@@ -11104,6 +11220,9 @@ document.addEventListener(
 // CARD DETAIL GLOBAL ACTIONS
 // ============================================================
 
+window.openCardDataViewer =
+  openCardDataViewer;
+
 window.openEditCard =
   openEditCard;
 
@@ -11199,6 +11318,7 @@ document.addEventListener(
       "ownershipModal",
       "accountModal",
       "cardDetailModal",
+      "cardDataModal",
       "setDetailModal"
     ].forEach(id => {
       closeModalById(id);
