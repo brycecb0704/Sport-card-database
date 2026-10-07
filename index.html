@@ -3671,7 +3671,7 @@
 
   function getCard(cardId) {
 
-    // Normal catalog lookup: Google Sheets card_id.
+    // 1. Normal catalog lookup: Google Sheets card_id.
     const googleCard = allCards.find(
       card =>
         String(card.card_id) ===
@@ -3682,7 +3682,7 @@
       return googleCard;
     }
 
-    // Ownership stores the Supabase cards.id UUID.
+    // 2. Ownership stores the Supabase cards.id UUID.
     // Resolve that UUID back to the Google master card.
     const bridgeCard = allSupabaseCards.find(
       card =>
@@ -3690,21 +3690,103 @@
         String(cardId)
     );
 
-    if (bridgeCard?.card_id) {
-      const masterCard = allCards.find(
-        card =>
-          String(card.card_id) ===
-          String(bridgeCard.card_id)
-      );
-
-      if (masterCard) {
-        return masterCard;
-      }
-    }
-
-    // Manual cards may not exist in Google Sheets yet.
-    // Return a display-compatible Supabase card as a fallback.
     if (bridgeCard) {
+
+      // The normal bridge is cards.card_id -> Google card_id.
+      if (bridgeCard.card_id) {
+        const masterCard = allCards.find(
+          card =>
+            String(card.card_id) ===
+            String(bridgeCard.card_id)
+        );
+
+        if (masterCard) {
+          return masterCard;
+        }
+      }
+
+      // Older/partially-created bridge rows may not have a usable
+      // card_id match. Recover the Google master using the strongest
+      // available identity fields instead of returning a stripped-down
+      // Supabase object. This preserves Sport, Team, Set, etc.
+      const bridgeName =
+        clean(bridgeCard.name).toLowerCase();
+
+      const bridgeYear =
+        clean(bridgeCard.year_made);
+
+      const bridgeBrand =
+        clean(bridgeCard.card_brand).toLowerCase();
+
+      const bridgeSeries =
+        clean(bridgeCard.card_series).toLowerCase();
+
+      const bridgeNumber =
+        clean(bridgeCard.card_number).toLowerCase();
+
+      const bridgeParallel =
+        clean(bridgeCard.parallel).toLowerCase();
+
+      const recoveredMaster =
+        allCards.find(card => {
+
+          if (
+            bridgeName &&
+            clean(card.name).toLowerCase() !==
+              bridgeName
+          ) {
+            return false;
+          }
+
+          if (
+            bridgeYear &&
+            clean(card.year_made) !==
+              bridgeYear
+          ) {
+            return false;
+          }
+
+          if (
+            bridgeBrand &&
+            clean(card.card_brand).toLowerCase() !==
+              bridgeBrand
+          ) {
+            return false;
+          }
+
+          if (
+            bridgeSeries &&
+            clean(card.card_series).toLowerCase() !==
+              bridgeSeries
+          ) {
+            return false;
+          }
+
+          if (
+            bridgeNumber &&
+            clean(card.card_number).toLowerCase() !==
+              bridgeNumber
+          ) {
+            return false;
+          }
+
+          if (
+            bridgeParallel &&
+            clean(card.parallel).toLowerCase() !==
+              bridgeParallel
+          ) {
+            return false;
+          }
+
+          return true;
+        });
+
+      if (recoveredMaster) {
+        return recoveredMaster;
+      }
+
+      // 3. Manual cards may not exist in Google Sheets yet.
+      // Return a display-compatible Supabase card as the final fallback.
       return {
         card_id: bridgeCard.card_id || bridgeCard.id,
         id: bridgeCard.id,
@@ -3846,7 +3928,13 @@
       return set.name || "";
     }
 
-    return "";
+    // Google master cards also carry the set name directly.
+    // Use it when a Supabase set record is not available.
+    return (
+      clean(card.set_name) ||
+      clean(card.setName) ||
+      ""
+    );
   }
 
 
@@ -4174,6 +4262,9 @@
             setName,
             series
           ].join("|"),
+
+        // Keep the master catalog's set name directly on the card too.
+        set_name: setName,
 
         name:
           playerName ||
