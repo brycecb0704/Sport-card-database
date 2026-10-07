@@ -4875,7 +4875,7 @@
     return `
       <article
         class="card-tile"
-        data-card-id="${encodeURIComponent(String(card.card_id || ""))}"
+        data-card-index="${allCards.indexOf(card)}"
         tabindex="0"
         role="button"
         aria-label="Open ${escapeHtml(card.name || "card")}"
@@ -6515,19 +6515,17 @@
         return;
       }
 
-      const encodedCardId =
-        tile.dataset.cardId;
+      const cardIndex =
+        Number(tile.dataset.cardIndex);
 
-      if (encodedCardId) {
-        let cardId = encodedCardId;
-
-        try {
-          cardId = decodeURIComponent(encodedCardId);
-        } catch (error) {
-          // Keep the raw value if decoding fails.
-        }
-
-        openCardDetail(cardId);
+      if (
+        Number.isInteger(cardIndex) &&
+        cardIndex >= 0 &&
+        allCards[cardIndex]
+      ) {
+        openCardDetail(
+          allCards[cardIndex].card_id
+        );
       }
     });
 
@@ -6549,19 +6547,17 @@
 
       event.preventDefault();
 
-      const encodedCardId =
-        tile.dataset.cardId;
+      const cardIndex =
+        Number(tile.dataset.cardIndex);
 
-      if (encodedCardId) {
-        let cardId = encodedCardId;
-
-        try {
-          cardId = decodeURIComponent(encodedCardId);
-        } catch (error) {
-          // Keep the raw value if decoding fails.
-        }
-
-        openCardDetail(cardId);
+      if (
+        Number.isInteger(cardIndex) &&
+        cardIndex >= 0 &&
+        allCards[cardIndex]
+      ) {
+        openCardDetail(
+          allCards[cardIndex].card_id
+        );
       }
     });
 
