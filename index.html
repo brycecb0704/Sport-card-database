@@ -5318,7 +5318,13 @@
 
     const value =
       options.value ??
-      getDisplayValue(card);
+      (
+        ownership &&
+        Number.isFinite(Number(ownership.value)) &&
+        Number(ownership.value) > 0
+          ? Number(ownership.value)
+          : getDisplayValue(card)
+      );
 
     const owners =
       getOwnershipsForCard(
@@ -5753,66 +5759,59 @@
 
     const search =
       clean(
-        document.getElementById(
-          "collectionSearch"
-        )?.value
+        document.getElementById("collectionSearch")?.value
       ).toLowerCase();
 
     const sport =
       clean(
-        document.getElementById(
-          "collectionSport"
-        )?.value
+        document.getElementById("collectionSport")?.value
       );
 
     const possession =
       clean(
-        document.getElementById(
-          "collectionPossession"
-        )?.value
+        document.getElementById("collectionPossession")?.value
       );
 
     const grade =
       clean(
-        document.getElementById(
-          "collectionGrade"
-        )?.value
+        document.getElementById("collectionGrade")?.value
       );
 
-    const owned =
-      allOwnership.filter(
+    // Build one visible ownership record per catalog card.
+    // This also protects the UI if legacy duplicate ownership rows
+    // ever exist in the database.
+    const ownedByCard = new Map();
+
+    allOwnership
+      .filter(
         ownership =>
-          String(ownership.user_id) ===
-          String(currentUser?.id)
-      );
+          String(ownership.user_id) === String(currentUser?.id)
+      )
+      .forEach(ownership => {
+        const card = getCard(ownership.card_id);
+        if (!card) return;
+
+        const catalogId = String(card.card_id || "");
+        if (!catalogId) return;
+
+        const existing = ownedByCard.get(catalogId);
+
+        if (
+          !existing ||
+          numberValue(ownership.quantity) >
+            numberValue(existing.quantity)
+        ) {
+          ownedByCard.set(catalogId, ownership);
+        }
+      });
 
     const cards = [];
-    const seenCardIds = new Set();
 
-    owned.forEach(ownership => {
+    ownedByCard.forEach(ownership => {
+      const card = getCard(ownership.card_id);
+      if (!card) return;
 
-      const card =
-        getCard(ownership.card_id);
-
-      if (!card) {
-        return;
-      }
-
-      const uniqueCardId =
-        String(card.card_id || "");
-
-      // A user can own quantity 2, 10, etc. but the collection
-      // should still render one card tile with that quantity.
-      if (uniqueCardId && seenCardIds.has(uniqueCardId)) {
-        return;
-      }
-
-      if (uniqueCardId) {
-        seenCardIds.add(uniqueCardId);
-      }
-
-      const setName =
-        getSetName(card);
+      const setName = getSetName(card);
 
       const searchable = [
         card.name,
@@ -5830,42 +5829,31 @@
         .join(" ")
         .toLowerCase();
 
-      if (
-        search &&
-        !searchable.includes(search)
-      ) {
-        return;
-      }
+      if (search && !searchable.includes(search)) return;
 
-      if (
-        sport &&
-        clean(card.sport) !== sport
-      ) {
-        return;
-      }
+      if (sport && clean(card.sport) !== sport) return;
 
       if (
         possession &&
-        clean(ownership.possession) !==
-        possession
+        clean(ownership.possession) !== possession
       ) {
         return;
       }
 
       if (
         grade &&
-        clean(ownership.grade) !==
-        grade
+        clean(ownership.grade) !== grade
       ) {
         return;
       }
+
+      if (numberValue(ownership.quantity) <= 0) return;
 
       cards.push(card);
     });
 
     return cards;
   }
-
 
   function renderCollection() {
 
@@ -6965,7 +6953,7 @@
 
                   <button
                     class="btn btn-danger"
-                    onclick="removeFromMyCollection('${escapeHtml(card.card_id)}')"
+                    onclick="removeFromMyCollection('${escapeHtml(card.card_id)}', this)"
                   >
                     Remove From My Collection
                   </button>
@@ -7451,7 +7439,7 @@
   // ADD OWNERSHIP
   // ============================================================
 
-  async function openAddOwnership(cardId) {
+  async async function openAddOwnership(cardId) {
 
     const card =
       getCard(cardId);
@@ -9339,137 +9327,88 @@ async function saveOwnershipRecord(
   backPhotoPath = null
 ) {
   if (!currentUser) {
-    throw new Error(
-      "You must be logged in."
-    );
+    throw new Error("You must be logged in.");
   }
 
-  // Accept either a Supabase cards.id UUID or the Google master
-  // catalog card_id. Ownership itself must always store the UUID.
   const resolvedCardId =
     await resolveOwnershipCardId(cardId);
 
-  const existing =
-    await supabaseClient
-      .from("card_ownership")
-      .select("*")
-      .eq(
-        "user_id",
-        currentUser.id
-      )
-      .eq(
-        "card_id",
-        resolvedCardId
-      )
-      .maybeSingle();
-
-  if (existing.error) {
-    throw existing.error;
+  if (!resolvedCardId) {
+    throw new Error(
+      "Could not resolve this catalog card to its Supabase card record."
+    );
   }
 
+  // One row per user/card. Quantity represents duplicate copies.
   const data = {
     user_id: currentUser.id,
     card_id: resolvedCardId,
-    quantity:
-      ownershipData.quantity,
-    possession:
-      ownershipData.possession,
-    value:
-      ownershipData.value,
-    grade:
-      ownershipData.grade || null,
-    for_sale_price:
-      ownershipData.for_sale_price,
-    purchase_price:
-      ownershipData.purchase_price,
-    purchase_date:
-      ownershipData.purchase_date,
-    purchase_seller:
-      ownershipData.purchase_seller,
-    sold_price:
-      ownershipData.sold_price,
-    sold_date:
-      ownershipData.sold_date,
-    traded_with:
-      ownershipData.traded_with,
-    trade_date:
-      ownershipData.trade_date,
-    notes:
-      ownershipData.notes
+    quantity: Math.max(
+      0,
+      Math.floor(Number(ownershipData.quantity ?? 1))
+    ),
+    possession: ownershipData.possession || "Collection",
+    value: ownershipData.value ?? null,
+    grade: ownershipData.grade || null,
+    grading_company: ownershipData.grading_company || null,
+    for_sale_price: ownershipData.for_sale_price ?? null,
+    purchase_price: ownershipData.purchase_price ?? null,
+    purchase_date: ownershipData.purchase_date || null,
+    purchase_seller: ownershipData.purchase_seller || null,
+    sold_price: ownershipData.sold_price ?? null,
+    sold_date: ownershipData.sold_date || null,
+    traded_with: ownershipData.traded_with || null,
+    trade_date: ownershipData.trade_date || null,
+    notes: ownershipData.notes || null
   };
 
   if (frontPhotoPath) {
-    data.front_photo_path =
-      frontPhotoPath;
+    data.front_photo_path = frontPhotoPath;
   }
 
   if (backPhotoPath) {
-    data.back_photo_path =
-      backPhotoPath;
+    data.back_photo_path = backPhotoPath;
   }
 
-  let result;
-
-  if (existing.data) {
-    result =
-      await supabaseClient
-        .from("card_ownership")
-        .update(data)
-        .eq(
-          "user_id",
-          currentUser.id
-        )
-        .eq(
-          "card_id",
-          resolvedCardId
-        )
-        .select("*")
-        .maybeSingle();
-  } else {
-    result =
-      await supabaseClient
-        .from("card_ownership")
-        .insert(data)
-        .select("*")
-        .maybeSingle();
-  }
+  const result =
+    await supabaseClient
+      .from("card_ownership")
+      .upsert(
+        data,
+        {
+          onConflict: "user_id,card_id"
+        }
+      )
+      .select("*")
+      .maybeSingle();
 
   if (result.error) {
     throw result.error;
   }
 
-  // A successful write can occasionally return no row when the
-  // post-write SELECT is filtered by RLS. Do not turn that into
-  // a false save failure.
-  if (!result.data) {
-    result.data = {
+  const localRow =
+    result.data || {
       ...data,
       total_value:
         numberValue(data.value) *
         numberValue(data.quantity)
     };
-  }
 
   const existingIndex =
     allOwnership.findIndex(
       item =>
-        item.user_id ===
-          currentUser.id &&
-        item.card_id === resolvedCardId
+        String(item.user_id) === String(currentUser.id) &&
+        String(item.card_id) === String(resolvedCardId)
     );
 
   if (existingIndex >= 0) {
-    allOwnership[existingIndex] =
-      result.data;
+    allOwnership[existingIndex] = localRow;
   } else {
-    allOwnership.push(
-      result.data
-    );
+    allOwnership.push(localRow);
   }
 
-  return result.data;
+  return localRow;
 }
-
 
 // ============================================================
 // SAVE CARD
@@ -10183,71 +10122,132 @@ async function saveOwnershipFromModal(
 // DELETE OWNERSHIP
 // ============================================================
 
+const removingOwnershipCards =
+  new Set();
+
 async function removeFromMyCollection(
-  cardId
+  cardId,
+  button = null
 ) {
   if (!currentUser) {
-    showToast(
-      "Please log in first.",
-      "error"
-    );
+    showToast("Please log in first.", "error");
     return;
   }
 
-  if (
-    !confirm(
-      "Remove this card from your collection?"
-    )
-  ) {
+  const removeKey =
+    String(currentUser.id) + "|" + String(cardId);
+
+  if (removingOwnershipCards.has(removeKey)) {
     return;
+  }
+
+  if (!confirm("Remove this card from your collection?")) {
+    return;
+  }
+
+  removingOwnershipCards.add(removeKey);
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Removing...";
   }
 
   try {
     const resolvedCardId =
       await resolveOwnershipCardId(cardId);
 
+    if (!resolvedCardId) {
+      throw new Error(
+        "Could not resolve this card's ownership record."
+      );
+    }
+
     const result =
       await supabaseClient
         .from("card_ownership")
         .delete()
-        .eq(
-          "user_id",
-          currentUser.id
-        )
-        .eq(
-          "card_id",
-          resolvedCardId
-        );
+        .eq("user_id", currentUser.id)
+        .eq("card_id", resolvedCardId);
 
     if (result.error) {
       throw result.error;
     }
 
+    // Update the local ownership state immediately. Avoid a second
+    // full database/catalog reload here so stale data cannot make
+    // the removal appear to require another click.
     allOwnership =
       allOwnership.filter(
         item =>
           !(
-            item.user_id ===
-              currentUser.id &&
-            String(item.card_id) ===
-              String(resolvedCardId)
+            String(item.user_id) === String(currentUser.id) &&
+            (
+              String(item.card_id) === String(resolvedCardId) ||
+              String(item.card_id) === String(cardId)
+            )
           )
       );
 
-    await loadDatabase();
+    ownershipByUserCard = new Map();
+    ownershipsByCard = new Map();
 
+    allOwnership.forEach(ownershipRow => {
+      const rawCardId =
+        String(ownershipRow.card_id || "");
+      const userId =
+        String(ownershipRow.user_id || "");
+
+      if (!rawCardId) return;
+
+      if (!ownershipsByCard.has(rawCardId)) {
+        ownershipsByCard.set(rawCardId, []);
+      }
+      ownershipsByCard.get(rawCardId).push(ownershipRow);
+
+      if (userId) {
+        ownershipByUserCard.set(
+          userId + "|" + rawCardId,
+          ownershipRow
+        );
+      }
+
+      const bridge =
+        supabaseCardById.get(rawCardId) ||
+        supabaseCardByCatalogId.get(rawCardId);
+
+      if (bridge) {
+        const supabaseId = String(bridge.id || "");
+        const catalogId = String(bridge.card_id || "");
+
+        [supabaseId, catalogId].forEach(key => {
+          if (!key) return;
+
+          if (!ownershipsByCard.has(key)) {
+            ownershipsByCard.set(key, []);
+          }
+
+          if (!ownershipsByCard.get(key).includes(ownershipRow)) {
+            ownershipsByCard.get(key).push(ownershipRow);
+          }
+
+          if (userId) {
+            ownershipByUserCard.set(
+              userId + "|" + key,
+              ownershipRow
+            );
+          }
+        });
+      }
+    });
+
+    selectedOwnership = null;
     updateUserInterface();
 
-    if (
-      typeof renderAllScreens ===
-      "function"
-    ) {
+    if (typeof renderAllScreens === "function") {
       renderAllScreens();
     }
 
-    closeModalById(
-      "cardDetailModal"
-    );
+    closeModalById("cardDetailModal");
 
     showToast(
       "Card removed from your collection.",
@@ -10255,19 +10255,21 @@ async function removeFromMyCollection(
     );
 
   } catch (error) {
-    console.error(
-      "Remove ownership error:",
-      error
-    );
+    console.error("Remove ownership error:", error);
 
     showToast(
-      error?.message ||
-        "Unable to remove card.",
+      error?.message || "Unable to remove card.",
       "error"
     );
+
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Remove From My Collection";
+    }
+  } finally {
+    removingOwnershipCards.delete(removeKey);
   }
 }
-
 
 // ============================================================
 // ACCOUNT SAVE
