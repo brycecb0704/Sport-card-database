@@ -2192,10 +2192,6 @@
                 Card Catalog
               </h2>
 
-              <p>
-                Every card in the database, whether owned or not.
-              </p>
-
             </div>
 
             <div class="button-row">
@@ -2289,10 +2285,6 @@
               <h2>
                 My Collection
               </h2>
-
-              <p>
-                Cards currently owned by your account.
-              </p>
 
             </div>
 
@@ -2392,10 +2384,6 @@
                 For Sale
               </h2>
 
-              <p>
-                Cards currently marked for sale.
-              </p>
-
             </div>
 
           </div>
@@ -2424,10 +2412,6 @@
               <h2>
                 Sold Cards
               </h2>
-
-              <p>
-                Cards recorded as sold.
-              </p>
 
             </div>
 
@@ -2458,10 +2442,6 @@
                 Traded Cards
               </h2>
 
-              <p>
-                Cards recorded as traded.
-              </p>
-
             </div>
 
           </div>
@@ -2490,10 +2470,6 @@
               <h2>
                 Community
               </h2>
-
-              <p>
-                See which cards are owned by members of the database.
-              </p>
 
             </div>
 
@@ -2540,10 +2516,6 @@
                 Card Sets
               </h2>
 
-              <p>
-                Browse the catalog by set.
-              </p>
-
             </div>
 
           </div>
@@ -2584,10 +2556,6 @@
                 Leaderboard
               </h2>
 
-              <p>
-                Collector XP and achievements.
-              </p>
-
             </div>
 
           </div>
@@ -2619,10 +2587,6 @@
               <h2>
                 Admin Panel
               </h2>
-
-              <p>
-                Account and database administration.
-              </p>
 
             </div>
 
@@ -2865,9 +2829,6 @@
 
             <div class="panel" style="box-shadow:none;margin:0 0 18px;">
               <strong>How would you like to add this card?</strong>
-              <div style="font-size:12px;color:var(--muted);margin-top:5px;">
-                Pick the easiest option. You can review the card before saving.
-              </div>
             </div>
 
             <div class="simple-add-choice-grid">
@@ -6141,16 +6102,6 @@
             ${escapeHtml(set.name)}
           </h2>
 
-          <p>
-            ${escapeHtml(set.year || "")}
-            ${
-              set.brand
-                ? " • " +
-                  escapeHtml(set.brand)
-                : ""
-            }
-          </p>
-
         </div>
 
       </div>
@@ -6653,26 +6604,6 @@
                   "Unknown Card"
                 )}
               </h2>
-
-              <p>
-                ${escapeHtml(
-                  card.year_made || ""
-                )}
-
-                ${
-                  card.card_brand
-                    ? " • " +
-                      escapeHtml(card.card_brand)
-                    : ""
-                }
-
-                ${
-                  card.card_series
-                    ? " • " +
-                      escapeHtml(card.card_series)
-                    : ""
-                }
-              </p>
 
             </div>
 
