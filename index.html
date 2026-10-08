@@ -3913,31 +3913,51 @@
   async function resolveOwnershipCardId(cardId) {
     if (!cardId) return null;
 
-    const mapped =
-      resolveSupabaseCardId(cardId);
+    const inputId = String(cardId).trim();
+    const mapped = resolveSupabaseCardId(inputId);
 
-    // If the in-memory bridge already resolves to a UUID, use it.
-    if (
-      mapped &&
-      mapped !== cardId
-    ) {
+    // The ownership table references cards.id (a UUID), not the
+    // Google Sheets/catalog card_id slug. Never pass a slug to it.
+    if (mapped && mapped !== inputId) {
       return mapped;
     }
 
-    // Fall back to the live cards table. This handles older ownership
-    // rows and cards whose bridge record was not loaded into the browser.
-    const result =
-      await supabaseClient
-        .from("cards")
-        .select("id")
-        .eq("card_id", cardId)
-        .maybeSingle();
+    const result = await supabaseClient
+      .from("cards")
+      .select("id")
+      .eq("card_id", inputId)
+      .maybeSingle();
 
     if (result.error) {
       throw result.error;
     }
 
-    return result.data?.id || mapped || cardId;
+    if (result.data?.id) {
+      return result.data.id;
+    }
+
+    // Add Card → Library may select a Google Sheets catalog card before
+    // its Supabase bridge row exists. Create/find that bridge, then use
+    // its UUID for card_ownership.
+    const catalogCard = getCard(inputId);
+    if (catalogCard?.card_id) {
+      const bridgedCard = await ensureSupabaseCard(catalogCard);
+      if (bridgedCard?.id) {
+        return bridgedCard.id;
+      }
+    }
+
+    // Accept an ID directly only if it is actually UUID-shaped.
+    const uuidPattern =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    if (uuidPattern.test(inputId)) {
+      return inputId;
+    }
+
+    throw new Error(
+      "Could not find or create the database record for this catalog card. Please try selecting the card from the Library again."
+    );
   }
 
   function getOwnership(cardId, userId = null) {
