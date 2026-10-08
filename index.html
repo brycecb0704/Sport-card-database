@@ -8348,22 +8348,19 @@ async function chooseCardFromLibrary(cardId) {
     return;
   }
 
-  // Remember the exact Google Sheets catalog card that was selected.
-  // The save step will create only the user's ownership record.
-  selectedCatalogCardId = card.card_id;
+  if (!currentUser) {
+    showToast("Please log in first.", "error");
+    return;
+  }
+
+  // A Library selection is already a catalog card. Never send it
+  // through the catalog-card creation/edit form: only save ownership.
+  selectedCatalogCardId = null;
   editingCardId = null;
+  selectedCard = card;
 
-  await populateAddCardForm(card, null);
-  setCatalogFieldsLocked(true);
-
-  setFieldValue(1, "cardQuantity", "addCardQuantity");
-  setTextIfExists("Add Card", "addCardModalTitle", "addCardTitle", "modalAddCardTitle");
-
-  const modal = document.getElementById("addCardModal");
-  if (modal) modal.dataset.mode = "add";
-
-  showAddCardMode("manual");
-  showToast("Card selected from the catalog. Review it before saving.", "success");
+  closeModal("addCardModal");
+  await openOwnershipEditor(card.card_id);
 }
 
 
@@ -9804,9 +9801,9 @@ async function openOwnershipEditor(
   selectedCard = card;
 
   const ownership =
-    await getOwnership(
-      currentUser?.id,
-      cardId
+    getOwnership(
+      cardId,
+      currentUser?.id
     );
 
   setTextIfExists(
