@@ -4688,6 +4688,89 @@
   // USER INTERFACE HEADER
   // ============================================================
 
+// ============================================================
+// NORMALIZED CURRENT-USER OWNERSHIP SUMMARY
+// Keep dashboard, account, status screens, and collection value
+// consistent even if legacy duplicate ownership rows exist.
+// ============================================================
+function getCurrentUserOwnershipSummary() {
+  const empty = {
+    allOwnership: [],
+    activeOwnership: [],
+    forSaleOwnership: [],
+    byPossession: {},
+    quantity: 0,
+    collectionValue: 0,
+    forSaleCount: 0
+  };
+  if (!currentUser) return empty;
+
+  const rows = allOwnership.filter(
+    item => String(item.user_id) === String(currentUser.id)
+  );
+  const unique = new Map();
+
+  rows.forEach(item => {
+    const card = getCard(item.card_id);
+    const key = String(card?.card_id || item.card_id || "");
+    if (!key) return;
+
+    const previous = unique.get(key);
+    if (
+      !previous ||
+      numberValue(item.quantity) > numberValue(previous.quantity)
+    ) {
+      unique.set(key, item);
+    }
+  });
+
+  const normalized = Array.from(unique.values());
+  const byPossession = {};
+
+  normalized.forEach(item => {
+    const status = clean(item.possession) || "Collection";
+    if (!byPossession[status]) byPossession[status] = [];
+    if (numberValue(item.quantity) > 0) byPossession[status].push(item);
+  });
+
+  const activeOwnership = normalized.filter(
+    item =>
+      item.possession !== "Sold" &&
+      item.possession !== "Traded" &&
+      numberValue(item.quantity) > 0
+  );
+  const forSaleOwnership = normalized.filter(
+    item =>
+      item.possession === "For Sale" &&
+      numberValue(item.quantity) > 0
+  );
+
+  const quantity = activeOwnership.reduce(
+    (total, item) => total + numberValue(item.quantity), 0
+  );
+  const collectionValue = activeOwnership.reduce((total, item) => {
+    const unitValue = numberValue(item.value);
+    const totalValue = numberValue(item.total_value);
+    return total + (
+      unitValue > 0
+        ? unitValue * numberValue(item.quantity)
+        : totalValue > 0
+          ? totalValue
+          : 0
+    );
+  }, 0);
+
+  return {
+    allOwnership: normalized,
+    activeOwnership,
+    forSaleOwnership,
+    byPossession,
+    quantity,
+    collectionValue,
+    forSaleCount: forSaleOwnership.length
+  };
+}
+
   function updateUserInterface() {
 
     const displayName =
@@ -4757,12 +4840,8 @@
     const accountProfileRole = document.getElementById("accountProfileRole");
     if (accountProfileRole) accountProfileRole.textContent = currentProfile?.role === "admin" ? "Administrator" : "Member";
 
-    const myOwnership = allOwnership.filter(item =>
-      String(item.user_id) === String(currentUser?.id) &&
-      item.possession !== "Sold" &&
-      item.possession !== "Traded" &&
-      numberValue(item.quantity) > 0
-    );
+    const myOwnership =
+      getCurrentUserOwnershipSummary().activeOwnership;
 
     const accountCardCount = document.getElementById("accountCardCount");
     if (accountCardCount) accountCardCount.textContent = myOwnership.length.toLocaleString();
@@ -5410,14 +5489,7 @@
     }
 
     const ownedCards =
-      allOwnership.filter(
-        ownership =>
-          String(ownership.user_id) ===
-          String(currentUser?.id) &&
-          ownership.possession !== "Sold" &&
-          ownership.possession !== "Traded" &&
-          numberValue(ownership.quantity) > 0
-      );
+      getCurrentUserOwnershipSummary().activeOwnership;
 
     const uniqueCards =
       document.getElementById(
@@ -5452,15 +5524,7 @@
     if (collectionValue) {
 
       const value =
-        ownedCards.reduce(
-          (total, item) =>
-            total +
-            (
-              numberValue(item.value) *
-              numberValue(item.quantity)
-            ),
-          0
-        );
+        getCurrentUserOwnershipSummary().collectionValue;
 
       collectionValue.textContent =
         money(value);
@@ -5474,12 +5538,7 @@
     if (forSale) {
 
       const count =
-        allOwnership.filter(
-          item =>
-            String(item.user_id) ===
-            String(currentUser?.id) &&
-            item.possession === "For Sale"
-        ).length;
+        getCurrentUserOwnershipSummary().forSaleCount;
 
       forSale.textContent =
         count.toLocaleString();
@@ -5821,13 +5880,7 @@
   ) {
 
     const ownership =
-      allOwnership.filter(
-        item =>
-          String(item.user_id) ===
-          String(currentUser?.id) &&
-          item.possession ===
-          possessionValue
-      );
+      getCurrentUserOwnershipSummary().byPossession[possessionValue] || [];
 
     const cards =
       ownership
@@ -11327,51 +11380,7 @@ function refreshAccountModal() {
 // ============================================================
 
 function getTotalCollectionValue() {
-  if (!currentUser) {
-    return 0;
-  }
-
-  return allOwnership
-    .filter(
-      ownership =>
-        ownership.user_id ===
-        currentUser.id
-    )
-    .reduce(
-      (total, ownership) => {
-
-        const directTotal =
-          numberValue(
-            ownership.total_value
-          );
-
-        if (
-          directTotal > 0
-        ) {
-          return (
-            total +
-            directTotal
-          );
-        }
-
-        const value =
-          numberValue(
-            ownership.value
-          );
-
-        const quantity =
-          numberValue(
-            ownership.quantity
-          );
-
-        return (
-          total +
-          value *
-            quantity
-        );
-      },
-      0
-    );
+  return getCurrentUserOwnershipSummary().collectionValue;
 }
 
 
