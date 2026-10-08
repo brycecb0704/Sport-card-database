@@ -3961,10 +3961,32 @@
     const resolvedCardId =
       resolveSupabaseCardId(cardId);
 
-    return (
+    const indexed =
       ownershipByUserCard.get(
         userKey + "|" + String(resolvedCardId)
-      ) || null
+      );
+
+    if (indexed) return indexed;
+
+    // Final fallback: compare against the live ownership rows.
+    // This keeps collection status correct even if an older browser
+    // index was built before the catalog/UUID bridge existed.
+    return (
+      allOwnership.find(ownership => {
+        if (
+          String(ownership.user_id) !== userKey
+        ) {
+          return false;
+        }
+
+        const rawOwnershipCardId =
+          String(ownership.card_id || "");
+
+        return (
+          rawOwnershipCardId === String(cardId) ||
+          rawOwnershipCardId === String(resolvedCardId)
+        );
+      }) || null
     );
   }
 
@@ -3974,11 +3996,26 @@
     const resolvedCardId =
       resolveSupabaseCardId(cardId);
 
-    return (
+    const indexed =
       ownershipsByCard.get(String(resolvedCardId)) ||
-      ownershipsByCard.get(String(cardId)) ||
-      []
-    );
+      ownershipsByCard.get(String(cardId));
+
+    if (indexed?.length) {
+      return indexed;
+    }
+
+    // Final fallback for bridge/index mismatches.
+    const matching = allOwnership.filter(ownership => {
+      const rawOwnershipCardId =
+        String(ownership.card_id || "");
+
+      return (
+        rawOwnershipCardId === String(cardId) ||
+        rawOwnershipCardId === String(resolvedCardId)
+      );
+    });
+
+    return matching;
   }
 
   function getPrice(cardId) {
@@ -7298,19 +7335,38 @@
     }
 
     try {
-      // Make sure every catalog card has a Supabase bridge record
-      // before the ownership form is opened.
-      await ensureSupabaseCard(card);
-      await loadDatabase();
+      // Every ownership row must point to the Supabase cards.id UUID.
+      // Create/reuse the bridge first, then check ownership directly.
+      const bridgeCard =
+        await ensureSupabaseCard(card);
+
+      let ownership = null;
+
+      if (bridgeCard?.id) {
+        const ownershipQuery =
+          await supabaseClient
+            .from("card_ownership")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .eq("card_id", bridgeCard.id)
+            .maybeSingle();
+
+        if (ownershipQuery.error) {
+          throw ownershipQuery.error;
+        }
+
+        ownership =
+          ownershipQuery.data || null;
+      }
 
       selectedCard =
         card;
 
       selectedOwnership =
-        getOwnership(card.card_id);
+        ownership;
 
       populateOwnershipForm(
-        selectedOwnership,
+        ownership,
         card
       );
 
