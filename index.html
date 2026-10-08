@@ -5669,6 +5669,7 @@
       );
 
     const cards = [];
+    const seenCardIds = new Set();
 
     owned.forEach(ownership => {
 
@@ -5677,6 +5678,19 @@
 
       if (!card) {
         return;
+      }
+
+      const uniqueCardId =
+        String(card.card_id || "");
+
+      // A user can own quantity 2, 10, etc. but the collection
+      // should still render one card tile with that quantity.
+      if (uniqueCardId && seenCardIds.has(uniqueCardId)) {
+        return;
+      }
+
+      if (uniqueCardId) {
+        seenCardIds.add(uniqueCardId);
       }
 
       const setName =
@@ -7388,36 +7402,70 @@
   }
 
 
-  function openEditOwnership(cardId) {
+  async function openEditOwnership(cardId) {
 
     const card =
       getCard(cardId);
 
-    const ownership =
-      getOwnership(cardId);
-
-    if (!card || !ownership) {
+    if (!card || !currentUser) {
       return;
     }
 
-    selectedCard =
-      card;
+    try {
+      const resolvedCardId =
+        await resolveOwnershipCardId(card.card_id);
 
-    selectedOwnership =
-      ownership;
+      const ownershipQuery =
+        await supabaseClient
+          .from("card_ownership")
+          .select("*")
+          .eq("user_id", currentUser.id)
+          .eq("card_id", resolvedCardId)
+          .maybeSingle();
 
-    populateOwnershipForm(
-      ownership,
-      card
-    );
+      if (ownershipQuery.error) {
+        throw ownershipQuery.error;
+      }
 
-    closeModal(
-      "cardDetailModal"
-    );
+      const ownership =
+        ownershipQuery.data ||
+        getOwnership(card.card_id);
 
-    openModal(
-      "ownershipModal"
-    );
+      if (!ownership) {
+        showToast(
+          "This card is no longer in your collection.",
+          "error"
+        );
+        await loadDatabase();
+        return;
+      }
+
+      selectedCard =
+        card;
+
+      selectedOwnership =
+        ownership;
+
+      populateOwnershipForm(
+        ownership,
+        card
+      );
+
+      closeModal(
+        "cardDetailModal"
+      );
+
+      openModal(
+        "ownershipModal"
+      );
+    } catch (error) {
+      console.error("Edit ownership error:", error);
+      showToast(
+        error?.message ||
+          "Unable to load your collection information.",
+        "error"
+      );
+    }
   }
 
 
@@ -9131,11 +9179,34 @@ async function ensureSupabaseCard(catalogCard) {
       .select("*")
       .single();
 
-  if (inserted.error) {
-    throw inserted.error;
+  if (!inserted.error) {
+    return inserted.data;
   }
 
-  return inserted.data;
+  // Another request/tab may have created the bridge between our
+  // SELECT and INSERT. The card_id unique constraint is intentional:
+  // there must be exactly one catalog bridge row per master card.
+  if (
+    String(inserted.error.code || "") === "23505" &&
+    String(inserted.error.message || "").includes("cards_card_id_key")
+  ) {
+    const retry =
+      await supabaseClient
+        .from("cards")
+        .select("*")
+        .eq("card_id", catalogCard.card_id)
+        .maybeSingle();
+
+    if (retry.error) {
+      throw retry.error;
+    }
+
+    if (retry.data) {
+      return retry.data;
+    }
+  }
+
+  throw inserted.error;
 }
 
 
@@ -9157,14 +9228,8 @@ async function saveOwnershipRecord(
 
   // Accept either a Supabase cards.id UUID or the Google master
   // catalog card_id. Ownership itself must always store the UUID.
-  const bridgeCard = allSupabaseCards.find(
-    card =>
-      String(card.id) === String(cardId) ||
-      String(card.card_id) === String(cardId)
-  );
-
   const resolvedCardId =
-    bridgeCard?.id || cardId;
+    await resolveOwnershipCardId(cardId);
 
   const existing =
     await supabaseClient
