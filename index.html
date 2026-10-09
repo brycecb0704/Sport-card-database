@@ -10566,9 +10566,38 @@ async function refreshCardPrice(
       error
     );
 
+    let priceErrorMessage =
+      "Price refresh failed. Check the pricing function setup and try again.";
+
+    // Supabase FunctionsHttpError may carry the Edge Function's JSON
+    // response in its Response context. Show a useful setup/API message
+    // instead of claiming the function does not exist.
+    try {
+      if (
+        error?.context &&
+        typeof error.context.clone === "function"
+      ) {
+        const responseBody =
+          await error.context.clone().json();
+
+        if (responseBody?.error) {
+          priceErrorMessage =
+            String(responseBody.error);
+        }
+      } else if (error?.message) {
+        priceErrorMessage =
+          String(error.message);
+      }
+    } catch {
+      if (error?.message) {
+        priceErrorMessage =
+          String(error.message);
+      }
+    }
+
     showToast(
-      "Price refresh is not connected yet. The card database is working; the pricing service still needs its secure Supabase Edge Function.",
-      "info"
+      priceErrorMessage,
+      "error"
     );
   }
 }
