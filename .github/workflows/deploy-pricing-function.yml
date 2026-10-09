@@ -7,7 +7,6 @@ on:
       - main
     paths:
       - "supabase/functions/refresh-card-price/**"
-      - ".github/workflows/deploy-pricing-function.yml"
 
 jobs:
   deploy:
