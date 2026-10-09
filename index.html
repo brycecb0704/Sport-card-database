@@ -10536,7 +10536,31 @@ async function refreshCardPrice(
       throw result.error;
     }
 
+    // The Edge Function returns the freshly saved price record. Keep that
+    // result in the client state as well, so the card details update even if
+    // the card_prices table refresh is delayed or its SELECT policy prevents
+    // the normal reload from returning the new row.
+    const refreshedPrice = result.data;
     await loadDatabase();
+
+    if (
+      refreshedPrice &&
+      refreshedPrice.card_id &&
+      refreshedPrice.source
+    ) {
+      allPrices = allPrices.filter(price =>
+        !(
+          String(price.card_id) === String(refreshedPrice.card_id) &&
+          String(price.source) === String(refreshedPrice.source)
+        )
+      );
+
+      allPrices.push({
+        ...refreshedPrice,
+        fetched_at: refreshedPrice.fetched_at || new Date().toISOString()
+      });
+    }
+
     updateUserInterface();
 
     if (
