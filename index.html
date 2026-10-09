@@ -4769,11 +4769,20 @@ function getCurrentUserOwnershipSummary() {
     (total, item) => total + numberValue(item.quantity), 0
   );
   const collectionValue = activeOwnership.reduce((total, item) => {
-    const unitValue = numberValue(item.value);
+    const savedUnitValue = numberValue(item.value);
+    const card = getCard(item.card_id);
+    // Ownership rows can have no manually saved value even when the shared
+    // catalog has a fresh market estimate. Use that estimate for collection
+    // totals without overwriting the user's own ownership value.
+    const catalogUnitValue =
+      savedUnitValue > 0
+        ? savedUnitValue
+        : numberValue(getDisplayValue(card));
     const totalValue = numberValue(item.total_value);
+
     return total + (
-      unitValue > 0
-        ? unitValue * numberValue(item.quantity)
+      catalogUnitValue > 0
+        ? catalogUnitValue * numberValue(item.quantity)
         : totalValue > 0
           ? totalValue
           : 0
