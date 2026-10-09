@@ -10641,9 +10641,39 @@ async function identifyCardFromImage(
       error
     );
 
+    let userMessage =
+      error?.message ||
+      "Card identification failed. Please try again.";
+
+    // Supabase Edge Functions return useful error details in the response body.
+    try {
+      if (
+        error?.context &&
+        typeof error.context.clone === "function"
+      ) {
+        const errorBody =
+          await error.context.clone().json();
+
+        if (errorBody?.error) {
+          userMessage = errorBody.error;
+        }
+      }
+    } catch (_) {
+      // Keep the fallback message if the response has no JSON body.
+    }
+
+    if (
+      !userMessage ||
+      userMessage ===
+        "Edge Function returned a non-2xx status code"
+    ) {
+      userMessage =
+        "Card identification failed. Check that the Supabase identify-card function is deployed and configured.";
+    }
+
     showToast(
-      "AI card identification is not connected yet. The secure Edge Function still needs to be added.",
-      "info"
+      userMessage,
+      "error"
     );
 
     return null;
