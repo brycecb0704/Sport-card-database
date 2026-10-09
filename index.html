@@ -4771,18 +4771,28 @@ function getCurrentUserOwnershipSummary() {
   const collectionValue = activeOwnership.reduce((total, item) => {
     const savedUnitValue = numberValue(item.value);
     const card = getCard(item.card_id);
-    // Ownership rows can have no manually saved value even when the shared
-    // catalog has a fresh market estimate. Use that estimate for collection
-    // totals without overwriting the user's own ownership value.
+
+    // Ownership rows may reference a Supabase UUID while the master catalog
+    // uses a separate catalog ID. Check both IDs for the saved market price.
+    const price =
+      getPrice(item.card_id) ||
+      (card ? getPrice(card.card_id) : null);
+    const marketUnitValue = Number(price?.estimated_value);
     const catalogUnitValue =
       savedUnitValue > 0
         ? savedUnitValue
-        : numberValue(getDisplayValue(card));
+        : (
+            Number.isFinite(marketUnitValue) &&
+            marketUnitValue > 0
+              ? marketUnitValue
+              : numberValue(getDisplayValue(card))
+          );
     const totalValue = numberValue(item.total_value);
+    const quantity = numberValue(item.quantity);
 
     return total + (
       catalogUnitValue > 0
-        ? catalogUnitValue * numberValue(item.quantity)
+        ? catalogUnitValue * quantity
         : totalValue > 0
           ? totalValue
           : 0
