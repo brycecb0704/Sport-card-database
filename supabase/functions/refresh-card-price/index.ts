@@ -223,9 +223,9 @@ function buildSearchQuery(card: Record<string, any>, playerName: string, setName
 async function fetchSoldgraphComps(apiKey: string, query: string) {
   const url = new URL("https://api.soldgraph.com/v1/ebay/sold");
   url.searchParams.set("q", query);
-  url.searchParams.set("count", "120");
-  url.searchParams.set("sort", "recently_sold");
+  url.searchParams.set("count", "200");
   url.searchParams.set("item_location", "domestic");
+  url.searchParams.set("buying_format", "auction");
 
   let response = await fetch(url.toString(), {
     headers: { Authorization: "Bearer " + apiKey, Accept: "application/json" },
@@ -292,11 +292,13 @@ Deno.serve(async (request: Request) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const ebayClientId = Deno.env.get("EBAY_CLIENT_ID");
   const ebayClientSecret = Deno.env.get("EBAY_CLIENT_SECRET");
+  const soldgraphKey = Deno.env.get("SOLDGRAPH_KEY");
+  const hasEbayCredentials = Boolean(ebayClientId && ebayClientSecret);
 
   if (!supabaseUrl || !serviceKey) return jsonResponse({ error: "The pricing service is missing its Supabase server configuration." }, 503);
-  if (!ebayClientId || !ebayClientSecret) {
+  if (!soldgraphKey && !hasEbayCredentials) {
     return jsonResponse({
-      error: "Pricing is not configured yet. Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET in Supabase Edge Function secrets.",
+      error: "Pricing is not configured. Add SOLDGRAPH_KEY in Supabase Edge Function secrets, or configure both EBAY_CLIENT_ID and EBAY_CLIENT_SECRET as a fallback.",
     }, 503);
   }
 
@@ -368,7 +370,6 @@ Deno.serve(async (request: Request) => {
     // Prefer actual sold listings when an optional Soldgraph key is configured.
     // This is the stronger valuation signal; eBay Browse API remains the no-extra-
     // service fallback and is always labeled as active asking prices.
-    const soldgraphKey = Deno.env.get("SOLDGRAPH_KEY");
     if (soldgraphKey) {
       try {
         const soldResult = await fetchSoldgraphComps(soldgraphKey, query);
@@ -464,7 +465,13 @@ Deno.serve(async (request: Request) => {
       }
     }
 
-    const token = await getEbayAccessToken(ebayClientId, ebayClientSecret);
+    if (!hasEbayCredentials) {
+      return jsonResponse({
+        error: "Soldgraph did not return enough reliable matching sales, and eBay fallback is not configured. Check Soldgraph logs and the card's set/year/card number.",
+      }, 502);
+    }
+
+    const token = await getEbayAccessToken(ebayClientId!, ebayClientSecret!);
     const searchUrl = "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" +
       encodeURIComponent(query) + "&limit=" + MAX_SEARCH_RESULTS +
       "&filter=" + encodeURIComponent("buyingOptions:{FIXED_PRICE},itemLocationCountry:US");
