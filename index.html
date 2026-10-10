@@ -2273,13 +2273,19 @@
 
             </div>
 
-            <button
-              class="btn btn-primary"
-              onclick="openAddCardModal()">
-
-              + Add Card
-
-            </button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+              <button
+                class="btn btn-secondary"
+                onclick="refreshCollectionPrices()"
+                title="Refresh up to five cards whose prices are missing or older than 24 hours.">
+                Refresh Pricing
+              </button>
+              <button
+                class="btn btn-primary"
+                onclick="openAddCardModal()">
+                + Add Card
+              </button>
+            </div>
 
           </div>
 
@@ -9498,6 +9504,7 @@ async function saveOwnershipRecord(
 // ============================================================
 
 async function saveCardFromForm(event) {
+  const wasEditingExistingCard = !!editingCardId;
   if (event) {
     event.preventDefault();
     event.stopPropagation();
@@ -9840,12 +9847,15 @@ async function saveCardFromForm(event) {
     await loadDatabase();
     updateUserInterface();
 
-    // Price the card after the collection save succeeds. This runs in the
-    // background so a slow marketplace search does not block adding a card.
-    if (!editingCardId && savedCard?.id) {
-      refreshCardPrice(savedCard.id).catch(error =>
-        console.warn("Automatic price lookup after adding card failed:", error)
-      );
+    // Automatically price newly added cards, but respect the 24-hour
+    // per-card cooldown so repeated adds/opens do not burn marketplace credits.
+    if (!wasEditingExistingCard && savedCard?.id) {
+      const cardForPricing = getCard(savedCard.card_id) || savedCard;
+      if (needsCardPriceRefresh(cardForPricing)) {
+        refreshCardPrice(cardForPricing.card_id).catch(error =>
+          console.warn("Automatic price lookup after adding card failed:", error)
+        );
+      }
     }
 
     closeAddCardModal();
@@ -10188,6 +10198,15 @@ async function saveOwnershipFromModal(
     }
 
     closeOwnershipModal();
+
+    // If adding/returning a card to the collection, price it only if no
+    // recent attempt exists. This is safe for cards opened from the catalog.
+    const cardForPricing = getCard(selectedCard.card_id) || selectedCard;
+    if (quantity > 0 && needsCardPriceRefresh(cardForPricing)) {
+      refreshCardPrice(cardForPricing.card_id).catch(error =>
+        console.warn("Automatic price lookup after saving ownership failed:", error)
+      );
+    }
 
     showToast(
       "Collection information saved.",
@@ -10595,6 +10614,76 @@ function generateBarcode(
 // ============================================================
 // PRICE REFRESH
 // ============================================================
+
+// Use all provider records for cooldown detection, including failed/no-value
+// attempts. This prevents opening the same card repeatedly from consuming API
+// calls or Soldgraph's limited credits.
+function needsCardPriceRefresh(cardOrId) {
+  if (!cardOrId) return false;
+  const card = typeof cardOrId === "object" ? cardOrId : getCard(cardOrId);
+  if (!card) return false;
+
+  const resolvedId = resolveSupabaseCardId(card.card_id || cardOrId);
+  const records = allPrices.filter(price =>
+    String(price.card_id) === String(resolvedId) ||
+    String(price.card_id) === String(card.card_id || cardOrId)
+  );
+  const latestAttempt = records
+    .map(price => new Date(price.fetched_at || 0).getTime())
+    .filter(Number.isFinite)
+    .reduce((latest, time) => Math.max(latest, time), 0);
+
+  return !latestAttempt || Date.now() - latestAttempt > 24 * 60 * 60 * 1000;
+}
+
+// Deliberately capped at five cards per click because each refresh may use a
+// paid/limited sold-comps request. Only cards in the current collection that
+// are missing a recent price attempt are queued.
+async function refreshCollectionPrices() {
+  if (!currentUser) {
+    showToast("Please log in first.", "error");
+    return;
+  }
+
+  const ownedRows = getCurrentUserOwnershipSummary().byPossession.Collection || [];
+  const seen = new Set();
+  const staleCards = [];
+
+  for (const row of ownedRows) {
+    const card = getCard(row.card_id);
+    if (!card) continue;
+    const key = String(card.card_id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (needsCardPriceRefresh(card)) staleCards.push(card);
+  }
+
+  if (!staleCards.length) {
+    showToast("All collection cards have a pricing attempt within the last 24 hours.", "info");
+    return;
+  }
+
+  const batch = staleCards.slice(0, 5);
+  showToast(
+    `Refreshing ${batch.length} card(s). ${Math.max(0, staleCards.length - batch.length)} more need pricing; run again later if needed.`,
+    "info"
+  );
+
+  let succeeded = 0;
+  for (const card of batch) {
+    try {
+      await refreshCardPrice(card.card_id);
+      succeeded++;
+    } catch (error) {
+      console.warn("Collection price refresh failed for", card.card_id, error);
+    }
+  }
+
+  showToast(
+    `Collection pricing finished: ${succeeded} of ${batch.length} refreshed. Each card is now on a 24-hour cooldown.`,
+    succeeded ? "success" : "error"
+  );
+}
 
 async function refreshCardPrice(
   cardId
@@ -11709,6 +11798,9 @@ window.openEditCard =
 
 window.refreshCardPrice =
   refreshCardPrice;
+
+window.refreshCollectionPrices =
+  refreshCollectionPrices;
 
 window.openAddCard =
   openAddCard;
