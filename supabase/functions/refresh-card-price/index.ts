@@ -431,23 +431,49 @@ Deno.serve(async (request: Request) => {
         const cardNumber = String(cardForMatch.card_number ?? "").trim();
         const person = playerName || String(card.name ?? "");
         const parallel = String(cardForMatch.parallel ?? "").trim();
-        const fallbackQuery = [year, person, cardNumber ? "#" + cardNumber : "", parallel]
-          .filter(Boolean).join(" ").slice(0, 180);
+        const brand = String(cardForMatch.card_brand ?? cardForMatch.card_sets?.brand ?? "").trim();
+        const series = String(cardForMatch.card_series ?? cardForMatch.card_sets?.series ?? "").trim();
+
+        // The fallback retains product identity (brand/series) instead of
+        // broadening to player + number alone, which invites unrelated parallels.
+        // Soldgraph supports minus-prefixed exclusion keywords.
+        const fallbackParts = [year, brand, series, person, cardNumber ? "#" + cardNumber : "", parallel]
+          .filter(Boolean);
+        if (!parallel) {
+          const normalizedProduct = normalize([brand, series, setName].join(" "));
+          const excludeTerms = [
+            ["gold", /\bgold\b/i], ["chrome", /\bchrome\b/i],
+            ["sapphire", /\bsapphire\b/i], ["rainbow", /\brainbow\b/i],
+            ["refractor", /\brefractor\b/i], ["foil", /\bfoil\b/i],
+            ["orange", /\borange\b/i], ["purple", /\bpurple\b/i],
+            ["blue", /\bblue\b/i], ["black", /\bblack\b/i],
+            ["pink", /\bpink\b/i], ["printing plate", /\bprinting plate\b/i],
+            ["variation", /\bvariation\b/i], ["you pick", /\byou pick\b/i],
+            ["complete set", /\bcomplete set\b/i], ["lot", /\blot\b/i],
+          ];
+          for (const [term, pattern] of excludeTerms) {
+            if (!pattern.test(normalizedProduct)) fallbackParts.push("-" + term);
+          }
+        }
+        const fallbackQuery = fallbackParts.join(" ").slice(0, 200);
         const firstResult = await fetchSoldgraphComps(soldgraphKey, query);
         const firstRows = Array.isArray(firstResult.data) ? firstResult.data : [];
-        const hasPlausibleTitle = firstRows.some((item: Record<string, any>) => {
+        const countReliableCandidates = (rows: Record<string, any>[]) => rows.filter((item) => {
           const title = String(item.title ?? "");
-          return Boolean(person && phraseInTitle(title, person) &&
-            (!year || new RegExp("(^|[^0-9])" + year + "([^0-9]|$)").test(title)) &&
-            (!cardNumber || numberInTitle(title, cardNumber)) &&
-            !isExcludedListing(title));
-        });
+          const evaluation = evaluateListing(title, cardForMatch, person, setName);
+          return evaluation.matched && !item.displayed_price_range &&
+            !item.best_offer_accepted && parseMoney(item.displayed_price?.amount) !== null &&
+            String(item.displayed_price?.currency ?? "USD").toUpperCase() === "USD";
+        }).length;
+        // Trigger the one paid fallback when the first page does not contain
+        // enough usable sales, not merely when it has no superficially plausible title.
+        const firstReliableCount = countReliableCandidates(firstRows);
         let soldResult = firstResult;
         let usedQueries = [query];
-        if (!hasPlausibleTitle && fallbackQuery && normalize(fallbackQuery) !== normalize(query)) {
+        if (firstReliableCount < 3 && fallbackQuery && normalize(fallbackQuery) !== normalize(query)) {
           console.info("Soldgraph targeted fallback starting", JSON.stringify({
             card_id: card.id, first_query: query, fallback_query: fallbackQuery,
-            first_result_count: firstRows.length, reason: "no plausible exact-card titles",
+            first_result_count: firstRows.length, reliable_candidates: firstReliableCount, reason: "fewer than three usable exact-card sales",
           }));
           const fallbackResult = await fetchSoldgraphComps(soldgraphKey, fallbackQuery);
           const fallbackRows = Array.isArray(fallbackResult.data) ? fallbackResult.data : [];
@@ -461,9 +487,12 @@ Deno.serve(async (request: Request) => {
           console.info("Soldgraph targeted fallback summary", JSON.stringify({
             card_id: card.id, query: fallbackQuery, rows_returned: fallbackRows.length,
             combined_unique_rows: soldResult.data.length,
-            titles: fallbackRows.slice(0, 8).map((item: Record<string, any>) => ({
+            reliable_candidates: countReliableCandidates(fallbackRows),
+            titles: fallbackRows.slice(0, 12).map((item: Record<string, any>) => ({
               title: item.title ?? null, has_price: Boolean(item.displayed_price?.amount),
               is_price_range: Boolean(item.displayed_price_range),
+              accepted_offer: Boolean(item.best_offer_accepted),
+              exact_match: evaluateListing(String(item.title ?? ""), cardForMatch, person, setName).matched,
             })),
           }));
         }
