@@ -4069,17 +4069,22 @@
       Number(price.estimated_value) > 0 &&
       isRecent(price)
     );
-    // Prefer completed-sale comps, but do not discard a usable active-listing
-    // estimate when sold data is unavailable. The detail view labels the source.
+    // Show the newest usable record. A sold-comp record is better evidence
+    // than asking prices only when it is at least as fresh as the asking record;
+    // an old sold record must not mask a newer refresh.
     const newestFirst = (a, b) =>
       new Date(b.fetched_at || 0) - new Date(a.fetched_at || 0);
     const soldPrice = usable
       .filter(price => price.source === "ebay_sold_comps")
       .sort(newestFirst)[0];
-    if (soldPrice) return soldPrice;
-    return usable
+    const activePrice = usable
       .filter(price => price.source === "ebay_active_asking")
-      .sort(newestFirst)[0] || null;
+      .sort(newestFirst)[0];
+    if (!soldPrice) return activePrice || null;
+    if (!activePrice) return soldPrice;
+    const soldTime = new Date(soldPrice.fetched_at || 0).getTime();
+    const activeTime = new Date(activePrice.fetched_at || 0).getTime();
+    return soldTime >= activeTime ? soldPrice : activePrice;
   }
 
   function isWeightDivisionSport(sport) {
