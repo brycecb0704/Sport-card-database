@@ -228,6 +228,24 @@ function buildSearchQuery(card: Record<string, any>, playerName: string, setName
   return [...new Set(parts.filter(Boolean))].join(" ").slice(0, 180);
 }
 
+// Use several complementary searches instead of one over-specific query.
+function buildSearchQueries(card: Record<string, any>, playerName: string, setName: string): string[] {
+  const year = String(card.year_made ?? card.card_sets?.year ?? "").trim();
+  const brand = String(card.card_brand ?? card.card_sets?.brand ?? "").trim();
+  const series = String(card.card_series ?? card.card_sets?.series ?? "").trim();
+  const number = String(card.card_number ?? "").trim();
+  const parallel = String(card.parallel ?? "").trim();
+  const person = playerName || String(card.name ?? "");
+  const candidates = [
+    buildSearchQuery(card, person, setName),
+    [year, person, number ? "#" + number : "", parallel].filter(Boolean).join(" "),
+    [person, number ? "#" + number : "", parallel].filter(Boolean).join(" "),
+    [year, brand, person, number ? "#" + number : "", parallel].filter(Boolean).join(" "),
+    [year, series, person, number ? "#" + number : "", parallel].filter(Boolean).join(" "),
+  ];
+  return [...new Set(candidates.map(q => q.trim().slice(0, 180)).filter(Boolean))];
+}
+
 async function fetchSoldgraphComps(apiKey: string, query: string) {
   const url = new URL("https://api.soldgraph.com/v1/ebay/sold");
   url.searchParams.set("q", query);
@@ -479,31 +497,48 @@ Deno.serve(async (request: Request) => {
     }
 
     const token = await getEbayAccessToken(ebayClientId!, ebayClientSecret!);
-    const searchUrl = "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" +
-      encodeURIComponent(query) + "&limit=" + MAX_SEARCH_RESULTS +
-      "&filter=" + encodeURIComponent("buyingOptions:{FIXED_PRICE},itemLocationCountry:US");
+    const searchQueries = buildSearchQueries(cardForMatch, playerName || String(card.name ?? ""), setName);
+    const summariesById = new Map<string, Record<string, any>>();
+    let successfulSearches = 0;
+    let lastSearchError: { status: number; text: string } | null = null;
 
-    const ebayResponse = await fetch(searchUrl, {
-      headers: {
-        Authorization: "Bearer " + token,
-        "X-EBAY-C-MARKETPLACE-ID": EBAY_MARKETPLACE,
-        Accept: "application/json",
-      },
-    });
-
-    const ebayText = await ebayResponse.text();
-    if (!ebayResponse.ok) {
-      console.error("eBay Browse API error", ebayResponse.status, ebayText.slice(0, 700));
-      const message = ebayResponse.status === 401 || ebayResponse.status === 403
-        ? "eBay denied Browse API access. Check your production keyset and API permissions."
-        : ebayResponse.status === 429
-        ? "eBay rate limit reached. Wait a bit before refreshing this card again."
-        : "eBay's active-listing search failed. Please try again later.";
-      return jsonResponse({ error: message }, ebayResponse.status === 429 ? 429 : 502);
+    // Search broad-to-specific and deduplicate items returned by multiple queries.
+    for (const searchQuery of searchQueries.slice(0, 5)) {
+      const searchUrl = "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" +
+        encodeURIComponent(searchQuery) + "&limit=" + MAX_SEARCH_RESULTS +
+        "&filter=" + encodeURIComponent("buyingOptions:{FIXED_PRICE},itemLocationCountry:US");
+      const ebayResponse = await fetch(searchUrl, {
+        headers: {
+          Authorization: "Bearer " + token,
+          "X-EBAY-C-MARKETPLACE-ID": EBAY_MARKETPLACE,
+          Accept: "application/json",
+        },
+      });
+      const ebayText = await ebayResponse.text();
+      if (!ebayResponse.ok) {
+        lastSearchError = { status: ebayResponse.status, text: ebayText };
+        console.error("eBay Browse API search failed", searchQuery, ebayResponse.status, ebayText.slice(0, 500));
+        if (ebayResponse.status === 401 || ebayResponse.status === 403 || ebayResponse.status === 429) {
+          const message = ebayResponse.status === 401 || ebayResponse.status === 403
+            ? "eBay denied Browse API access. Check the production Client ID, Client Secret, and Browse API permissions."
+            : "eBay rate limit reached. Wait before refreshing this card again.";
+          return jsonResponse({ error: message }, ebayResponse.status === 429 ? 429 : 502);
+        }
+        continue;
+      }
+      successfulSearches++;
+      const ebayData = JSON.parse(ebayText);
+      const rows = Array.isArray(ebayData.itemSummaries) ? ebayData.itemSummaries : [];
+      for (const item of rows) {
+        const key = String(item.itemId ?? item.legacyItemId ?? item.itemWebUrl ?? item.title ?? "");
+        if (key && !summariesById.has(key)) summariesById.set(key, item);
+      }
     }
 
-    const ebayData = JSON.parse(ebayText);
-    const summaries = Array.isArray(ebayData.itemSummaries) ? ebayData.itemSummaries : [];
+    if (successfulSearches === 0 && lastSearchError) {
+      return jsonResponse({ error: "eBay listing searches failed. Check the Edge Function logs and try again." }, 502);
+    }
+    const summaries = [...summariesById.values()];
     const matches: Array<{ title: string; price: number; itemPrice: number; shipping: number | null; url: string; score: number; reasons: string[] }> = [];
 
     for (const item of summaries) {
@@ -582,6 +617,9 @@ Deno.serve(async (request: Request) => {
     console.info("Active pricing audit", JSON.stringify({
       card_id: card.id,
       query,
+      search_queries: searchQueries,
+      successful_searches: successfulSearches,
+      raw_unique_listing_count: summaries.length,
       set_name: setName,
       player_name: playerName || String(card.name ?? ""),
       card_number: card.card_number ?? null,
@@ -626,6 +664,9 @@ Deno.serve(async (request: Request) => {
       source_type: "active_asking_prices",
       card_id: card.id,
       query,
+      search_queries: searchQueries,
+      searched_listing_count: summaries.length,
+      successful_searches: successfulSearches,
       estimated_value: estimatedValue,
       asking_median: askingMedian,
       low_price: lowPrice,
