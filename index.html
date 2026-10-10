@@ -7727,11 +7727,80 @@ function getCurrentUserOwnershipSummary() {
   // STARTUP
   // ============================================================
 
+  // Keep the app connected when a user returns to this browser tab.
+  // Prices and catalog data live in Supabase, so reloading the shared records
+  // also makes price refreshes from other users visible without signing out.
+  let resumeSyncInProgress = false;
+  let lastResumeSyncAt = 0;
+  let priceRealtimeChannel = null;
+
+  async function reconnectAppOnResume(force = false) {
+    if (document.visibilityState === "hidden" || resumeSyncInProgress) return;
+    const now = Date.now();
+    if (!force && now - lastResumeSyncAt < 5000) return;
+    resumeSyncInProgress = true;
+    lastResumeSyncAt = now;
+    try {
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) throw error;
+      const sessionUser = data?.session?.user || null;
+      if (!sessionUser) {
+        currentUser = null;
+        showAuthScreen();
+        return;
+      }
+      const userChanged = String(currentUser?.id || "") !== String(sessionUser.id);
+      currentUser = sessionUser;
+      if (userChanged || !allCards.length) {
+        await initializeApp();
+      } else {
+        await loadDatabase();
+        showScreen(activeScreen || "home");
+      }
+    } catch (error) {
+      console.warn("Could not reconnect to Supabase when returning to the app:", error);
+      showToast("Connection refresh failed. Check your internet connection and try again.", "error");
+    } finally {
+      resumeSyncInProgress = false;
+    }
+  }
+
+  function setupSharedPriceUpdates() {
+    if (priceRealtimeChannel) return;
+    priceRealtimeChannel = supabaseClient
+      .channel("shared-card-price-updates")
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "card_prices"
+      }, async () => {
+        try {
+          const prices = await safeTableLoad(catalogSupabase, "catalog", "card_prices", "*");
+          allPrices = prices;
+          updateUserInterface();
+          if (activeScreen) showScreen(activeScreen);
+        } catch (error) {
+          console.warn("Shared price update could not be loaded:", error);
+        }
+      })
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("Shared price live updates are unavailable; prices will reload when the tab resumes.");
+        }
+      });
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") reconnectAppOnResume(true);
+  });
+  window.addEventListener("pageshow", () => reconnectAppOnResume(true));
+
   async function startup() {
 
     initializeTheme();
 
     setupEvents();
+    setupSharedPriceUpdates();
 
     showAuthMode("login");
 
