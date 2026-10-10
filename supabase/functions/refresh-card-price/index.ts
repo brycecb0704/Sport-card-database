@@ -424,10 +424,53 @@ Deno.serve(async (request: Request) => {
     // service fallback and is always labeled as active asking prices.
     if (soldgraphKey) {
       try {
-        const soldResult = await fetchSoldgraphComps(soldgraphKey, query);
+        // Credit-conscious search: run the exact query first. Only if it returns
+        // no plausible single-card title do one broader fallback query. Never
+        // fan out across every candidate query on each refresh.
+        const year = String(cardForMatch.year_made ?? cardForMatch.card_sets?.year ?? "").trim();
+        const cardNumber = String(cardForMatch.card_number ?? "").trim();
+        const person = playerName || String(card.name ?? "");
+        const parallel = String(cardForMatch.parallel ?? "").trim();
+        const fallbackQuery = [year, person, cardNumber ? "#" + cardNumber : "", parallel]
+          .filter(Boolean).join(" ").slice(0, 180);
+        const firstResult = await fetchSoldgraphComps(soldgraphKey, query);
+        const firstRows = Array.isArray(firstResult.data) ? firstResult.data : [];
+        const hasPlausibleTitle = firstRows.some((item: Record<string, any>) => {
+          const title = String(item.title ?? "");
+          return Boolean(person && phraseInTitle(title, person) &&
+            (!year || new RegExp("(^|[^0-9])" + year + "([^0-9]|$)").test(title)) &&
+            (!cardNumber || numberInTitle(title, cardNumber)) &&
+            !isExcludedListing(title));
+        });
+        let soldResult = firstResult;
+        let usedQueries = [query];
+        if (!hasPlausibleTitle && fallbackQuery && normalize(fallbackQuery) !== normalize(query)) {
+          console.info("Soldgraph targeted fallback starting", JSON.stringify({
+            card_id: card.id, first_query: query, fallback_query: fallbackQuery,
+            first_result_count: firstRows.length, reason: "no plausible exact-card titles",
+          }));
+          const fallbackResult = await fetchSoldgraphComps(soldgraphKey, fallbackQuery);
+          const fallbackRows = Array.isArray(fallbackResult.data) ? fallbackResult.data : [];
+          const combinedById = new Map<string, Record<string, any>>();
+          for (const item of [...firstRows, ...fallbackRows]) {
+            const id = String(item.id ?? item.link ?? item.title ?? "");
+            if (id && !combinedById.has(id)) combinedById.set(id, item);
+          }
+          soldResult = { ...fallbackResult, data: [...combinedById.values()] };
+          usedQueries.push(fallbackQuery);
+          console.info("Soldgraph targeted fallback summary", JSON.stringify({
+            card_id: card.id, query: fallbackQuery, rows_returned: fallbackRows.length,
+            combined_unique_rows: soldResult.data.length,
+            titles: fallbackRows.slice(0, 8).map((item: Record<string, any>) => ({
+              title: item.title ?? null, has_price: Boolean(item.displayed_price?.amount),
+              is_price_range: Boolean(item.displayed_price_range),
+            })),
+          }));
+        }
         console.info("Soldgraph response summary", JSON.stringify({
           card_id: card.id,
           query,
+          queries_attempted: usedQueries,
           result_status: soldResult?.status ?? null,
           result_keys: soldResult && typeof soldResult === "object" ? Object.keys(soldResult) : [],
           data_is_array: Array.isArray(soldResult?.data),
