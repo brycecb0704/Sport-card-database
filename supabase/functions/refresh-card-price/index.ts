@@ -276,6 +276,7 @@ async function fetchSoldgraphComps(apiKey: string, query: string) {
   const url = new URL("https://api.soldgraph.com/v1/ebay/sold");
   url.searchParams.set("q", query);
   url.searchParams.set("count", "200");
+  url.searchParams.set("sort", "recently_sold");
   url.searchParams.set("item_location", "domestic");
 
   let response = await fetch(url.toString(), {
@@ -425,41 +426,97 @@ Deno.serve(async (request: Request) => {
       try {
         const soldResult = await fetchSoldgraphComps(soldgraphKey, query);
         const soldRows = Array.isArray(soldResult.data) ? soldResult.data : [];
-        const soldMatches: Array<{ title: string; price: number; soldDate: string; url: string; bestOffer: boolean }> = [];
+        const soldMatches: Array<{ id: string; title: string; price: number; soldDate: string; url: string; bestOffer: boolean }> = [];
+        const seenSoldIds = new Set<string>();
+        const cutoff = Date.now() - 180 * 24 * 60 * 60 * 1000;
 
         for (const item of soldRows) {
           const title = String(item.title ?? "");
           const evaluation = evaluateListing(title, cardForMatch, playerName || String(card.name ?? ""), setName);
           if (!evaluation.matched || isExcludedListing(title)) continue;
+
+          // Do not count a sale twice, or use accepted-offer asking prices as if
+          // they were confirmed transaction amounts.
+          const id = String(item.id ?? item.link ?? title);
+          if (seenSoldIds.has(id)) continue;
+          seenSoldIds.add(id);
+          const bestOffer = Boolean(item.best_offer_accepted);
+          if (bestOffer) continue;
+          if (item.displayed_price_range) continue;
           const price = parseMoney(item.displayed_price?.amount);
           if (price === null || String(item.displayed_price?.currency ?? "USD").toUpperCase() !== "USD") continue;
-          if (item.displayed_price_range) continue;
+
+          // Soldgraph's displayed price excludes shipping when shipping is readable.
+          const shippingCurrency = String(item.displayed_shipping?.currency ?? "USD").toUpperCase();
+          const shippingAmount = item.displayed_shipping?.amount;
+          const shipping = shippingCurrency === "USD" && Number.isFinite(Number(shippingAmount)) && Number(shippingAmount) >= 0
+            ? Number(shippingAmount)
+            : 0;
+          const totalPrice = Math.round((price + shipping) * 100) / 100;
+          const soldDate = String(item.sold_date ?? "");
+          const soldTime = soldDate ? Date.parse(soldDate + "T23:59:59Z") : NaN;
+          // If a readable date is older than 180 days, exclude it. Missing dates
+          // remain usable but lower confidence below.
+          if (Number.isFinite(soldTime) && soldTime < cutoff) continue;
+
           soldMatches.push({
+            id,
             title,
-            price,
-            soldDate: String(item.sold_date ?? ""),
+            price: totalPrice,
+            soldDate,
             url: String(item.link ?? ""),
-            bestOffer: Boolean(item.best_offer_accepted),
+            bestOffer,
           });
         }
 
-        const soldPrices = soldMatches
-          .filter((item) => !item.bestOffer)
-          .map((item) => item.price)
-          .sort((a, b) => a - b);
+        // Reject extreme sale-price outliers when the sample is large enough.
+        const initialSoldPrices = soldMatches.map((item) => item.price).sort((a, b) => a - b);
+        let reliableSoldMatches = soldMatches;
+        if (initialSoldPrices.length >= 4) {
+          const q1 = quartile(initialSoldPrices, 0.25);
+          const q3 = quartile(initialSoldPrices, 0.75);
+          const spread = q3 - q1;
+          const lower = Math.max(0, q1 - 1.5 * spread);
+          const upper = q3 + 1.5 * spread;
+          reliableSoldMatches = soldMatches.filter((item) => item.price >= lower && item.price <= upper);
+        }
+
+        const soldPrices = reliableSoldMatches.map((item) => item.price).sort((a, b) => a - b);
         const soldMedian = median(soldPrices);
         const soldLow = soldPrices.length ? soldPrices[0] : null;
         const soldHigh = soldPrices.length ? soldPrices[soldPrices.length - 1] : null;
+        const datedCount = reliableSoldMatches.filter((item) => item.soldDate).length;
         const soldConfidence = soldPrices.length >= 10 ? 92
           : soldPrices.length >= 5 ? 85
           : soldPrices.length >= 3 ? 72
           : soldPrices.length ? 45 : 0;
 
-        // Only publish a sold-based value with at least three price-readable,
-        // title-matched sales after excluding accepted-offer asking prices.
+        console.info("Sold pricing audit", JSON.stringify({
+          card_id: card.id,
+          query,
+          sold_rows_returned: soldRows.length,
+          matched_count_before_outlier_filter: soldMatches.length,
+          matched_count_after_filter: reliableSoldMatches.length,
+          dated_sales_count: datedCount,
+          best_offer_sales_excluded: soldRows.filter((item: Record<string, any>) => Boolean(item.best_offer_accepted)).length,
+          sold_median: soldMedian,
+          low_price: soldLow,
+          high_price: soldHigh,
+          matches: reliableSoldMatches.slice(0, 15).map((item) => ({
+            title: item.title,
+            total_price: item.price,
+            sold_date: item.soldDate,
+            url: item.url,
+          })),
+        }));
+
+        // Only publish a sold-based value with at least three exact, readable
+        // sales after exclusions and outlier handling.
         if (soldPrices.length >= 3 && soldMedian !== null) {
           const soldNote = "Based on " + soldPrices.length +
-            " title-matched eBay sold listing(s), excluding listings marked as accepted best offers because their displayed prices may not be the actual sale amount. Sold listing coverage is one provider page, not a complete sales history. Verify exact parallel/condition before relying on this estimate." +
+            " title-matched eBay sold listing(s) from the provider's returned page, with readable shipping added, accepted-best-offer prices excluded, and extreme outliers removed where sample size permits. " +
+            (datedCount < reliableSoldMatches.length ? "Some sales had no readable sale date. " : "") +
+            "Verify exact parallel and condition before relying on this estimate." +
             (effectiveYear ? " Year checked: " + effectiveYear + "." : "");
           const soldRecord = {
             card_id: card.id,
@@ -500,7 +557,7 @@ Deno.serve(async (request: Request) => {
             price_note: soldNote,
             source_url: soldRecord.source_url,
             fetched_at: soldRecord.fetched_at,
-            matches: soldMatches.slice(0, 10).map((item) => ({
+            matches: reliableSoldMatches.slice(0, 10).map((item) => ({
               title: item.title,
               price: item.price,
               sold_date: item.soldDate,
