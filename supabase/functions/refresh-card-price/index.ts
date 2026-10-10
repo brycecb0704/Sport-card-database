@@ -225,7 +225,6 @@ async function fetchSoldgraphComps(apiKey: string, query: string) {
   url.searchParams.set("q", query);
   url.searchParams.set("count", "200");
   url.searchParams.set("item_location", "domestic");
-  url.searchParams.set("buying_format", "auction");
 
   let response = await fetch(url.toString(), {
     headers: { Authorization: "Bearer " + apiKey, Accept: "application/json" },
