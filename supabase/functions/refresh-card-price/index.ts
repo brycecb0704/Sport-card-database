@@ -153,6 +153,9 @@ function evaluateListing(title: string, card: Record<string, any>, playerName: s
   }
 
   const parallel = String(card.parallel ?? "").trim();
+  // Resolve brand before the parallel checks because the matcher uses it to
+  // distinguish the target product from unrelated variations.
+  const brand = String(card.card_brand ?? card.card_sets?.brand ?? "").trim();
   if (parallel) {
     if (!phraseInTitle(title, parallel)) return { matched: false, score: 0, reasons: [] as string[] };
     score += 15;
@@ -189,7 +192,6 @@ function evaluateListing(title: string, card: Record<string, any>, playerName: s
 
   // Do not price a player's different card from the same year/number as if
   // it were this exact product. Brand must match when the catalog supplies it.
-  const brand = String(card.card_brand ?? card.card_sets?.brand ?? "").trim();
   if (brand) {
     if (!phraseInTitle(title, brand)) {
       return { matched: false, score: 0, reasons: [] as string[] };
