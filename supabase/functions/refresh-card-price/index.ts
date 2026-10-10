@@ -160,7 +160,11 @@ function evaluateListing(title: string, card: Record<string, any>, playerName: s
   } else {
     // For a base-card target, reject titles advertising a parallel/variation.
     // These versions must not be blended into the base card's estimate.
-    const productIdentity = normalize([brand, series, setName].join(" "));
+    const productIdentity = normalize([
+      String(card.card_brand ?? card.card_sets?.brand ?? ""),
+      String(card.card_series ?? card.card_sets?.series ?? ""),
+      setName,
+    ].join(" "));
     const parallelTerms = /\b(refractor|foilfractor|rainbow foil|gold(?:\s+foil|\s+stars)?|vintage stock|independence day|advanced stats|mother'?s day|father'?s day|memorial day|clear variation|printing plate|platinum|superfractor|orange(?:\s+border)?|purple(?:\s+border)?|yellow border|blue(?:\s+border)?|black(?:\s+border)?|pink(?:\s+parallel)?|sapphire|parallel|variation|image variation|photo variation|short print)\b/i;
     const chromeIsTargetProduct = /\bchrome\b/i.test(productIdentity);
     const chromeMismatch = !chromeIsTargetProduct && /\bchrome\b/i.test(title);
