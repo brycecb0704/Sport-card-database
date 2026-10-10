@@ -5365,6 +5365,15 @@ function getCurrentUserOwnershipSummary() {
           : getDisplayValue(card)
       );
 
+    // If there is not enough evidence for a market estimate, still show the
+    // observed active-listing median clearly labeled as an asking price.
+    const displayPriceText =
+      numberValue(value) > 0
+        ? money(value)
+        : numberValue(price?.asking_median) > 0
+          ? money(price.asking_median) + " asking"
+          : "N/A";
+
     const owners =
       getOwnershipsForCard(
         card.card_id
@@ -5474,11 +5483,7 @@ function getCurrentUserOwnershipSummary() {
           <div class="card-tile-bottom">
 
             <strong class="card-tile-price">
-              ${
-                numberValue(value) > 0
-                  ? money(value)
-                  : "N/A"
-              }
+              ${escapeHtml(displayPriceText)}
             </strong>
 
             ${
