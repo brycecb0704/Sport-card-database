@@ -561,16 +561,18 @@ Deno.serve(async (request: Request) => {
           - spreadPenalty
         )));
 
-    // Active asking prices are weaker evidence than completed sales. Require a
-    // deeper sample before publishing an estimated value; keep the observed
-    // median and range visible even when evidence is insufficient.
-    const estimatedValue = filtered.length >= 5 && confidence >= 70 ? askingMedian : null;
+    // Preserve the old app's practical behavior: return a useful estimate when
+    // at least one credible listing matches, while making sample size and source
+    // limitations explicit. A strict 5-listing gate caused most cards to show $0.
+    const estimatedValue = filtered.length >= 1 ? askingMedian : null;
     const priceNote = filtered.length === 0
       ? "No sufficiently close active eBay listings matched this card. No value was estimated. This search covers active asking prices, not completed sales."
       : "Based on " + filtered.length + " matching active eBay listing(s). The median includes the lowest listed shipping cost when eBay supplied it; otherwise item price is used. Active listings are not confirmed sales. " +
-        (estimatedValue === null
-          ? "Insufficient comparable listings or match confidence to publish a market estimate; verify the exact set, card number, and parallel."
-          : "Estimated value is a conservative active-asking indicator, not a sold-comps valuation.") +
+        (filtered.length < 3
+          ? "Low sample size: treat this as a rough asking-price indicator and verify the card details."
+          : filtered.length < 5 || confidence < 70
+            ? "Moderate/low confidence: verify the exact set, card number, parallel, and condition."
+            : "Estimated value is a conservative active-asking indicator, not a sold-comps valuation.") +
         (effectiveYear ? " Year checked: " + effectiveYear + "." : "");
 
     const record = {
