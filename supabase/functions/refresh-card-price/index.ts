@@ -116,7 +116,12 @@ function isExcludedListing(title: string): boolean {
   ];
   if (exclusions.some((term) => (" " + t + " ").includes(" " + term + " "))) return true;
 
-  // This catalog prices the raw card variant. Do not mix in graded examples.
+  // Reject multi-card listings even when the seller omits the word "lot".
+  if (/\(\s*\d+\s*\)\s*(?:rookie\s+)?cards?\b/i.test(t) ||
+      /\b(?:set of|lot of|qty\.?|quantity(?: of)?)\s*\d+\b/i.test(t) ||
+      /\b\d+\s+(?:different\s+)?(?:rookie\s+)?cards?\b/i.test(t)) return true;
+
+  // This catalog prices raw cards; do not mix graded examples.
   return /\b(psa|bgs|sgc|cgc|beckett|graded|gem mint|pristine|slabbed)\b/i.test(title);
 }
 
@@ -153,6 +158,13 @@ function evaluateListing(title: string, card: Record<string, any>, playerName: s
     score += 15;
     reasons.push("parallel");
   } else {
+    // For a base-card target, reject titles advertising a parallel/variation.
+    // These versions must not be blended into the base card's estimate.
+    const parallelTerms = /\b(refractor|foilfractor|rainbow foil|gold foil|gold stars|vintage stock|independence day|advanced stats|mother'?s day|father'?s day|memorial day|clear variation|printing plate|platinum|superfractor|orange border|purple border|yellow border|blue border|black border|parallel|variation|image variation|photo variation|short print)\b/i;
+    if (!card.numbered && !card.print_run && parallelTerms.test(title)) {
+      return { matched: false, score: 0, reasons: [] as string[] };
+    }
+
     // Do not mix serial-numbered parallels into a base-card estimate.
     const serialMentioned = /\b\d+\s*\/\s*\d+\b/.test(title);
     if ((card.numbered || card.print_run) && !serialMentioned) {
