@@ -220,6 +220,49 @@ function buildSearchQuery(card: Record<string, any>, playerName: string, setName
   return [...new Set(parts.filter(Boolean))].join(" ").slice(0, 180);
 }
 
+async function fetchSoldgraphComps(apiKey: string, query: string) {
+  const url = new URL("https://api.soldgraph.com/v1/ebay/sold");
+  url.searchParams.set("q", query);
+  url.searchParams.set("count", "120");
+  url.searchParams.set("sort", "recently_sold");
+  url.searchParams.set("item_location", "domestic");
+
+  let response = await fetch(url.toString(), {
+    headers: { Authorization: "Bearer " + apiKey, Accept: "application/json" },
+  });
+  let payload = await response.json();
+
+  if (!response.ok) {
+    console.error("Soldgraph sold-comps error", response.status, JSON.stringify(payload).slice(0, 500));
+    throw new Error("The sold-comps provider could not complete this search.");
+  }
+
+  // A cache miss starts an asynchronous job. Poll its documented job URL;
+  // polling does not consume additional searches/credits.
+  const startedAt = Date.now();
+  while (payload.status === "pending" && payload.poll_url && Date.now() - startedAt < 45000) {
+    const pollUrl = "https://api.soldgraph.com" + String(payload.poll_url) + "?wait=20";
+    response = await fetch(pollUrl, {
+      headers: { Authorization: "Bearer " + apiKey, Accept: "application/json" },
+    });
+    payload = await response.json();
+    if (!response.ok) {
+      console.error("Soldgraph job poll error", response.status, JSON.stringify(payload).slice(0, 500));
+      throw new Error("The sold-comps search is still processing. Please try again shortly.");
+    }
+  }
+
+  if (payload.status === "pending") {
+    throw new Error("Sold comps are taking longer than expected. Try refreshing this card again shortly.");
+  }
+  if (payload.status !== "complete" || !payload.result) {
+    console.error("Soldgraph job did not complete", JSON.stringify(payload).slice(0, 500));
+    throw new Error("The sold-comps provider did not return a completed result.");
+  }
+
+  return payload.result;
+}
+
 async function fetchJson(url: string, serviceKey: string, init: RequestInit = {}) {
   const response = await fetch(url, {
     ...init,
@@ -321,6 +364,105 @@ Deno.serve(async (request: Request) => {
     const effectiveYear = card.year_made ?? setYear;
     const query = buildSearchQuery(cardForMatch, playerName || String(card.name ?? ""), setName);
     if (!query.trim()) return jsonResponse({ error: "This card does not have enough identifying details to search pricing." }, 422);
+
+    // Prefer actual sold listings when an optional Soldgraph key is configured.
+    // This is the stronger valuation signal; eBay Browse API remains the no-extra-
+    // service fallback and is always labeled as active asking prices.
+    const soldgraphKey = Deno.env.get("SOLDGRAPH_KEY");
+    if (soldgraphKey) {
+      try {
+        const soldResult = await fetchSoldgraphComps(soldgraphKey, query);
+        const soldRows = Array.isArray(soldResult.data) ? soldResult.data : [];
+        const soldMatches: Array<{ title: string; price: number; soldDate: string; url: string; bestOffer: boolean }> = [];
+
+        for (const item of soldRows) {
+          const title = String(item.title ?? "");
+          const evaluation = evaluateListing(title, cardForMatch, playerName || String(card.name ?? ""), setName);
+          if (!evaluation.matched || isExcludedListing(title)) continue;
+          const price = parseMoney(item.displayed_price?.amount);
+          if (price === null || String(item.displayed_price?.currency ?? "USD").toUpperCase() !== "USD") continue;
+          if (item.displayed_price_range) continue;
+          soldMatches.push({
+            title,
+            price,
+            soldDate: String(item.sold_date ?? ""),
+            url: String(item.link ?? ""),
+            bestOffer: Boolean(item.best_offer_accepted),
+          });
+        }
+
+        const soldPrices = soldMatches
+          .filter((item) => !item.bestOffer)
+          .map((item) => item.price)
+          .sort((a, b) => a - b);
+        const soldMedian = median(soldPrices);
+        const soldLow = soldPrices.length ? soldPrices[0] : null;
+        const soldHigh = soldPrices.length ? soldPrices[soldPrices.length - 1] : null;
+        const soldConfidence = soldPrices.length >= 10 ? 92
+          : soldPrices.length >= 5 ? 85
+          : soldPrices.length >= 3 ? 72
+          : soldPrices.length ? 45 : 0;
+
+        // Only publish a sold-based value with at least three price-readable,
+        // title-matched sales after excluding accepted-offer asking prices.
+        if (soldPrices.length >= 3 && soldMedian !== null) {
+          const soldNote = "Based on " + soldPrices.length +
+            " title-matched eBay sold listing(s), excluding listings marked as accepted best offers because their displayed prices may not be the actual sale amount. Sold listing coverage is one provider page, not a complete sales history. Verify exact parallel/condition before relying on this estimate." +
+            (effectiveYear ? " Year checked: " + effectiveYear + "." : "");
+          const soldRecord = {
+            card_id: card.id,
+            source: "ebay_sold_comps",
+            estimated_value: soldMedian,
+            asking_median: null,
+            low_price: soldLow,
+            high_price: soldHigh,
+            listing_count: soldPrices.length,
+            confidence: soldConfidence,
+            price_note: soldNote,
+            source_url: "https://www.ebay.com/sch/i.html?_nkw=" + encodeURIComponent(query) + "&LH_Sold=1&LH_Complete=1",
+            fetched_at: new Date().toISOString(),
+          };
+
+          await fetchJson(
+            supabaseUrl + "/rest/v1/card_prices?on_conflict=card_id,source",
+            serviceKey,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
+              body: JSON.stringify(soldRecord),
+            },
+          );
+
+          return jsonResponse({
+            success: true,
+            source: "ebay_sold_comps",
+            source_type: "sold_listings",
+            card_id: card.id,
+            query,
+            estimated_value: soldMedian,
+            asking_median: null,
+            low_price: soldLow,
+            high_price: soldHigh,
+            listing_count: soldPrices.length,
+            confidence: soldConfidence,
+            price_note: soldNote,
+            source_url: soldRecord.source_url,
+            fetched_at: soldRecord.fetched_at,
+            matches: soldMatches.slice(0, 10).map((item) => ({
+              title: item.title,
+              price: item.price,
+              sold_date: item.soldDate,
+              url: item.url,
+              best_offer_accepted: item.bestOffer,
+            })),
+          });
+        }
+        console.info("Sold comps did not provide at least three exact, price-readable matches; falling back to active eBay listings.");
+      } catch (soldError) {
+        // Keep pricing usable if the optional provider is temporarily unavailable.
+        console.warn("Sold-comps lookup unavailable; falling back to active eBay listings.", soldError);
+      }
+    }
 
     const token = await getEbayAccessToken(ebayClientId, ebayClientSecret);
     const searchUrl = "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" +
