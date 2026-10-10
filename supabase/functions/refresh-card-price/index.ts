@@ -167,15 +167,29 @@ function evaluateListing(title: string, card: Record<string, any>, playerName: s
     }
   }
 
+  // Do not price a player's different card from the same year/number as if
+  // it were this exact product. Brand must match when the catalog supplies it.
   const brand = String(card.card_brand ?? card.card_sets?.brand ?? "").trim();
-  if (brand && phraseInTitle(title, brand)) {
+  if (brand) {
+    if (!phraseInTitle(title, brand)) {
+      return { matched: false, score: 0, reasons: [] as string[] };
+    }
     score += 5;
     reasons.push("brand");
   }
 
-  if (setName && phraseInTitle(title, setName)) {
-    score += 10;
-    reasons.push("set");
+  // Series/set names vary across catalog feeds and eBay titles. Accept either
+  // the explicit set name or series, but if neither is present, reject the
+  // listing instead of silently counting another set.
+  const series = String(card.card_series ?? card.card_sets?.series ?? "").trim();
+  const setMatched = Boolean(setName && phraseInTitle(title, setName));
+  const seriesMatched = Boolean(series && phraseInTitle(title, series));
+  if (setName || series) {
+    if (!setMatched && !seriesMatched) {
+      return { matched: false, score: 0, reasons: [] as string[] };
+    }
+    score += setMatched ? 10 : 8;
+    reasons.push(setMatched ? "set" : "series");
   }
 
   return { matched: true, score: Math.min(100, score), reasons };
