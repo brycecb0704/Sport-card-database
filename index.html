@@ -4036,22 +4036,27 @@
   function getPrice(cardId) {
     if (!cardId) return null;
     const resolvedCardId = resolveSupabaseCardId(cardId);
-    const records = allPrices.filter(price =>
-      (String(price.card_id) === String(resolvedCardId) ||
-       String(price.card_id) === String(cardId)) &&
-      price.source === "ebay_sold_comps" &&
-      Number(price.estimated_value) > 0
+    const matchesCard = price =>
+      String(price.card_id) === String(resolvedCardId) ||
+      String(price.card_id) === String(cardId);
+    const isRecent = price =>
+      Date.now() - new Date(price.fetched_at || 0).getTime() <= 30 * 24 * 60 * 60 * 1000;
+    const usable = allPrices.filter(price =>
+      matchesCard(price) &&
+      Number(price.estimated_value) > 0 &&
+      isRecent(price)
     );
-    // Never treat active asking prices or unverified sources as market value.
-    // Keep sold-comps records visible for 30 days; older records need refreshing.
-    const now = Date.now();
-    return records
-      .filter(price =>
-        now - new Date(price.fetched_at || 0).getTime() <= 30 * 24 * 60 * 60 * 1000
-      )
-      .sort((a, b) =>
-        new Date(b.fetched_at || 0) - new Date(a.fetched_at || 0)
-      )[0] || null;
+    // Prefer completed-sale comps, but do not discard a usable active-listing
+    // estimate when sold data is unavailable. The detail view labels the source.
+    const newestFirst = (a, b) =>
+      new Date(b.fetched_at || 0) - new Date(a.fetched_at || 0);
+    const soldPrice = usable
+      .filter(price => price.source === "ebay_sold_comps")
+      .sort(newestFirst)[0];
+    if (soldPrice) return soldPrice;
+    return usable
+      .filter(price => price.source === "ebay_active_asking")
+      .sort(newestFirst)[0] || null;
   }
 
   function isWeightDivisionSport(sport) {
