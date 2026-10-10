@@ -561,19 +561,40 @@ Deno.serve(async (request: Request) => {
           - spreadPenalty
         )));
 
-    // Preserve the old app's practical behavior: return a useful estimate when
-    // at least one credible listing matches, while making sample size and source
-    // limitations explicit. A strict 5-listing gate caused most cards to show $0.
-    const estimatedValue = filtered.length >= 1 ? askingMedian : null;
+    // Active asking prices are seller expectations, not market value. Keep the
+    // raw asking median separately and apply a conservative 25% adjustment for
+    // the displayed fallback estimate. Do not publish an estimate from fewer
+    // than three comparable listings; a tiny sample is too easy to skew.
+    const askingBasedEstimate = askingMedian === null ? null : Math.round(askingMedian * 0.75 * 100) / 100;
+    const estimatedValue = filtered.length >= 3 ? askingBasedEstimate : null;
     const priceNote = filtered.length === 0
       ? "No sufficiently close active eBay listings matched this card. No value was estimated. This search covers active asking prices, not completed sales."
-      : "Based on " + filtered.length + " matching active eBay listing(s). The median includes the lowest listed shipping cost when eBay supplied it; otherwise item price is used. Active listings are not confirmed sales. " +
-        (filtered.length < 3
-          ? "Low sample size: treat this as a rough asking-price indicator and verify the card details."
-          : filtered.length < 5 || confidence < 70
-            ? "Moderate/low confidence: verify the exact set, card number, parallel, and condition."
-            : "Estimated value is a conservative active-asking indicator, not a sold-comps valuation.") +
+      : "Active asking prices only—not confirmed sales. " + filtered.length + " matching listing(s); asking median $" +
+        (askingMedian === null ? "unknown" : askingMedian.toFixed(2)) + ". " +
+        (filtered.length >= 3
+          ? "Fallback estimate is 25% below the asking median to account for seller pricing above market; this is only a rough proxy until sold comps are available."
+          : "Too few matching listings to estimate market value. Asking median is shown for reference only; no estimated value was published.") +
+        (filtered.length < 5 || confidence < 70
+          ? " Low confidence: verify the exact set, card number, parallel, and condition."
+          : "") +
         (effectiveYear ? " Year checked: " + effectiveYear + "." : "");
+
+    console.info("Active pricing audit", JSON.stringify({
+      card_id: card.id,
+      query,
+      set_name: setName,
+      player_name: playerName || String(card.name ?? ""),
+      card_number: card.card_number ?? null,
+      target_parallel: card.parallel ?? null,
+      matched_count_before_filter: matches.length,
+      matched_count_after_filter: filtered.length,
+      asking_median: askingMedian,
+      adjusted_estimate: estimatedValue,
+      matched_listings: filtered.slice(0, 10).map((item) => ({
+        title: item.title, total_price: item.price, item_price: item.itemPrice,
+        shipping: item.shipping, score: item.score, match_reasons: item.reasons, url: item.url,
+      })),
+    }));
 
     const record = {
       card_id: card.id,
