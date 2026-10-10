@@ -6870,7 +6870,7 @@ function getCurrentUserOwnershipSummary() {
                   <div class="price-box">
 
                     <div>
-                      <span>Estimated Market Value</span>
+                      <span>${price.source === "ebay_sold_comps" ? "Estimated Market Value (Sold Comps)" : "Estimated Value (Active Listings)"}</span>
                       <strong>
                         ${
                           Number(price.estimated_value) > 0
