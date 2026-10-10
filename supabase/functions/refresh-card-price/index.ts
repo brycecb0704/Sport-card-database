@@ -454,10 +454,11 @@ Deno.serve(async (request: Request) => {
         // return no rows. The strict evaluateListing() matcher below remains
         // responsible for rejecting unrelated parallels, lots, and other sets.
         // Keep the year, player, card number, and brand to retain useful identity.
-        // Keep the series/set identifier in the fallback. Dropping it made the
-        // second search too broad (and often returned Gold, Chrome, Sapphire,
-        // complete-set and "you pick" listings instead of the target base card).
-        const fallbackParts = [year, brand, series, setName, person, cardNumber ? "#" + cardNumber : "", parallel]
+        // Make the fallback meaningfully different from the primary query.
+        // The primary query includes the set/series; this fallback broadens only
+        // that part while retaining year, brand, player, number, and parallel.
+        // It must not accidentally normalize to the exact same query.
+        const fallbackParts = [year, brand, person, cardNumber ? "#" + cardNumber : "", parallel]
           .filter(Boolean);
         const fallbackQuery = [...new Set(fallbackParts)].join(" ").slice(0, 180);
         const firstResult = await fetchSoldgraphComps(soldgraphKey, query);
@@ -763,9 +764,12 @@ Deno.serve(async (request: Request) => {
     const spreadPenalty = prices.length > 1 && askingMedian !== null && askingMedian > 0
       ? Math.min(15, ((Math.max(...prices) - Math.min(...prices)) / askingMedian) * 8)
       : 0;
+    // This score measures listing-match quality, not the probability that
+    // the asking-price proxy equals market value. Cap it because active asks
+    // are weaker evidence than confirmed completed sales.
     const confidence = filtered.length === 0
       ? 0
-      : Math.round(Math.max(5, Math.min(95,
+      : Math.round(Math.max(5, Math.min(60,
           avgScore
           - (filtered.length < 3 ? 30 : filtered.length < 5 ? 18 : filtered.length < 8 ? 10 : 0)
           - spreadPenalty
