@@ -6547,6 +6547,12 @@ function getCurrentUserOwnershipSummary() {
 
     selectedCard = card;
 
+    // Start pricing automatically when a card is opened and has no saved
+    // pricing record. Do not repeat a search on every open once a result exists.
+    if (currentUser && !getPrice(card.card_id)) {
+      Promise.resolve().then(() => refreshCardPrice(card.card_id));
+    }
+
     // Verify ownership directly against Supabase so a stale browser
     // index cannot report a false unowned state.
     const resolvedOwnershipCardId =
@@ -9793,6 +9799,14 @@ async function saveCardFromForm(event) {
     await loadDatabase();
     updateUserInterface();
 
+    // Price the card after the collection save succeeds. This runs in the
+    // background so a slow marketplace search does not block adding a card.
+    if (!editingCardId && savedCard?.id) {
+      refreshCardPrice(savedCard.id).catch(error =>
+        console.warn("Automatic price lookup after adding card failed:", error)
+      );
+    }
+
     closeAddCardModal();
 
     if (typeof renderAllScreens === "function") {
@@ -10626,11 +10640,14 @@ async function refreshCardPrice(
 
     if (
       selectedCard &&
-      selectedCard.card_id ===
-        cardId
+      (
+        String(selectedCard.card_id) === String(cardId) ||
+        String(resolveSupabaseCardId(selectedCard.card_id)) === String(resolvedPriceCardId)
+      )
     ) {
-      selectedCard =
-        getCard(cardId);
+      selectedCard = getCard(selectedCard.card_id) || selectedCard;
+      // Re-render the open detail modal so its price and evidence update too.
+      await openCardDetail(selectedCard);
     }
 
     showToast(
