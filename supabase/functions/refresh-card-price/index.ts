@@ -425,6 +425,15 @@ Deno.serve(async (request: Request) => {
     if (soldgraphKey) {
       try {
         const soldResult = await fetchSoldgraphComps(soldgraphKey, query);
+        console.info("Soldgraph response summary", JSON.stringify({
+          card_id: card.id,
+          query,
+          result_status: soldResult?.status ?? null,
+          result_keys: soldResult && typeof soldResult === "object" ? Object.keys(soldResult) : [],
+          data_is_array: Array.isArray(soldResult?.data),
+          data_count: Array.isArray(soldResult?.data) ? soldResult.data.length : null,
+          result_preview: JSON.stringify(soldResult).slice(0, 1200),
+        }));
         const soldRows = Array.isArray(soldResult.data) ? soldResult.data : [];
         const soldMatches: Array<{ id: string; title: string; price: number; soldDate: string; url: string; bestOffer: boolean }> = [];
         const seenSoldIds = new Set<string>();
@@ -566,10 +575,17 @@ Deno.serve(async (request: Request) => {
             })),
           });
         }
-        console.info("Sold comps did not provide at least three exact, price-readable matches; falling back to active eBay listings.");
+        console.info("Sold comps did not provide at least three exact, price-readable matches; falling back to active eBay listings.", JSON.stringify({
+          card_id: card.id,
+          sold_rows_returned: soldRows.length,
+          matched_count_before_outlier_filter: soldMatches.length,
+          matched_count_after_filter: reliableSoldMatches.length,
+          sold_median: soldMedian,
+          required_matches: 3,
+        }));
       } catch (soldError) {
         // Keep pricing usable if the optional provider is temporarily unavailable.
-        console.warn("Sold-comps lookup unavailable; falling back to active eBay listings.", soldError);
+        console.warn("Sold-comps lookup unavailable; falling back to active eBay listings.", JSON.stringify({ card_id: card.id, query, error: String(soldError?.message || soldError) }));
       }
     }
 
