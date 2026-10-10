@@ -5462,50 +5462,8 @@ function getCurrentUserOwnershipSummary() {
           </h3>
 
           <div class="card-subtitle">
-
-            ${
-              escapeHtml(
-                card.year_made || ""
-              )
-            }
-
-            ${
-              card.card_brand
-                ? " • " +
-                  escapeHtml(card.card_brand)
-                : ""
-            }
-
+            ${card.card_number ? "#" + escapeHtml(card.card_number) + " • " : ""}${escapeHtml(getSetName(card))}
           </div>
-
-          <div class="card-subtitle">
-
-            ${
-              escapeHtml(
-                getSetName(card)
-              )
-            }
-
-            ${
-              card.card_number
-                ? " • #" +
-                  escapeHtml(card.card_number)
-                : ""
-            }
-
-          </div>
-
-          ${
-            getSportCardMeta(card)
-              ? '<div class="card-subtitle card-sport-meta">' +
-                escapeHtml(
-                  isWeightDivisionSport(card.sport)
-                    ? "Weight: " + getSportCardMeta(card)
-                    : getSportCardMeta(card)
-                ) +
-                '</div>'
-              : ""
-          }
 
           <div class="card-tile-bottom">
 
@@ -5525,26 +5483,7 @@ function getCurrentUserOwnershipSummary() {
 
           </div>
 
-          <div class="card-owners">
 
-            ${
-              ownerCount
-                ? `${ownerCount} owner${ownerCount === 1 ? "" : "s"}`
-                : "No owners yet"
-            }
-
-          </div>
-
-          ${
-            price?.confidence
-              ? `
-                <div class="price-confidence">
-                  Confidence:
-                  ${escapeHtml(price.confidence)}
-                </div>
-              `
-              : ""
-          }
 
         </div>
 
