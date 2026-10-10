@@ -152,13 +152,19 @@ function evaluateListing(title: string, card: Record<string, any>, playerName: s
     if (!phraseInTitle(title, parallel)) return { matched: false, score: 0, reasons: [] as string[] };
     score += 15;
     reasons.push("parallel");
-  } else if (card.numbered || card.print_run) {
-    const printRun = Number(card.print_run);
-    const serialMentioned = /\b\d+\s*\/\s*\d+\b/.test(title) ||
-      (printRun > 0 && new RegExp("\\b/\\s*" + printRun + "\\b").test(title));
-    if (!serialMentioned) return { matched: false, score: 0, reasons: [] as string[] };
-    score += 5;
-    reasons.push("serial-number evidence");
+  } else {
+    // Do not mix serial-numbered parallels into a base-card estimate.
+    const serialMentioned = /\b\d+\s*\/\s*\d+\b/.test(title);
+    if ((card.numbered || card.print_run) && !serialMentioned) {
+      return { matched: false, score: 0, reasons: [] as string[] };
+    }
+    if (!card.numbered && !card.print_run && serialMentioned) {
+      return { matched: false, score: 0, reasons: [] as string[] };
+    }
+    if (card.numbered || card.print_run) {
+      score += 5;
+      reasons.push("serial-number evidence");
+    }
   }
 
   const brand = String(card.card_brand ?? card.card_sets?.brand ?? "").trim();
@@ -213,7 +219,9 @@ function buildSearchQuery(card: Record<string, any>, playerName: string, setName
   if (year) parts.push(year);
   if (brand) parts.push(brand);
   if (series) parts.push(series);
-  else if (setName) parts.push(setName);
+  // Include both the series and the full set name; catalog feeds sometimes
+  // use generic series labels that are not specific enough for sold searches.
+  if (setName && normalize(setName) !== normalize(series)) parts.push(setName);
   if (playerName) parts.push(playerName);
   if (number) parts.push("#" + number);
   if (parallel) parts.push(parallel);
