@@ -449,19 +449,20 @@ Deno.serve(async (request: Request) => {
         const brand = String(cardForMatch.card_brand ?? cardForMatch.card_sets?.brand ?? "").trim();
         const series = String(cardForMatch.card_series ?? cardForMatch.card_sets?.series ?? "").trim();
 
-        // Use a simpler fallback query without minus-prefixed exclusions. Some
-        // sold-search providers interpret those as required literal terms or
-        // return no rows. The strict evaluateListing() matcher below remains
-        // responsible for rejecting unrelated parallels, lots, and other sets.
-        // Keep the year, player, card number, and brand to retain useful identity.
-        // Make the fallback meaningfully different from the primary query.
-        // The primary query includes the set/series; this fallback broadens only
-        // that part while retaining year, brand, player, number, and parallel.
-        // It must not accidentally normalize to the exact same query.
-        const fallbackParts = [year, brand, person, cardNumber ? "#" + cardNumber : "", parallel]
+        // Soldgraph documents minus-prefixed keywords as supported exclusions.
+        // Use them for base cards so parallel, graded, and multi-card listings
+        // are filtered at search time instead of consuming the first result page.
+        // Keep explicit parallel searches untouched: those need their parallel term.
+        const baseCardExclusions = !parallel && !cardForMatch.numbered && !cardForMatch.print_run
+          ? "-gold -foil -refractor -sapphire -chrome -parallel -variation -lot -pick -complete -graded -psa -bgs -sgc"
+          : "";
+        const soldQuery = [query, baseCardExclusions].filter(Boolean).join(" ").slice(0, 200);
+        // One broader fallback drops set/series terms but retains card identity
+        // and the same base-card exclusions. It is intentionally distinct.
+        const fallbackParts = [year, brand, person, cardNumber ? "#" + cardNumber : "", parallel, baseCardExclusions]
           .filter(Boolean);
-        const fallbackQuery = [...new Set(fallbackParts)].join(" ").slice(0, 180);
-        const firstResult = await fetchSoldgraphComps(soldgraphKey, query);
+        const fallbackQuery = [...new Set(fallbackParts)].join(" ").slice(0, 200);
+        const firstResult = await fetchSoldgraphComps(soldgraphKey, soldQuery);
         const firstRows = Array.isArray(firstResult.data) ? firstResult.data : [];
         const countReliableCandidates = (rows: Record<string, any>[]) => rows.filter((item) => {
           const title = String(item.title ?? "");
@@ -474,10 +475,10 @@ Deno.serve(async (request: Request) => {
         // enough usable sales, not merely when it has no superficially plausible title.
         const firstReliableCount = countReliableCandidates(firstRows);
         let soldResult = firstResult;
-        let usedQueries = [query];
+        let usedQueries = [soldQuery];
         if (firstReliableCount < 3 && fallbackQuery && normalize(fallbackQuery) !== normalize(query)) {
           console.info("Soldgraph targeted fallback starting", JSON.stringify({
-            card_id: card.id, first_query: query, fallback_query: fallbackQuery,
+            card_id: card.id, first_query: soldQuery, fallback_query: fallbackQuery,
             first_result_count: firstRows.length, reliable_candidates: firstReliableCount, reason: "fewer than three usable exact-card sales",
           }));
           const fallbackResult = await fetchSoldgraphComps(soldgraphKey, fallbackQuery);
@@ -503,7 +504,7 @@ Deno.serve(async (request: Request) => {
         }
         console.info("Soldgraph response summary", JSON.stringify({
           card_id: card.id,
-          query,
+          query: soldQuery,
           queries_attempted: usedQueries,
           result_status: soldResult?.status ?? null,
           result_keys: soldResult && typeof soldResult === "object" ? Object.keys(soldResult) : [],
@@ -579,7 +580,7 @@ Deno.serve(async (request: Request) => {
 
         console.info("Sold pricing audit", JSON.stringify({
           card_id: card.id,
-          query,
+          query: soldQuery,
           sold_rows_returned: soldRows.length,
           matched_count_before_outlier_filter: soldMatches.length,
           matched_count_after_filter: reliableSoldMatches.length,
@@ -614,7 +615,7 @@ Deno.serve(async (request: Request) => {
             listing_count: soldPrices.length,
             confidence: soldConfidence,
             price_note: soldNote,
-            source_url: "https://www.ebay.com/sch/i.html?_nkw=" + encodeURIComponent(query) + "&LH_Sold=1&LH_Complete=1",
+            source_url: "https://www.ebay.com/sch/i.html?_nkw=" + encodeURIComponent(soldQuery) + "&LH_Sold=1&LH_Complete=1",
             fetched_at: new Date().toISOString(),
           };
 
@@ -633,7 +634,7 @@ Deno.serve(async (request: Request) => {
             source: "ebay_sold_comps",
             source_type: "sold_listings",
             card_id: card.id,
-            query,
+            query: soldQuery,
             estimated_value: soldMedian,
             asking_median: null,
             low_price: soldLow,
@@ -662,7 +663,7 @@ Deno.serve(async (request: Request) => {
         }));
       } catch (soldError) {
         // Keep pricing usable if the optional provider is temporarily unavailable.
-        console.warn("Sold-comps lookup unavailable; falling back to active eBay listings.", JSON.stringify({ card_id: card.id, query, error: String(soldError?.message || soldError) }));
+        console.warn("Sold-comps lookup unavailable; falling back to active eBay listings.", JSON.stringify({ card_id: card.id, query: soldQuery, error: String(soldError?.message || soldError) }));
       }
     }
 
