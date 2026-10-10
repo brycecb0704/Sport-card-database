@@ -1045,6 +1045,23 @@
       min-width: 0;
     }
 
+    .card-number-highlight {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding: 6px 10px;
+      border: 1px solid var(--border-color, #d1d5db);
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    .card-number-highlight span {
+      opacity: 0.75;
+    }
+    .card-number-highlight strong {
+      font-weight: 700;
+    }
+
     .detail-title-row {
       display: flex;
       align-items: flex-start;
@@ -6693,6 +6710,13 @@ function getCurrentUserOwnershipSummary() {
                   "Unknown Card"
                 )}
               </h2>
+
+              ${clean(card.card_number) ? `
+                <div class="card-number-highlight">
+                  <span>Card Number</span>
+                  <strong>#${escapeHtml(clean(card.card_number).replace(/^#/, ""))}</strong>
+                </div>
+              ` : ""}
 
             </div>
 
