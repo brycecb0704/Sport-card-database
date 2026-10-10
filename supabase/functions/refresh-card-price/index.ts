@@ -14,7 +14,7 @@ const corsHeaders = {
 
 const PRICE_SOURCE = "ebay_active_asking";
 const EBAY_MARKETPLACE = "EBAY_US";
-const MAX_SEARCH_RESULTS = 50;
+const MAX_SEARCH_RESULTS = 100;
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -60,7 +60,32 @@ function numberInTitle(title: string, cardNumber: string): boolean {
 
 function parseMoney(value: unknown): number | null {
   const n = Number(value);
-  return Number.isFinite(n) && n > 0 && n < 100000000 ? n : null;
+  return Number.isFinite(n) && n > 0 && n < 100000000
+    ? Math.round(n * 100) / 100
+    : null;
+}
+
+function listingTotalPrice(item: Record<string, any>): number | null {
+  const itemPrice = parseMoney(item.price?.value);
+  if (itemPrice === null) return null;
+
+  const currency = String(item.price?.currency ?? item.price?.currencyId ?? "USD").toUpperCase();
+  if (currency !== "USD") return null;
+
+  // Use the lowest listed shipping option when available, so cards are compared
+  // on a more realistic buyer-facing total rather than item price alone.
+  const shipping = Array.isArray(item.shippingOptions)
+    ? item.shippingOptions
+        .map((option: Record<string, any>) => {
+          const cost = parseMoney(option?.shippingCost?.value);
+          const shippingCurrency = String(option?.shippingCost?.currency ?? currency).toUpperCase();
+          return cost !== null && shippingCurrency === "USD" ? cost : null;
+        })
+        .filter((value: number | null) => value !== null)
+    : [];
+
+  const cheapestShipping = shipping.length ? Math.min(...shipping as number[]) : 0;
+  return Math.round((itemPrice + cheapestShipping) * 100) / 100;
 }
 
 function median(values: number[]): number | null {
@@ -83,8 +108,11 @@ function isExcludedListing(title: string): boolean {
   const exclusions = [
     "lot of", "card lot", "complete set", "team set", "full set",
     "booster pack", "hobby box", "blaster box", "mega box", "retail box",
-    "case break", "break spot", "digital card", "custom card", "reprint",
-    "proxy card", "facsimile", "replica card", "or best offer lot",
+    "value box", "fat pack", "hanger box", "case break", "break spot",
+    "digital card", "custom card", "reprint", "proxy card", "facsimile",
+    "replica card", "or best offer lot", "you pick", "choose your card",
+    "pick your card", "read description", "not the card", "empty wrapper",
+    "empty pack", "online redemption", "redemption code", "oversized card",
   ];
   if (exclusions.some((term) => (" " + t + " ").includes(" " + term + " "))) return true;
 
@@ -320,17 +348,25 @@ Deno.serve(async (request: Request) => {
 
     const ebayData = JSON.parse(ebayText);
     const summaries = Array.isArray(ebayData.itemSummaries) ? ebayData.itemSummaries : [];
-    const matches: Array<{ title: string; price: number; url: string; score: number; reasons: string[] }> = [];
+    const matches: Array<{ title: string; price: number; itemPrice: number; shipping: number | null; url: string; score: number; reasons: string[] }> = [];
 
     for (const item of summaries) {
       const title = String(item.title ?? "");
       const evaluation = evaluateListing(title, cardForMatch, playerName || String(card.name ?? ""), setName);
       if (!evaluation.matched) continue;
-      const price = parseMoney(item.price?.value);
-      if (price === null || String(item.price?.currency ?? item.price?.currencyId ?? "USD").toUpperCase() !== "USD") continue;
+      const itemPrice = parseMoney(item.price?.value);
+      const price = listingTotalPrice(item);
+      if (itemPrice === null || price === null) continue;
+
+      const buyingOptions = Array.isArray(item.buyingOptions) ? item.buyingOptions : [];
+      if (buyingOptions.length && !buyingOptions.includes("FIXED_PRICE")) continue;
+      if (item.itemLocation?.country && String(item.itemLocation.country).toUpperCase() !== "US") continue;
+
       matches.push({
         title,
         price,
+        itemPrice,
+        shipping: Math.round((price - itemPrice) * 100) / 100,
         url: String(item.itemWebUrl ?? ""),
         score: evaluation.score,
         reasons: evaluation.reasons,
@@ -358,20 +394,27 @@ Deno.serve(async (request: Request) => {
     const avgScore = filtered.length
       ? filtered.reduce((sum, item) => sum + item.score, 0) / filtered.length
       : 0;
+    const spreadPenalty = prices.length > 1 && askingMedian !== null && askingMedian > 0
+      ? Math.min(15, ((Math.max(...prices) - Math.min(...prices)) / askingMedian) * 8)
+      : 0;
     const confidence = filtered.length === 0
       ? 0
-      : Math.round(Math.max(10, Math.min(95, avgScore - (filtered.length < 3 ? 25 : filtered.length < 5 ? 12 : 0))));
+      : Math.round(Math.max(5, Math.min(95,
+          avgScore
+          - (filtered.length < 3 ? 30 : filtered.length < 5 ? 18 : filtered.length < 8 ? 10 : 0)
+          - spreadPenalty
+        )));
 
-    // Only publish an estimated value when there are at least three plausible
-    // matches and the matching evidence is reasonably strong. Otherwise the
-    // asking median remains visible, but the catalog value stays unset.
-    const estimatedValue = filtered.length >= 3 && confidence >= 65 ? askingMedian : null;
+    // Active asking prices are weaker evidence than completed sales. Require a
+    // deeper sample before publishing an estimated value; keep the observed
+    // median and range visible even when evidence is insufficient.
+    const estimatedValue = filtered.length >= 5 && confidence >= 70 ? askingMedian : null;
     const priceNote = filtered.length === 0
       ? "No sufficiently close active eBay listings matched this card. No value was estimated. This search covers active asking prices, not completed sales."
-      : "Based on " + filtered.length + " matching active eBay listing(s). Median asking price excludes shipping; active listings are not confirmed sales. " +
+      : "Based on " + filtered.length + " matching active eBay listing(s). The median includes the lowest listed shipping cost when eBay supplied it; otherwise item price is used. Active listings are not confirmed sales. " +
         (estimatedValue === null
-          ? "Too few reliable matches to publish an estimated value; verify the exact set, card number, and parallel."
-          : "Estimated value is a rough asking-price indicator, not a sold-comps valuation.") +
+          ? "Insufficient comparable listings or match confidence to publish a market estimate; verify the exact set, card number, and parallel."
+          : "Estimated value is a conservative active-asking indicator, not a sold-comps valuation.") +
         (effectiveYear ? " Year checked: " + effectiveYear + "." : "");
 
     const record = {
@@ -412,7 +455,15 @@ Deno.serve(async (request: Request) => {
       confidence,
       price_note: priceNote,
       source_url: record.source_url,
-      matches: filtered.slice(0, 10).map((item) => ({ title: item.title, price: item.price, url: item.url, score: item.score })),
+      matches: filtered.slice(0, 10).map((item) => ({
+        title: item.title,
+        price: item.price,
+        item_price: item.itemPrice,
+        shipping: item.shipping,
+        url: item.url,
+        score: item.score,
+        match_reasons: item.reasons,
+      })),
     });
   } catch (error) {
     console.error("refresh-card-price error", error);
