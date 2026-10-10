@@ -444,28 +444,14 @@ Deno.serve(async (request: Request) => {
         const brand = String(cardForMatch.card_brand ?? cardForMatch.card_sets?.brand ?? "").trim();
         const series = String(cardForMatch.card_series ?? cardForMatch.card_sets?.series ?? "").trim();
 
-        // The fallback retains product identity (brand/series) instead of
-        // broadening to player + number alone, which invites unrelated parallels.
-        // Soldgraph supports minus-prefixed exclusion keywords.
-        const fallbackParts = [year, brand, series, person, cardNumber ? "#" + cardNumber : "", parallel]
+        // Use a simpler fallback query without minus-prefixed exclusions. Some
+        // sold-search providers interpret those as required literal terms or
+        // return no rows. The strict evaluateListing() matcher below remains
+        // responsible for rejecting unrelated parallels, lots, and other sets.
+        // Keep the year, player, card number, and brand to retain useful identity.
+        const fallbackParts = [year, brand, person, cardNumber ? "#" + cardNumber : "", parallel]
           .filter(Boolean);
-        if (!parallel) {
-          const normalizedProduct = normalize([brand, series, setName].join(" "));
-          const excludeTerms = [
-            ["gold", /\bgold\b/i], ["chrome", /\bchrome\b/i],
-            ["sapphire", /\bsapphire\b/i], ["rainbow", /\brainbow\b/i],
-            ["refractor", /\brefractor\b/i], ["foil", /\bfoil\b/i],
-            ["orange", /\borange\b/i], ["purple", /\bpurple\b/i],
-            ["blue", /\bblue\b/i], ["black", /\bblack\b/i],
-            ["pink", /\bpink\b/i], ["printing plate", /\bprinting plate\b/i],
-            ["variation", /\bvariation\b/i], ["you pick", /\byou pick\b/i],
-            ["complete set", /\bcomplete set\b/i], ["lot", /\blot\b/i],
-          ];
-          for (const [term, pattern] of excludeTerms) {
-            if (!pattern.test(normalizedProduct)) fallbackParts.push("-" + term);
-          }
-        }
-        const fallbackQuery = fallbackParts.join(" ").slice(0, 200);
+        const fallbackQuery = fallbackParts.join(" ").slice(0, 180);
         const firstResult = await fetchSoldgraphComps(soldgraphKey, query);
         const firstRows = Array.isArray(firstResult.data) ? firstResult.data : [];
         const countReliableCandidates = (rows: Record<string, any>[]) => rows.filter((item) => {
