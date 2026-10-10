@@ -403,10 +403,12 @@ Deno.serve(async (request: Request) => {
       playerName = Array.isArray(players) ? String(players[0]?.name ?? "") : "";
     }
 
-    let setName = "";
-    let setYear: number | null = null;
-    let setBrand = "";
-    let setSeries = "";
+    // Prefer the normalized card_sets row, but preserve identifying metadata
+    // stored directly on catalog cards when card_set_id is missing or unmatched.
+    let setName = String(card.set_name ?? "");
+    let setYear: number | null = card.year_made == null ? null : Number(card.year_made);
+    let setBrand = String(card.card_brand ?? "");
+    let setSeries = String(card.card_series ?? "");
     if (card.card_set_id) {
       const sets = await fetchJson(
         supabaseUrl + "/rest/v1/card_sets?id=eq." + encodeURIComponent(card.card_set_id) + "&select=name,year,brand,series",
@@ -414,12 +416,15 @@ Deno.serve(async (request: Request) => {
       );
       const set = Array.isArray(sets) ? sets[0] : null;
       if (set) {
-        setName = String(set.name ?? "");
-        setYear = set.year == null ? null : Number(set.year);
-        setBrand = String(set.brand ?? "");
-        setSeries = String(set.series ?? "");
+        setName = String(set.name ?? setName);
+        setYear = set.year == null ? setYear : Number(set.year);
+        setBrand = String(set.brand ?? setBrand);
+        setSeries = String(set.series ?? setSeries);
       }
     }
+    // If the catalog has only a series label (e.g. "Series 1"), use it as a
+    // minimum set identifier rather than sending a completely generic query.
+    if (!setName) setName = setSeries;
 
     const cardForMatch = {
       ...card,
@@ -449,9 +454,12 @@ Deno.serve(async (request: Request) => {
         // return no rows. The strict evaluateListing() matcher below remains
         // responsible for rejecting unrelated parallels, lots, and other sets.
         // Keep the year, player, card number, and brand to retain useful identity.
-        const fallbackParts = [year, brand, person, cardNumber ? "#" + cardNumber : "", parallel]
+        // Keep the series/set identifier in the fallback. Dropping it made the
+        // second search too broad (and often returned Gold, Chrome, Sapphire,
+        // complete-set and "you pick" listings instead of the target base card).
+        const fallbackParts = [year, brand, series, setName, person, cardNumber ? "#" + cardNumber : "", parallel]
           .filter(Boolean);
-        const fallbackQuery = fallbackParts.join(" ").slice(0, 180);
+        const fallbackQuery = [...new Set(fallbackParts)].join(" ").slice(0, 180);
         const firstResult = await fetchSoldgraphComps(soldgraphKey, query);
         const firstRows = Array.isArray(firstResult.data) ? firstResult.data : [];
         const countReliableCandidates = (rows: Record<string, any>[]) => rows.filter((item) => {
