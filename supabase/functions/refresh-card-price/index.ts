@@ -200,18 +200,39 @@ function evaluateListing(title: string, card: Record<string, any>, playerName: s
     reasons.push("brand");
   }
 
-  // Series/set names vary across catalog feeds and eBay titles. Accept either
-  // the explicit set name or series, but if neither is present, reject the
-  // listing instead of silently counting another set.
+  // Set/series wording is inconsistent in sold-listing titles. First accept
+  // an explicit set or series match. If a seller omits it, allow a cautious
+  // identity-only match only after player, year, card number, and brand have
+  // already matched above, and only when the title does not name a different
+  // recognizable product/set. This recovers legitimate sales without blending
+  // obvious Chrome, Update, Heritage, or other products into a base-card price.
   const series = String(card.card_series ?? card.card_sets?.series ?? "").trim();
   const setMatched = Boolean(setName && phraseInTitle(title, setName));
   const seriesMatched = Boolean(series && phraseInTitle(title, series));
   if (setName || series) {
-    if (!setMatched && !seriesMatched) {
-      return { matched: false, score: 0, reasons: [] as string[] };
+    if (setMatched || seriesMatched) {
+      score += setMatched ? 10 : 8;
+      reasons.push(setMatched ? "set" : "series");
+    } else {
+      const targetIdentity = normalize([brand, series, setName].filter(Boolean).join(" "));
+      const alternateProducts = [
+        "chrome", "update", "heritage", "opening day", "big league", "archives",
+        "fire", "gallery", "stadium club", "bowman", "donruss", "prizm",
+        "select", "optic", "mosaic", "finest", "gypsy queen", "allen and ginter",
+        "allen & ginter", "pro debut", "living set", "heritage minor league",
+      ];
+      const conflictingProduct = alternateProducts.some((term) =>
+        phraseInTitle(title, term) && !phraseInTitle(targetIdentity, term)
+      );
+      if (conflictingProduct) {
+        return { matched: false, score: 0, reasons: [] as string[] };
+      }
+      // The prior checks guarantee the title contains the exact player, year,
+      // card number, and brand. Record that the set name was omitted so callers
+      // can distinguish this lower-specificity but still guarded match.
+      score += 3;
+      reasons.push("set omitted; identity matched");
     }
-    score += setMatched ? 10 : 8;
-    reasons.push(setMatched ? "set" : "series");
   }
 
   return { matched: true, score: Math.min(100, score), reasons };
