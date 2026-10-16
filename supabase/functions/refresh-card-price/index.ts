@@ -740,9 +740,18 @@ Deno.serve(async (request: Request) => {
           sport: String(card.sport ?? "").toLowerCase(),
           limit: "50",
         });
-        const response = await fetch("https://cardpricer.co/api/v1/cards?" + params.toString(), {
-          headers: { Accept: "application/json" },
-        });
+        // Never let an optional free provider stall the entire refresh.
+        const referenceAbort = new AbortController();
+        const referenceTimeout = setTimeout(() => referenceAbort.abort(), 8000);
+        let response: Response;
+        try {
+          response = await fetch("https://cardpricer.co/api/v1/cards?" + params.toString(), {
+            headers: { Accept: "application/json" },
+            signal: referenceAbort.signal,
+          });
+        } finally {
+          clearTimeout(referenceTimeout);
+        }
         if (response.ok) {
           const payload = await response.json();
           const rows = Array.isArray(payload?.data) ? payload.data : [];
