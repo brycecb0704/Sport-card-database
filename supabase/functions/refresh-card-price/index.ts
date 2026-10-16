@@ -467,10 +467,22 @@ Deno.serve(async (request: Request) => {
       );
       const cacheRows = Array.isArray(cachedRows) ? cachedRows : [];
       const freshCutoff = Date.now() - 24 * 60 * 60 * 1000;
-      const fresh = cacheRows.find((row: Record<string, any>) => {
+      const freshRows = cacheRows.filter((row: Record<string, any>) => {
         const timestamp = Date.parse(String(row.fetched_at ?? ""));
         return Number.isFinite(timestamp) && timestamp >= freshCutoff;
       });
+      // Prefer stronger evidence over a newer active-asking fallback.
+      const sourcePriority = (source: unknown) => {
+        const value = String(source ?? "");
+        if (value.includes("sold")) return 3;
+        if (value === "cardpricer_reference") return 2;
+        if (value === "ebay_active_asking") return 1;
+        return 0;
+      };
+      const fresh = freshRows.sort((a: Record<string, any>, b: Record<string, any>) =>
+        sourcePriority(b.source) - sourcePriority(a.source) ||
+        Date.parse(String(b.fetched_at ?? "")) - Date.parse(String(a.fetched_at ?? ""))
+      )[0];
       if (fresh) {
         console.info("Pricing cache hit", JSON.stringify({ card_id: card.id, source: fresh.source, fetched_at: fresh.fetched_at }));
         return jsonResponse({ ...fresh, success: true, cached: true, source_type: String(fresh.source).includes("sold") ? "sold_listings" : "active_asking_prices" });
