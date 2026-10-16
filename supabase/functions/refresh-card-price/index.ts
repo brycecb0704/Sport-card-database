@@ -470,19 +470,17 @@ Deno.serve(async (request: Request) => {
         const brand = String(cardForMatch.card_brand ?? cardForMatch.card_sets?.brand ?? "").trim();
         const series = String(cardForMatch.card_series ?? cardForMatch.card_sets?.series ?? "").trim();
 
-        // Soldgraph documents minus-prefixed keywords as supported exclusions.
-        // Use them for base cards so parallel, graded, and multi-card listings
-        // are filtered at search time instead of consuming the first result page.
-        // Keep explicit parallel searches untouched: those need their parallel term.
-        const baseCardExclusions = !parallel && !cardForMatch.numbered && !cardForMatch.print_run
-          ? "-gold -foil -refractor -sapphire -chrome -parallel -variation -lot -pick -complete -graded -psa -bgs -sgc"
-          : "";
-        const soldQuery = [query, baseCardExclusions].filter(Boolean).join(" ").slice(0, 200);
-        // One broader fallback drops set/series terms but retains card identity
-        // and the same base-card exclusions. It is intentionally distinct.
-        const fallbackParts = [year, brand, person, cardNumber ? "#" + cardNumber : "", parallel, baseCardExclusions]
+        // Keep provider queries positive and specific. Soldgraph has returned
+        // empty result sets for queries containing long chains of negative
+        // keywords, even when the equivalent positive query returns sales.
+        // Parallel/graded/lot filtering is still enforced locally by
+        // evaluateListing() and isExcludedListing(), after results are returned.
+        const soldQuery = query.slice(0, 180);
+        // One broader fallback drops set/series terms but retains year, brand,
+        // player, card number, and parallel. Keep it distinct from the first query.
+        const fallbackParts = [year, brand, person, cardNumber ? "#" + cardNumber : "", parallel]
           .filter(Boolean);
-        const fallbackQuery = [...new Set(fallbackParts)].join(" ").slice(0, 200);
+        const fallbackQuery = [...new Set(fallbackParts)].join(" ").slice(0, 180);
         const firstResult = await fetchSoldgraphComps(soldgraphKey, soldQuery);
         const firstRows = Array.isArray(firstResult.data) ? firstResult.data : [];
         const countReliableCandidates = (rows: Record<string, any>[]) => rows.filter((item) => {
