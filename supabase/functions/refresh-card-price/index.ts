@@ -737,8 +737,9 @@ Deno.serve(async (request: Request) => {
       if (person && year && cardNumber) {
         const params = new URLSearchParams({
           q: [year, setBrand, setSeries, setName, person, "#" + cardNumber].filter(Boolean).join(" "),
-          sport: String(card.sport ?? "").toLowerCase(),
-          limit: "50",
+          player: person,
+          year,
+          limit: "100",
         });
         // Never let an optional free provider stall the entire refresh.
         const referenceAbort = new AbortController();
@@ -758,10 +759,10 @@ Deno.serve(async (request: Request) => {
           const matches = rows.filter((row: Record<string, any>) => {
             const rowPlayer = String(row.player ?? "");
             const rowYear = String(row.year ?? "");
-            const rowNumber = String(row.cardNumber ?? "").trim();
+            const rowNumber = String(row.cardNumber ?? row.card_number ?? row.number ?? "").trim();
             const rowSet = String(row.set ?? "");
             const rowBrand = String(row.manufacturer ?? "");
-            const price = parseMoney(row.price);
+            const price = parseMoney(row.current_price ?? row.currentPrice ?? row.price ?? row.market_price);
             return price !== null &&
               normalize(rowPlayer) === normalize(person) &&
               rowYear === year &&
@@ -771,13 +772,13 @@ Deno.serve(async (request: Request) => {
                 (setSeries && normalize(rowSet).includes(normalize(setSeries))));
           });
           if (matches.length) {
-            const prices = matches.map((row: Record<string, any>) => Number(row.price)).filter((p: number) => Number.isFinite(p) && p > 0);
+            const prices = matches.map((row: Record<string, any>) => parseMoney(row.current_price ?? row.currentPrice ?? row.price ?? row.market_price)).filter((p: number | null): p is number => p !== null);
             const referenceValue = median(prices);
             if (referenceValue !== null) {
               const chosen = matches[0];
               const confidenceLabel = String(chosen.provenance?.confidence?.label ?? "unknown");
               const confidenceScore = Number(chosen.provenance?.confidence?.score ?? 0);
-              const note = "Free CardPricer reference mark; its published methodology says sports-card price data is sourced from SportsCardsPro snapshots. This is not a fresh exact-card sold-comps search. Verify condition, parallel, and provenance. Confidence: " + confidenceLabel + ".";
+              const note = "Free CardPricer reference mark from its public card-price API. This is not a fresh exact-card sold-comps search. Verify condition, parallel, and provenance. Confidence: " + confidenceLabel + ".";
               const referenceRecord = {
                 card_id: card.id,
                 source: "cardpricer_reference",
@@ -788,7 +789,7 @@ Deno.serve(async (request: Request) => {
                 listing_count: Number(chosen.provenance?.compCount ?? 0),
                 confidence: Number.isFinite(confidenceScore) ? Math.max(0, Math.min(100, confidenceScore)) : 0,
                 price_note: note,
-                source_url: String(chosen.links?.self ?? "https://cardpricer.co/docs/api"),
+                source_url: String(chosen.links?.self ?? chosen.url ?? "https://cardpricer.co"),
                 fetched_at: new Date().toISOString(),
               };
               await fetchJson(
@@ -820,7 +821,7 @@ Deno.serve(async (request: Request) => {
                 fetched_at: referenceRecord.fetched_at,
                 matches: matches.slice(0, 5).map((row: Record<string, any>) => ({
                   player: row.player, year: row.year, set: row.set, card_number: row.cardNumber,
-                  price: row.price, last_sold: row.lastSold, confidence: row.provenance?.confidence?.label,
+                  price: row.current_price ?? row.currentPrice ?? row.price ?? row.market_price, provenance: row.provenance ?? null,
                 })),
               });
             }
