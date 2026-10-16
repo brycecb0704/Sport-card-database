@@ -485,7 +485,7 @@ Deno.serve(async (request: Request) => {
       )[0];
       if (fresh) {
         console.info("Pricing cache hit", JSON.stringify({ card_id: card.id, source: fresh.source, fetched_at: fresh.fetched_at }));
-        return jsonResponse({ ...fresh, success: true, cached: true, source_type: String(fresh.source).includes("sold") ? "sold_listings" : "active_asking_prices" });
+        return jsonResponse({ ...fresh, success: true, cached: true, source_type: String(fresh.source).includes("sold") ? "sold_listings" : fresh.source === "cardpricer_reference" ? "third_party_reference_mark" : "active_asking_prices" });
       }
     }
 
@@ -826,11 +826,29 @@ Deno.serve(async (request: Request) => {
               });
             }
           }
-          console.info("CardPricer returned no strict identity match", JSON.stringify({
-            card_id: card.id, query: params.get("q"), rows_returned: rows.length,
+          console.info("CardPricer response and identity audit", JSON.stringify({
+            card_id: card.id,
+            query: params.get("q"),
+            api_ok: payload?.ok ?? null,
+            api_version: payload?.apiVersion ?? null,
+            rows_returned: rows.length,
+            candidate_rows: rows.slice(0, 8).map((row: Record<string, any>) => ({
+              player: row.player ?? null,
+              year: row.year ?? null,
+              set: row.set ?? null,
+              card_number: row.cardNumber ?? row.card_number ?? row.number ?? null,
+              manufacturer: row.manufacturer ?? null,
+              price: row.price ?? row.current_price ?? row.currentPrice ?? row.market_price ?? null,
+              grade: row.grade ?? null,
+              confidence: row.provenance?.confidence?.label ?? null,
+            })),
           }));
         } else {
-          console.warn("CardPricer API unavailable", response.status);
+          const errorBody = await response.text();
+          console.warn("CardPricer API unavailable", JSON.stringify({
+            status: response.status,
+            body: errorBody.slice(0, 500),
+          }));
         }
       }
     } catch (referenceError) {
