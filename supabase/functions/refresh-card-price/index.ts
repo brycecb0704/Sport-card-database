@@ -376,11 +376,10 @@ Deno.serve(async (request: Request) => {
   const ebayClientId = Deno.env.get("EBAY_CLIENT_ID");
   const ebayClientSecret = Deno.env.get("EBAY_CLIENT_SECRET");
   const soldgraphKey = Deno.env.get("SOLDGRAPH_KEY");
-  const compSniperKey = Deno.env.get("COMPSNIPER_API_KEY");
   const hasEbayCredentials = Boolean(ebayClientId && ebayClientSecret);
 
   if (!supabaseUrl || !serviceKey) return jsonResponse({ error: "The pricing service is missing its Supabase server configuration." }, 503);
-  if (!soldgraphKey && !hasEbayCredentials && !compSniperKey) {
+  if (!soldgraphKey && !hasEbayCredentials) {
     return jsonResponse({
       error: "Pricing is not configured. Configure eBay credentials or a supported sold-comps API secret.",
     }, 503);
