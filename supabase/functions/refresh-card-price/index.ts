@@ -458,7 +458,11 @@ Deno.serve(async (request: Request) => {
     // Prefer actual sold listings when an optional Soldgraph key is configured.
     // This is the stronger valuation signal; eBay Browse API remains the no-extra-
     // service fallback and is always labeled as active asking prices.
-    if (soldgraphKey) {
+    // SoldGraph is disabled by default to prevent further API-credit use.
+    // Re-enable only by explicitly setting ENABLE_SOLDGRAPH=true after the
+    // provider quota is restored and search behavior has been verified.
+    const soldgraphEnabled = Boolean(soldgraphKey) && Deno.env.get("ENABLE_SOLDGRAPH") === "true";
+    if (soldgraphEnabled) {
       try {
         // Credit-conscious search: run the exact query first. Only if it returns
         // no plausible single-card title do one broader fallback query. Never
