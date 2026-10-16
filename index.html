@@ -4077,14 +4077,27 @@
     const soldPrice = usable
       .filter(price => price.source === "ebay_sold_comps")
       .sort(newestFirst)[0];
+    const referencePrice = usable
+      .filter(price => price.source === "cardpricer_reference")
+      .sort(newestFirst)[0];
     const activePrice = usable
       .filter(price => price.source === "ebay_active_asking")
       .sort(newestFirst)[0];
-    if (!soldPrice) return activePrice || null;
-    if (!activePrice) return soldPrice;
-    const soldTime = new Date(soldPrice.fetched_at || 0).getTime();
-    const activeTime = new Date(activePrice.fetched_at || 0).getTime();
-    return soldTime >= activeTime ? soldPrice : activePrice;
+
+    // Prefer stronger evidence when it is at least as fresh as the weaker
+    // source. A newer fallback can still win rather than letting an older
+    // reference or sold record mask it.
+    const timeOf = price => new Date(price?.fetched_at || 0).getTime();
+    const referenceOrActive = !referencePrice
+      ? activePrice
+      : !activePrice || timeOf(referencePrice) >= timeOf(activePrice)
+        ? referencePrice
+        : activePrice;
+    if (!soldPrice) return referenceOrActive || null;
+    if (!referenceOrActive) return soldPrice;
+    return timeOf(soldPrice) >= timeOf(referenceOrActive)
+      ? soldPrice
+      : referenceOrActive;
   }
 
   function isWeightDivisionSport(sport) {
@@ -6844,7 +6857,7 @@ function getCurrentUserOwnershipSummary() {
                   <div class="price-box">
 
                     <div>
-                      <span>${price.source === "ebay_sold_comps" ? "Estimated Market Value (Sold Comps)" : "Estimated Value (Active Listings)"}</span>
+                      <span>${price.source === "ebay_sold_comps" ? "Estimated Market Value (Sold Comps)" : price.source === "cardpricer_reference" ? "Estimated Reference Value (CardPricer)" : "Estimated Value (Active Listings)"}</span>
                       <strong>
                         ${
                           Number(price.estimated_value) > 0
@@ -6870,9 +6883,11 @@ function getCurrentUserOwnershipSummary() {
                         ${escapeHtml(
                           price.source === "ebay_sold_comps"
                             ? "eBay Sold Listings"
-                            : price.source === "ebay_active_asking"
-                              ? "eBay Active Listings"
-                              : price.source || "Unknown"
+                            : price.source === "cardpricer_reference"
+                              ? "CardPricer Reference API"
+                              : price.source === "ebay_active_asking"
+                                ? "eBay Active Listings"
+                                : price.source || "Unknown"
                         )}
                       </strong>
                     </div>
