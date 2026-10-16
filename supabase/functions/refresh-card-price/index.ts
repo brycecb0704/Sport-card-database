@@ -376,12 +376,13 @@ Deno.serve(async (request: Request) => {
   const ebayClientId = Deno.env.get("EBAY_CLIENT_ID");
   const ebayClientSecret = Deno.env.get("EBAY_CLIENT_SECRET");
   const soldgraphKey = Deno.env.get("SOLDGRAPH_KEY");
+  const compSniperKey = Deno.env.get("COMPSNIPER_API_KEY");
   const hasEbayCredentials = Boolean(ebayClientId && ebayClientSecret);
 
   if (!supabaseUrl || !serviceKey) return jsonResponse({ error: "The pricing service is missing its Supabase server configuration." }, 503);
-  if (!soldgraphKey && !hasEbayCredentials) {
+  if (!soldgraphKey && !hasEbayCredentials && !compSniperKey) {
     return jsonResponse({
-      error: "Pricing is not configured. Add SOLDGRAPH_KEY in Supabase Edge Function secrets, or configure both EBAY_CLIENT_ID and EBAY_CLIENT_SECRET as a fallback.",
+      error: "Pricing is not configured. Configure eBay credentials or a supported sold-comps API secret.",
     }, 503);
   }
 
@@ -395,7 +396,7 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ error: "Could not verify your sign-in. Please try again." }, 502);
   }
 
-  let body: { card_id?: unknown };
+  let body: { card_id?: unknown; force_refresh?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -454,6 +455,28 @@ Deno.serve(async (request: Request) => {
     const effectiveYear = card.year_made ?? setYear;
     const query = buildSearchQuery(cardForMatch, playerName || String(card.name ?? ""), setName);
     if (!query.trim()) return jsonResponse({ error: "This card does not have enough identifying details to search pricing." }, 422);
+
+    // Shared price cache: normal/bulk requests reuse a result for 24 hours.
+    // Only an explicit detail-screen refresh bypasses the cache.
+    const forceRefresh = body.force_refresh === true;
+    if (!forceRefresh) {
+      const cachedRows = await fetchJson(
+        supabaseUrl + "/rest/v1/card_prices?card_id=eq." + encodeURIComponent(String(card.id)) +
+          "&select=card_id,source,estimated_value,asking_median,low_price,high_price,listing_count,confidence,price_note,source_url,fetched_at" +
+          "&order=fetched_at.desc&limit=10",
+        serviceKey,
+      );
+      const cacheRows = Array.isArray(cachedRows) ? cachedRows : [];
+      const freshCutoff = Date.now() - 24 * 60 * 60 * 1000;
+      const fresh = cacheRows.find((row: Record<string, any>) => {
+        const timestamp = Date.parse(String(row.fetched_at ?? ""));
+        return Number.isFinite(timestamp) && timestamp >= freshCutoff;
+      });
+      if (fresh) {
+        console.info("Pricing cache hit", JSON.stringify({ card_id: card.id, source: fresh.source, fetched_at: fresh.fetched_at }));
+        return jsonResponse({ ...fresh, success: true, cached: true, source_type: String(fresh.source).includes("sold") ? "sold_listings" : "active_asking_prices" });
+      }
+    }
 
     // Prefer actual sold listings when an optional Soldgraph key is configured.
     // This is the stronger valuation signal; eBay Browse API remains the no-extra-
@@ -706,7 +729,7 @@ Deno.serve(async (request: Request) => {
     let lastSearchError: { status: number; text: string } | null = null;
 
     // Search broad-to-specific and deduplicate items returned by multiple queries.
-    for (const searchQuery of searchQueries.slice(0, 5)) {
+    for (const searchQuery of searchQueries.slice(0, 2)) {
       const searchUrl = "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" +
         encodeURIComponent(searchQuery) + "&limit=" + MAX_SEARCH_RESULTS +
         "&filter=" + encodeURIComponent("buyingOptions:{FIXED_PRICE},itemLocationCountry:US");
