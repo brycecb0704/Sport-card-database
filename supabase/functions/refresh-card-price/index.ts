@@ -476,13 +476,14 @@ Deno.serve(async (request: Request) => {
         // Parallel/graded/lot filtering is still enforced locally by
         // evaluateListing() and isExcludedListing(), after results are returned.
         const soldQuery = query.slice(0, 180);
-        // One broader fallback drops set/series terms but retains year, brand,
-        // player, card number, and parallel. Keep it distinct from the first query.
+        // Search progressively broader positive queries. The strict local
+        // matcher still validates every candidate, so broadening search does not
+        // mean broadening what is allowed into the price estimate.
         const fallbackParts = [year, brand, person, cardNumber ? "#" + cardNumber : "", parallel]
           .filter(Boolean);
         const fallbackQuery = [...new Set(fallbackParts)].join(" ").slice(0, 180);
-        const firstResult = await fetchSoldgraphComps(soldgraphKey, soldQuery);
-        const firstRows = Array.isArray(firstResult.data) ? firstResult.data : [];
+        const identityQuery = [person, cardNumber ? "#" + cardNumber : "", parallel]
+          .filter(Boolean).join(" ").slice(0, 180);
         const countReliableCandidates = (rows: Record<string, any>[]) => rows.filter((item) => {
           const title = String(item.title ?? "");
           const evaluation = evaluateListing(title, cardForMatch, person, setName);
@@ -490,30 +491,32 @@ Deno.serve(async (request: Request) => {
             !item.best_offer_accepted && parseMoney(item.displayed_price?.amount) !== null &&
             String(item.displayed_price?.currency ?? "USD").toUpperCase() === "USD";
         }).length;
-        // Trigger the one paid fallback when the first page does not contain
-        // enough usable sales, not merely when it has no superficially plausible title.
-        const firstReliableCount = countReliableCandidates(firstRows);
-        let soldResult = firstResult;
-        let usedQueries = [soldQuery];
-        if (firstReliableCount < 3 && fallbackQuery && normalize(fallbackQuery) !== normalize(query)) {
-          console.info("Soldgraph targeted fallback starting", JSON.stringify({
-            card_id: card.id, first_query: soldQuery, fallback_query: fallbackQuery,
-            first_result_count: firstRows.length, reliable_candidates: firstReliableCount, reason: "fewer than three usable exact-card sales",
+        const usedQueries: string[] = [];
+        const combinedById = new Map<string, Record<string, any>>();
+        let soldResult: Record<string, any> = { data: [] };
+        const queryCandidates = [...new Set([soldQuery, fallbackQuery, identityQuery]
+          .map((value) => value.trim().slice(0, 180))
+          .filter((value) => value && !usedQueries.includes(value)))];
+        for (const candidateQuery of queryCandidates) {
+          // Stop early once we have enough plausible, priced sales. The broad
+          // identity-only query is only used if the more specific searches fail.
+          if (usedQueries.length > 0 && countReliableCandidates([...combinedById.values()]) >= 3) break;
+          console.info("Soldgraph search attempt", JSON.stringify({
+            card_id: card.id, query: candidateQuery, attempt: usedQueries.length + 1,
           }));
-          const fallbackResult = await fetchSoldgraphComps(soldgraphKey, fallbackQuery);
-          const fallbackRows = Array.isArray(fallbackResult.data) ? fallbackResult.data : [];
-          const combinedById = new Map<string, Record<string, any>>();
-          for (const item of [...firstRows, ...fallbackRows]) {
+          const result = await fetchSoldgraphComps(soldgraphKey, candidateQuery);
+          const rows = Array.isArray(result.data) ? result.data : [];
+          for (const item of rows) {
             const id = String(item.id ?? item.link ?? item.title ?? "");
             if (id && !combinedById.has(id)) combinedById.set(id, item);
           }
-          soldResult = { ...fallbackResult, data: [...combinedById.values()] };
-          usedQueries.push(fallbackQuery);
-          console.info("Soldgraph targeted fallback summary", JSON.stringify({
-            card_id: card.id, query: fallbackQuery, rows_returned: fallbackRows.length,
-            combined_unique_rows: soldResult.data.length,
-            reliable_candidates: countReliableCandidates(fallbackRows),
-            titles: fallbackRows.slice(0, 12).map((item: Record<string, any>) => ({
+          usedQueries.push(candidateQuery);
+          soldResult = { ...result, data: [...combinedById.values()] };
+          console.info("Soldgraph search summary", JSON.stringify({
+            card_id: card.id, query: candidateQuery, rows_returned: rows.length,
+            combined_unique_rows: combinedById.size,
+            reliable_candidates: countReliableCandidates([...combinedById.values()]),
+            titles: rows.slice(0, 8).map((item: Record<string, any>) => ({
               title: item.title ?? null, has_price: Boolean(item.displayed_price?.amount),
               is_price_range: Boolean(item.displayed_price_range),
               accepted_offer: Boolean(item.best_offer_accepted),
