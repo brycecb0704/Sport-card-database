@@ -6975,7 +6975,7 @@ function getCurrentUserOwnershipSummary() {
 
             <button
               class="btn btn-secondary"
-              onclick="refreshCardPrice('${escapeHtml(card.card_id)}')"
+              onclick="refreshCardPrice('${escapeHtml(card.card_id)}', true)"
             >
               ${price ? "Refresh Price" : "Get Price"}
             </button>
