@@ -10699,7 +10699,8 @@ async function refreshCollectionPrices() {
 }
 
 async function refreshCardPrice(
-  cardId
+  cardId,
+  forceRefresh = false
 ) {
   if (!cardId) {
     cardId =
@@ -10738,7 +10739,8 @@ async function refreshCardPrice(
           PRICE_FUNCTION_NAME,
           {
             body: {
-              card_id: resolvedPriceCardId
+              card_id: resolvedPriceCardId,
+              force_refresh: forceRefresh === true
             }
           }
         );
@@ -11668,7 +11670,8 @@ function setupPart3Events() {
         "click",
         () => {
           refreshCardPrice(
-            selectedCard?.card_id
+            selectedCard?.card_id,
+            true
           );
         }
       );
