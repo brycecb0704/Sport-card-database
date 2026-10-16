@@ -715,6 +715,106 @@ Deno.serve(async (request: Request) => {
       }
     }
 
+    // Free public reference-price fallback. CardPricer has a no-key API;
+    // its sports-card marks are snapshots sourced from SportsCardsPro, so this
+    // is clearly labeled as a reference mark, not fresh sold-comps evidence.
+    try {
+      const person = playerName || String(card.name ?? "");
+      const year = String(effectiveYear ?? "").trim();
+      const cardNumber = String(card.card_number ?? "").trim();
+      if (person && year && cardNumber) {
+        const params = new URLSearchParams({
+          q: [year, setBrand, setSeries, setName, person, "#" + cardNumber].filter(Boolean).join(" "),
+          sport: String(card.sport ?? "").toLowerCase(),
+          limit: "50",
+        });
+        const response = await fetch("https://cardpricer.co/api/v1/cards?" + params.toString(), {
+          headers: { Accept: "application/json" },
+        });
+        if (response.ok) {
+          const payload = await response.json();
+          const rows = Array.isArray(payload?.data) ? payload.data : [];
+          const matches = rows.filter((row: Record<string, any>) => {
+            const rowPlayer = String(row.player ?? "");
+            const rowYear = String(row.year ?? "");
+            const rowNumber = String(row.cardNumber ?? "").trim();
+            const rowSet = String(row.set ?? "");
+            const rowBrand = String(row.manufacturer ?? "");
+            const price = parseMoney(row.price);
+            return price !== null &&
+              normalize(rowPlayer) === normalize(person) &&
+              rowYear === year &&
+              rowNumber === cardNumber &&
+              (!setBrand || !rowBrand || normalize(rowBrand).includes(normalize(setBrand)) || normalize(setBrand).includes(normalize(rowBrand))) &&
+              (!setName || !rowSet || normalize(rowSet).includes(normalize(setName)) || normalize(setName).includes(normalize(rowSet)) ||
+                (setSeries && normalize(rowSet).includes(normalize(setSeries))));
+          });
+          if (matches.length) {
+            const prices = matches.map((row: Record<string, any>) => Number(row.price)).filter((p: number) => Number.isFinite(p) && p > 0);
+            const referenceValue = median(prices);
+            if (referenceValue !== null) {
+              const chosen = matches[0];
+              const confidenceLabel = String(chosen.provenance?.confidence?.label ?? "unknown");
+              const confidenceScore = Number(chosen.provenance?.confidence?.score ?? 0);
+              const note = "Free CardPricer reference mark; its published methodology says sports-card price data is sourced from SportsCardsPro snapshots. This is not a fresh exact-card sold-comps search. Verify condition, parallel, and provenance. Confidence: " + confidenceLabel + ".";
+              const referenceRecord = {
+                card_id: card.id,
+                source: "cardpricer_reference",
+                estimated_value: referenceValue,
+                asking_median: null,
+                low_price: Math.min(...prices),
+                high_price: Math.max(...prices),
+                listing_count: Number(chosen.provenance?.compCount ?? 0),
+                confidence: Number.isFinite(confidenceScore) ? Math.max(0, Math.min(100, confidenceScore)) : 0,
+                price_note: note,
+                source_url: String(chosen.links?.self ?? "https://cardpricer.co/docs/api"),
+                fetched_at: new Date().toISOString(),
+              };
+              await fetchJson(
+                supabaseUrl + "/rest/v1/card_prices?on_conflict=card_id,source",
+                serviceKey,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
+                  body: JSON.stringify(referenceRecord),
+                },
+              );
+              console.info("CardPricer reference mark saved", JSON.stringify({
+                card_id: card.id, year, card_number: cardNumber, match_count: matches.length,
+                value: referenceValue, confidence: confidenceLabel,
+              }));
+              return jsonResponse({
+                success: true,
+                source: "cardpricer_reference",
+                source_type: "third_party_reference_mark",
+                card_id: card.id,
+                estimated_value: referenceValue,
+                asking_median: null,
+                low_price: referenceRecord.low_price,
+                high_price: referenceRecord.high_price,
+                listing_count: referenceRecord.listing_count,
+                confidence: referenceRecord.confidence,
+                price_note: note,
+                source_url: referenceRecord.source_url,
+                fetched_at: referenceRecord.fetched_at,
+                matches: matches.slice(0, 5).map((row: Record<string, any>) => ({
+                  player: row.player, year: row.year, set: row.set, card_number: row.cardNumber,
+                  price: row.price, last_sold: row.lastSold, confidence: row.provenance?.confidence?.label,
+                })),
+              });
+            }
+          }
+          console.info("CardPricer returned no strict identity match", JSON.stringify({
+            card_id: card.id, query: params.get("q"), rows_returned: rows.length,
+          }));
+        } else {
+          console.warn("CardPricer API unavailable", response.status);
+        }
+      }
+    } catch (referenceError) {
+      console.warn("CardPricer reference lookup failed; continuing to eBay fallback.", String(referenceError));
+    }
+
     if (!hasEbayCredentials) {
       return jsonResponse({
         error: "Soldgraph did not return enough reliable matching sales, and eBay fallback is not configured. Check Soldgraph logs and the card's set/year/card number.",
