@@ -6925,6 +6925,12 @@ function getCurrentUserOwnershipSummary() {
                       : ""
                   }
 
+                  ${
+                    price.source === "cardpricer_reference"
+                      ? '<p class="price-note">Reference data provided by <a href="https://cardpricer.co" target="_blank" rel="noopener noreferrer">CardPricer</a>. This is a reference estimate, not a guarantee of sale value.</p>'
+                      : ""
+                  }
+
                 `
                 : `
                   <div class="empty-inline price-empty">
