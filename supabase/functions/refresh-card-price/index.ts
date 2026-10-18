@@ -214,6 +214,13 @@ function evaluateListing(title: string, card: Record<string, any>, playerName: s
       score += setMatched ? 10 : 8;
       reasons.push(setMatched ? "set" : "series");
     } else {
+      // When the listing omits the target set/series, do not use a broad
+      // player/year/brand match unless the catalog also supplies a card number.
+      // Without that anchor, same-player inserts and memorabilia cards can be
+      // mistaken for one another.
+      if (!cardNumber) {
+        return { matched: false, score: 0, reasons: [] as string[] };
+      }
       const targetIdentity = normalize([brand, series, setName].filter(Boolean).join(" "));
       const alternateProducts = [
         "chrome", "update", "heritage", "opening day", "big league", "archives",
