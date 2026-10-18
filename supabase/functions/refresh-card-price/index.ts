@@ -762,7 +762,8 @@ Deno.serve(async (request: Request) => {
             const rowPlayer = String(row.player ?? row.player_name ?? row.playerName ?? "");
             const rowTitle = String(row.name ?? row.title ?? "");
             const rowYear = String(row.year ?? "");
-            const rowNumber = String(row.cardNumber ?? row.card_number ?? row.card_number_text ?? row.number ?? "").trim();
+            const rowNumber = String(row.cardNumber ?? row.card_number ?? row.card_number_text ?? row.number ?? "").trim().replace(/^#\\s*/, "").replace(/\\s+/g, "").toLowerCase();
+            const targetNumber = cardNumber.replace(/^#\\s*/, "").replace(/\\s+/g, "").toLowerCase();
             const rowSet = String(row.set ?? row.setName ?? row.set_name ?? row.series ?? "");
             const rowBrand = String(row.manufacturer ?? row.brand ?? "");
             const price = parseMoney(row.current_price ?? row.currentPrice ?? row.price ?? row.market_price);
@@ -772,7 +773,7 @@ Deno.serve(async (request: Request) => {
             return price !== null &&
               playerMatches &&
               rowYear === year &&
-              rowNumber === cardNumber &&
+              rowNumber === targetNumber &&
               (!setBrand || !rowBrand || normalize(rowBrand).includes(normalize(setBrand)) || normalize(setBrand).includes(normalize(rowBrand))) &&
               (!setName || !rowSet || normalize(rowSet).includes(normalize(setName)) || normalize(setName).includes(normalize(rowSet)) ||
                 (setSeries && normalize(rowSet).includes(normalize(setSeries))));
@@ -834,7 +835,7 @@ Deno.serve(async (request: Request) => {
           }
           console.info("CardPricer response and identity audit", JSON.stringify({
             card_id: card.id,
-            query: params.get("q"),
+            query: "player=" + person + "&year=" + year,
             api_ok: payload?.ok ?? null,
             api_version: payload?.apiVersion ?? null,
             rows_returned: rows.length,
