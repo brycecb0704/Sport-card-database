@@ -6674,12 +6674,10 @@ function getCurrentUserOwnershipSummary() {
                 )}
               </h2>
 
-              ${clean(card.card_number) ? `
-                <div class="card-number-highlight">
-                  <span>Card Number</span>
-                  <strong>#${escapeHtml(clean(card.card_number).replace(/^#/, ""))}</strong>
-                </div>
-              ` : ""}
+              <div class="card-number-highlight">
+  <span>Card Number</span>
+  <strong>${clean(card.card_number) ? "#" + escapeHtml(clean(card.card_number).replace(/^#/, "")) : "Not entered in catalog"}</strong>
+</div>
 
             </div>
 
