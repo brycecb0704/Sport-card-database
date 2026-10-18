@@ -6928,8 +6928,11 @@ function getCurrentUserOwnershipSummary() {
                 `
                 : `
                   <div class="empty-inline price-empty">
-                    <strong>No price recorded for this card yet.</strong>
-                    <span>Pricing appears here when a verified price record exists.</span>
+                    ${
+                      !clean(card.card_number)
+                        ? "<strong>Pricing needs more card details.</strong><span>This catalog record has no card number. Add the exact card number and confirm the set and parallel before trusting a price match. We will not guess a value for an unidentified card.</span>"
+                        : "<strong>No reliable price is recorded yet.</strong><span>The available sources have not produced a sufficiently reliable match for this card. Verify the catalog details and try Get Price again later.</span>"
+                    }
                   </div>
                 `
             }
