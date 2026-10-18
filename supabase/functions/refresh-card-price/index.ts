@@ -133,6 +133,16 @@ function evaluateListing(title: string, card: Record<string, any>, playerName: s
     return { matched: false, score: 0, reasons: [] as string[] };
   }
 
+  // A listing without a card number must at least identify the set or series;
+  // otherwise a player's name/year alone is not enough to establish identity.
+  if (
+    !String(card.card_number ?? "").trim() &&
+    !String(setName ?? "").trim() &&
+    !String(card.card_series ?? card.card_sets?.series ?? "").trim()
+  ) {
+    return { matched: false, score: 0, reasons: [] as string[] };
+  }
+
   const reasons: string[] = ["player"];
   let score = 35;
 
