@@ -55,7 +55,7 @@ function numberInTitle(title: string, cardNumber: string): boolean {
   const digits = number.match(/[a-z]*\d+[a-z]*/i)?.[0];
   if (!digits) return false;
   const escaped = digits.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp("(^|[^a-z0-9])#?\\s*" + escaped + "($|[^a-z0-9])", "i").test(title);
+  return new RegExp("(^|[^a-z0-9])#?\s*" + escaped + "($|[^a-z0-9])", "i").test(title);
 }
 
 function parseMoney(value: unknown): number | null {
@@ -762,8 +762,8 @@ Deno.serve(async (request: Request) => {
             const rowPlayer = String(row.player ?? row.player_name ?? row.playerName ?? "");
             const rowTitle = String(row.name ?? row.title ?? "");
             const rowYear = String(row.year ?? "");
-            const rowNumber = String(row.cardNumber ?? row.card_number ?? row.card_number_text ?? row.number ?? "").trim().replace(/^#\\s*/, "").replace(/\\s+/g, "").toLowerCase();
-            const targetNumber = cardNumber.replace(/^#\\s*/, "").replace(/\\s+/g, "").toLowerCase();
+            const rowNumber = String(row.cardNumber ?? row.card_number ?? row.card_number_text ?? row.number ?? "").trim().replace(/^#\s*/, "").replace(/\s+/g, "").toLowerCase();
+            const targetNumber = cardNumber.replace(/^#\s*/, "").replace(/\s+/g, "").toLowerCase();
             const rowSet = String(row.set ?? row.setName ?? row.set_name ?? row.series ?? "");
             const rowBrand = String(row.manufacturer ?? row.brand ?? "");
             const price = parseMoney(row.current_price ?? row.currentPrice ?? row.price ?? row.market_price);
