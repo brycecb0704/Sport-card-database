@@ -735,11 +735,13 @@ Deno.serve(async (request: Request) => {
       const year = String(effectiveYear ?? "").trim();
       const cardNumber = String(card.card_number ?? "").trim();
       if (person && year && cardNumber) {
+        // Search by player and year first, then enforce exact card identity locally.
+        // Combining every identity term into q can over-filter a provider search
+        // before we get a chance to compare its returned card-number/set fields.
         const params = new URLSearchParams({
-          q: [year, setBrand, setSeries, setName, person, "#" + cardNumber].filter(Boolean).join(" "),
           player: person,
           year,
-          limit: "100",
+          limit: "200",
         });
         // Never let an optional free provider stall the entire refresh.
         const referenceAbort = new AbortController();
@@ -757,14 +759,18 @@ Deno.serve(async (request: Request) => {
           const payload = await response.json();
           const rows = Array.isArray(payload?.data) ? payload.data : [];
           const matches = rows.filter((row: Record<string, any>) => {
-            const rowPlayer = String(row.player ?? "");
+            const rowPlayer = String(row.player ?? row.player_name ?? row.playerName ?? "");
+            const rowTitle = String(row.name ?? row.title ?? "");
             const rowYear = String(row.year ?? "");
-            const rowNumber = String(row.cardNumber ?? row.card_number ?? row.number ?? "").trim();
-            const rowSet = String(row.set ?? "");
-            const rowBrand = String(row.manufacturer ?? "");
+            const rowNumber = String(row.cardNumber ?? row.card_number ?? row.card_number_text ?? row.number ?? "").trim();
+            const rowSet = String(row.set ?? row.setName ?? row.set_name ?? row.series ?? "");
+            const rowBrand = String(row.manufacturer ?? row.brand ?? "");
             const price = parseMoney(row.current_price ?? row.currentPrice ?? row.price ?? row.market_price);
+            const playerMatches =
+              normalize(rowPlayer) === normalize(person) ||
+              (!rowPlayer && phraseInTitle(rowTitle, person));
             return price !== null &&
-              normalize(rowPlayer) === normalize(person) &&
+              playerMatches &&
               rowYear === year &&
               rowNumber === cardNumber &&
               (!setBrand || !rowBrand || normalize(rowBrand).includes(normalize(setBrand)) || normalize(setBrand).includes(normalize(rowBrand))) &&
