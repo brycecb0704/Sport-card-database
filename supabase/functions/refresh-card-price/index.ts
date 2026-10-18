@@ -396,11 +396,9 @@ Deno.serve(async (request: Request) => {
   const hasEbayCredentials = Boolean(ebayClientId && ebayClientSecret);
 
   if (!supabaseUrl || !serviceKey) return jsonResponse({ error: "The pricing service is missing its Supabase server configuration." }, 503);
-  if (!soldgraphKey && !hasEbayCredentials) {
-    return jsonResponse({
-      error: "Pricing is not configured. Configure eBay credentials or a supported sold-comps API secret.",
-    }, 503);
-  }
+  // Do not reject the request before trying CardPricer's free reference API.
+  // If no reference match exists, the later eBay configuration check returns a
+  // specific fallback error without making an unauthenticated marketplace call.
 
   // Verify the caller's session using the public anon key and their own JWT.
   try {
