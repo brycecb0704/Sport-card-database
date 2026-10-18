@@ -5287,13 +5287,12 @@ function getCurrentUserOwnershipSummary() {
 
     if (
       price &&
-      Number.isFinite(
-        Number(price.estimated_value)
-      )
+      price.estimated_value !== null &&
+      price.estimated_value !== undefined &&
+      Number.isFinite(Number(price.estimated_value)) &&
+      Number(price.estimated_value) > 0
     ) {
-      return Number(
-        price.estimated_value
-      );
+      return Number(price.estimated_value);
     }
 
     return 0;
