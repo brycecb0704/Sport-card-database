@@ -7039,6 +7039,15 @@ function getCurrentUserOwnershipSummary() {
 
     openModal("cardDetailModal");
 
+    // Automatically start a price lookup when a signed-in user opens a card
+    // whose latest attempt is older than 24 hours. The shared cooldown avoids
+    // duplicate requests when the same card is opened repeatedly.
+    if (currentUser && needsCardPriceRefresh(card)) {
+      Promise.resolve().then(() => refreshCardPrice(card.card_id)).catch(error =>
+        console.warn("Automatic price lookup on card open failed:", error)
+      );
+    }
+
     if (card.barcode) {
 
       setTimeout(() => {
