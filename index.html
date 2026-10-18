@@ -4093,11 +4093,22 @@
       : !activePrice || timeOf(referencePrice) >= timeOf(activePrice)
         ? referencePrice
         : activePrice;
-    if (!soldPrice) return referenceOrActive || null;
-    if (!referenceOrActive) return soldPrice;
-    return timeOf(soldPrice) >= timeOf(referenceOrActive)
-      ? soldPrice
-      : referenceOrActive;
+    if (!soldPrice) {
+      if (referenceOrActive) return referenceOrActive;
+    } else if (!referenceOrActive) {
+      return soldPrice;
+    } else {
+      return timeOf(soldPrice) >= timeOf(referenceOrActive)
+        ? soldPrice
+        : referenceOrActive;
+    }
+
+    // Preserve the latest failed/insufficient pricing attempt for the profile.
+    // This lets users see why no value was published instead of a misleading
+    // generic "no price recorded" message. Unpriced attempts never count as value.
+    return allPrices
+      .filter(price => matchesCard(price) && isRecent(price))
+      .sort(newestFirst)[0] || null;
   }
 
   function isWeightDivisionSport(sport) {
@@ -10919,9 +10930,15 @@ async function identifyCardFromImage(
       data
     );
 
+    const confidence = String(data.confidence || "low").toLowerCase();
+    const confidenceLabel = ["high", "medium", "low"].includes(confidence)
+      ? confidence.charAt(0).toUpperCase() + confidence.slice(1)
+      : "Unconfirmed";
+    const identificationNotes = String(data.notes || "").trim();
     showToast(
-      "Card information identified. Review it before saving.",
-      "success"
+      "Identification confidence: " + confidenceLabel + ". Review all fields before saving." +
+        (identificationNotes ? " " + identificationNotes.slice(0, 180) : ""),
+      confidence === "high" ? "success" : "info"
     );
 
     return data;
