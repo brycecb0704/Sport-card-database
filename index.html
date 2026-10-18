@@ -4069,9 +4069,11 @@
       Number(price.estimated_value) > 0 &&
       isRecent(price)
     );
-    // Show the newest usable record. A sold-comp record is better evidence
-    // than asking prices only when it is at least as fresh as the asking record;
-    // an old sold record must not mask a newer refresh.
+    // Evidence priority is intentional: verified sold comps first, then the
+    // free CardPricer reference, and active asking prices only as a fallback.
+    // All candidates have already passed the 30-day freshness and positive-value
+    // checks, so a weaker source cannot replace a stronger one just because it
+    // refreshed a few minutes later.
     const newestFirst = (a, b) =>
       new Date(b.fetched_at || 0) - new Date(a.fetched_at || 0);
     const soldPrice = usable
@@ -4084,24 +4086,9 @@
       .filter(price => price.source === "ebay_active_asking")
       .sort(newestFirst)[0];
 
-    // Prefer stronger evidence when it is at least as fresh as the weaker
-    // source. A newer fallback can still win rather than letting an older
-    // reference or sold record mask it.
-    const timeOf = price => new Date(price?.fetched_at || 0).getTime();
-    const referenceOrActive = !referencePrice
-      ? activePrice
-      : !activePrice || timeOf(referencePrice) >= timeOf(activePrice)
-        ? referencePrice
-        : activePrice;
-    if (!soldPrice) {
-      if (referenceOrActive) return referenceOrActive;
-    } else if (!referenceOrActive) {
-      return soldPrice;
-    } else {
-      return timeOf(soldPrice) >= timeOf(referenceOrActive)
-        ? soldPrice
-        : referenceOrActive;
-    }
+    if (soldPrice) return soldPrice;
+    if (referencePrice) return referencePrice;
+    if (activePrice) return activePrice;
 
     // Preserve the latest failed/insufficient pricing attempt for the profile.
     // This lets users see why no value was published instead of a misleading
