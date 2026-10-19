@@ -794,7 +794,7 @@ Deno.serve(async (request: Request) => {
                 (setSeries && normalize(rowSet).includes(normalize(setSeries))));
           });
           if (matches.length) {
-            const prices = matches.map((row: Record<string, any>) => parseMoney(row.current_price ?? row.currentPrice ?? row.price ?? row.market_price)).filter((p: number | null): p is number => p !== null);
+            const prices = matches.map((row: Record<string, any>) => parseMoney(row.current_price ?? row.currentPrice ?? row.market_price ?? row.marketPrice ?? row.price_usd ?? row.priceUsd ?? row.estimated_value ?? row.price)).filter((p: number | null): p is number => p !== null);
             const referenceValue = median(prices);
             if (referenceValue !== null) {
               const chosen = matches[0];
