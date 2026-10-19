@@ -787,15 +787,24 @@ Deno.serve(async (request: Request) => {
             const playerMatches =
               normalize(rowPlayer) === normalize(person) ||
               (!rowPlayer && phraseInTitle(rowTitle, person));
-            const setMatches = !setName || !rowSet ||
-              normalize(rowSet) === normalize(setName) ||
-              normalize(rowSet).includes(normalize(setName)) ||
-              normalize(setName).includes(normalize(rowSet)) ||
-              Boolean(setSeries && normalize(rowSet).includes(normalize(setSeries)));
-            const brandMatches = !setBrand || !rowBrand ||
-              normalize(rowBrand) === normalize(setBrand) ||
-              normalize(rowBrand).includes(normalize(setBrand)) ||
-              normalize(setBrand).includes(normalize(rowBrand));
+            const setMatches = !setName && !setSeries
+              ? true
+              : Boolean(rowSet && (
+                  normalize(rowSet) === normalize(setName) ||
+                  normalize(rowSet).includes(normalize(setName)) ||
+                  normalize(setName).includes(normalize(rowSet)) ||
+                  Boolean(setSeries && (
+                    normalize(rowSet).includes(normalize(setSeries)) ||
+                    normalize(setSeries).includes(normalize(rowSet))
+                  ))
+                ));
+            const brandMatches = !setBrand
+              ? true
+              : Boolean(rowBrand && (
+                  normalize(rowBrand) === normalize(setBrand) ||
+                  normalize(rowBrand).includes(normalize(setBrand)) ||
+                  normalize(setBrand).includes(normalize(rowBrand))
+                ));
             // Never use a known different parallel/variation as the reference
             // price. If this card is a parallel, an unlabelled reference row is
             // not sufficient evidence to claim that it prices that parallel.
@@ -906,8 +915,8 @@ Deno.serve(async (request: Request) => {
     let successfulSearches = 0;
     let lastSearchError: { status: number; text: string } | null = null;
 
-    // Search broad-to-specific and deduplicate items returned by multiple queries.
-    for (const searchQuery of searchQueries.slice(0, 2)) {
+    // Search three complementary query shapes, broad-to-specific, and deduplicate results. The fourth/fifth variants are intentionally skipped to limit API usage.
+    for (const searchQuery of searchQueries.slice(0, 3)) {
       const searchUrl = "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" +
         encodeURIComponent(searchQuery) + "&limit=" + MAX_SEARCH_RESULTS +
         "&filter=" + encodeURIComponent("buyingOptions:{FIXED_PRICE},itemLocationCountry:US");
