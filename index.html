@@ -2925,78 +2925,1277 @@
               </div>
             </div>
 
+            <div class="panel" style="box-shadow:none;margin:0 0 12px;">
+              <strong>Shared Card Details</strong>
+              <p class="muted" style="margin:5px 0 0;">These details describe the card itself and are shared in the catalog for every collector.</p>
+            </div>
+
             <div class="simple-add-manual-grid">
+              <div class="form-group full"><label class="form-label">Player / Card Name *</label><input id="addCardName" class="field" type="text" required></div>
+              <div class="form-group"><label class="form-label">Sport</label><input id="addCardSport" class="field" type="text" placeholder="Baseball, Football, UFC..."></div>
+              <div class="form-group"><label class="form-label">Team / Organization</label><input id="addCardTeam" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Year</label><input id="addCardYear" class="field" type="number" min="1800" max="2100"></div>
+              <div class="form-group"><label class="form-label">Card Number</label><input id="addCardNumber" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Series / Subset</label><input id="addCardSeries" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Brand / Manufacturer</label><input id="addCardBrand" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Set Name</label><input id="addCardSetName" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Parallel / Variation</label><input id="addCardParallel" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Player Position</label><input id="addCardPosition" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Weight Division (combat sports)</label><input id="addCardWeightDivision" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Serial Numbering</label><input id="addCardSerialNumbering" class="field" type="text" placeholder="e.g. 12/99"></div>
+              <div class="form-group"><label class="form-label">Print Run</label><input id="addCardPrintRun" class="field" type="number" min="1"></div>
+              <div class="form-group"><label class="form-label">Barcode (if present)</label><input id="addCardBarcode" class="field" type="text"></div>
+              <div class="form-group full"><label class="form-label">Other card-identification notes</label><textarea id="addCardNotes" class="field" rows="2" placeholder="Only facts about the card itself, not your purchase or ownership."></textarea></div>
+            </div>
 
-              <div class="form-group full">
-                <label class="form-label">Card Name *</label>
-                <input id="addCardName" class="field" type="text" required>
+            <div class="panel" style="box-shadow:none;margi            <!-- Hidden compatibility fields used by older edit/save paths. -->
+            <div style="display:none;">
+              <input id="addCardValue">
+              <input id="addCatalogFront" type="file" accept="image/*">
+              <input id="addCatalogBack" type="file" accept="image/*">
+              <input id="addOwnedFront" type="file" accept="image/*">
+              <input id="addOwnedBack" type="file" accept="image/*">
+            </div>
+          </div>
+
+          <div>
+            <div class="brand-title">
+              Sports Card Database
+            </div>
+          </div>
+
+        </div>
+
+
+        <div class="top-search">
+
+          <input
+            id="globalSearch"
+            type="search"
+            placeholder="Search cards, players, teams, sets..."
+            oninput="globalSearch()">
+
+        </div>
+
+
+        <div class="header-actions">
+
+          <button
+            id="themeToggle"
+            class="icon-btn"
+            title="Toggle dark mode"
+            onclick="toggleTheme()">
+            🌙
+          </button>
+
+          <button
+            class="account-button"
+            onclick="openAccountModal()">
+
+            <span
+              id="headerAvatar"
+              class="account-avatar">
+              👤
+            </span>
+
+            <span id="headerUsername">
+              Account
+            </span>
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </header>
+
+
+    <!-- APPLICATION BODY -->
+
+    <div class="app-shell">
+
+
+      <!-- SIDEBAR -->
+
+      <aside class="sidebar">
+
+        <div class="sidebar-section">
+
+          <div class="sidebar-label">
+            Main
+          </div>
+
+          <button
+            id="navHome"
+            class="nav-btn active"
+            onclick="showScreen('home')">
+
+            <span class="nav-icon">🏠</span>
+            Home
+
+          </button>
+
+          <button
+            id="navCatalog"
+            class="nav-btn"
+            onclick="showScreen('catalog')">
+
+            <span class="nav-icon">📚</span>
+            Card Catalog
+
+          </button>
+
+          <button
+            id="navCollection"
+            class="nav-btn"
+            onclick="showScreen('collection')">
+
+            <span class="nav-icon">🗃️</span>
+            My Collection
+
+          </button>
+
+          <button
+            id="navAdd"
+            class="nav-btn"
+            onclick="openAddCardModal()">
+
+            <span class="nav-icon">➕</span>
+            Add Card
+
+          </button>
+
+        </div>
+
+
+        <div class="sidebar-section">
+
+          <div class="sidebar-label">
+            Marketplace
+          </div>
+
+          <button
+            id="navForSale"
+            class="nav-btn"
+            onclick="showScreen('forsale')">
+
+            <span class="nav-icon">🏷️</span>
+            For Sale
+
+          </button>
+
+          <button
+            id="navSold"
+            class="nav-btn"
+            onclick="showScreen('sold')">
+
+            <span class="nav-icon">💵</span>
+            Sold
+
+          </button>
+
+          <button
+            id="navTraded"
+            class="nav-btn"
+            onclick="showScreen('traded')">
+
+            <span class="nav-icon">🔄</span>
+            Traded
+
+          </button>
+
+        </div>
+
+
+        <div class="sidebar-section">
+
+          <div class="sidebar-label">
+            Explore
+          </div>
+
+          <button
+            id="navSets"
+            class="nav-btn"
+            onclick="showScreen('sets')">
+
+            <span class="nav-icon">📦</span>
+            Sets
+
+          </button>
+
+          <button
+            id="navCommunity"
+            class="nav-btn"
+            onclick="showScreen('community')">
+
+            <span class="nav-icon">👥</span>
+            Community
+
+          </button>
+
+          <button
+            id="navLeaderboard"
+            class="nav-btn"
+            onclick="showScreen('leaderboard')">
+
+            <span class="nav-icon">🏆</span>
+            Leaderboard
+
+          </button>
+
+        </div>
+
+
+        <div
+          id="adminNavSection"
+          class="sidebar-section hidden">
+
+          <div class="sidebar-label">
+            Administration
+          </div>
+
+          <button
+            id="navAdmin"
+            class="nav-btn"
+            onclick="showScreen('admin')">
+
+            <span class="nav-icon">⚙️</span>
+            Admin
+
+          </button>
+
+        </div>
+
+      </aside>
+
+
+      <!-- MAIN CONTENT -->
+
+      <main class="main">
+
+
+        <!-- ==============================
+             HOME SCREEN
+             ============================== -->
+
+        <section
+          id="screen-home"
+          class="screen">
+
+          <div class="hero">
+
+            <h1>
+              Your Sports Card Database
+            </h1>
+
+            <div class="hero-search">
+
+              <input
+                id="homeSearchInput"
+                type="search"
+                placeholder="Search the card catalog..."
+                oninput="homeSearch()">
+
+              <button
+                class="btn btn-primary"
+                onclick="showScreen('catalog')">
+
+                Browse Catalog
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div class="stats-grid">
+
+            <div class="stat-card">
+
+              <div class="stat-label">
+                Catalog Cards
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Sport</label>
-                <input id="addCardSport" class="field" type="text" placeholder="Baseball, Football, UFC...">
+              <div
+                id="statCatalogCards"
+                class="stat-value">
+                0
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Team</label>
-                <input id="addCardTeam" class="field" type="text">
+            </div>
+
+
+            <div class="stat-card">
+
+              <div class="stat-label">
+                My Unique Cards
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Year</label>
-                <input id="addCardYear" class="field" type="number">
+              <div
+                id="statMyCards"
+                class="stat-value">
+                0
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Card Number</label>
-                <input id="addCardNumber" class="field" type="text">
+            </div>
+
+
+            <div class="stat-card">
+
+              <div class="stat-label">
+                Quantity Owned
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Series</label>
-                <input id="addCardSeries" class="field" type="text">
+              <div
+                id="statMyQuantity"
+                class="stat-value">
+                0
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Brand</label>
-                <input id="addCardBrand" class="field" type="text">
+            </div>
+
+
+            <div class="stat-card">
+
+              <div class="stat-label">
+                Collection Value
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Set Name</label>
-                <input id="addCardSetName" class="field" type="text">
+              <div
+                id="statCollectionValue"
+                class="stat-value">
+                $0.00
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Parallel</label>
-                <input id="addCardParallel" class="field" type="text">
+            </div>
+
+          </div>
+
+
+          <div
+            id="homeSearchResults"
+            class="card-grid"
+            style="margin-bottom:22px;">
+          </div>
+
+
+          <div class="quick-grid">
+
+            <button
+              class="quick-card"
+              onclick="openAddCardModal()">
+
+              <div class="quick-icon">
+                ➕
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Grade</label>
-                <input id="addCardGrade" class="field" type="text">
+              <div class="quick-title">
+                Add a Card
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Quantity</label>
-                <input id="addCardQuantity" class="field" type="number" min="1" value="1">
+            </button>
+
+
+            <button
+              class="quick-card"
+              onclick="showScreen('collection')">
+
+              <div class="quick-icon">
+                🗃️
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Possession</label>
-                <select id="addCardPossession" class="field">
-                  <option value="Collection">Collection</option>
-                  <option value="For Sale">For Sale</option>
-                  <option value="Sold">Sold</option>
-                  <option value="Traded">Traded</option>
-                </select>
+              <div class="quick-title">
+                My Collection
               </div>
 
-              <div class="form-group full">
-                <label class="form-label">Notes</label>
-                <textarea id="addCardNotes" class="field" rows="3"></textarea>
+            </button>
+
+
+            <button
+              class="quick-card"
+              onclick="showScreen('forsale')">
+
+              <div class="quick-icon">
+                🏷️
               </div>
 
+              <div class="quick-title">
+                Cards For Sale
+              </div>
+
+            </button>
+
+
+            <button
+              class="quick-card"
+              onclick="showScreen('sets')">
+
+              <div class="quick-icon">
+                📦
+              </div>
+
+              <div class="quick-title">
+                Browse Sets
+              </div>
+
+            </button>
+
+
+            <button
+              class="quick-card"
+              onclick="showScreen('community')">
+
+              <div class="quick-icon">
+                👥
+              </div>
+
+              <div class="quick-title">
+                Community Cards
+              </div>
+
+            </button>
+
+
+            <button
+              class="quick-card"
+              onclick="showScreen('leaderboard')">
+
+              <div class="quick-icon">
+                🏆
+              </div>
+
+              <div class="quick-title">
+                Leaderboard
+              </div>
+
+            </button>
+
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             CATALOG SCREEN
+             ============================== -->
+
+        <section
+          id="screen-catalog"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Card Catalog
+              </h2>
+
+            </div>
+
+            <div class="button-row">
+
+              <button
+                class="btn btn-primary"
+                onclick="openAddCardModal()">
+
+                + Add Card
+
+              </button>
+
+              <button
+                class="btn"
+                onclick="refreshData()">
+
+                ↻ Refresh
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div class="search-filter-bar">
+
+            <input
+              id="catalogSearch"
+              class="search-field"
+              type="search"
+              placeholder="Search catalog..."
+              oninput="renderCatalog()">
+
+            <select
+              id="catalogSport"
+              class="field"
+              onchange="renderCatalog()">
+
+              <option value="">
+                All Sports
+              </option>
+
+            </select>
+
+            <select
+              id="catalogYear"
+              class="field"
+              onchange="renderCatalog()">
+
+              <option value="">
+                All Years
+              </option>
+
+            </select>
+
+            <select
+              id="catalogSet"
+              class="field"
+              onchange="renderCatalog()">
+
+              <option value="">
+                All Sets
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            id="catalogResults"
+            class="card-grid">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             MY COLLECTION
+             ============================== -->
+
+        <section
+          id="screen-collection"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                My Collection
+              </h2>
+
+            </div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+              <button
+                class="btn btn-secondary"
+                onclick="refreshCollectionPrices()"
+                title="Refresh up to five cards whose prices are missing or older than 24 hours.">
+                Refresh Pricing
+              </button>
+              <button
+                class="btn btn-primary"
+                onclick="openAddCardModal()">
+                + Add Card
+              </button>
+            </div>
+
+          </div>
+
+
+          <div class="search-filter-bar">
+
+            <input
+              id="collectionSearch"
+              class="search-field"
+              type="search"
+              placeholder="Search my collection..."
+              oninput="renderCollection()">
+
+            <select
+              id="collectionSport"
+              class="field"
+              onchange="renderCollection()">
+
+              <option value="">
+                All Sports
+              </option>
+
+            </select>
+
+            <select
+              id="collectionPossession"
+              class="field"
+              onchange="renderCollection()">
+
+              <option value="">
+                All Possession
+              </option>
+
+              <option value="Collection">
+                Collection
+              </option>
+
+              <option value="For Sale">
+                For Sale
+              </option>
+
+              <option value="Sold">
+                Sold
+              </option>
+
+              <option value="Traded">
+                Traded
+              </option>
+
+            </select>
+
+            <select
+              id="collectionGrade"
+              class="field"
+              onchange="renderCollection()">
+
+              <option value="">
+                All Grades
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            id="collectionResults"
+            class="card-grid">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             FOR SALE
+             ============================== -->
+
+        <section
+          id="screen-forsale"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                For Sale
+              </h2>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="forSaleResults"
+            class="card-grid">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             SOLD
+             ============================== -->
+
+        <section
+          id="screen-sold"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Sold Cards
+              </h2>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="soldResults"
+            class="card-grid">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             TRADED
+             ============================== -->
+
+        <section
+          id="screen-traded"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Traded Cards
+              </h2>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="tradedResults"
+            class="card-grid">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             COMMUNITY
+             ============================== -->
+
+        <section
+          id="screen-community"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Community
+              </h2>
+
+            </div>
+
+          </div>
+
+
+          <div class="panel">
+
+            <div class="search-filter-bar" style="margin:0;">
+
+              <input
+                id="communitySearch"
+                class="search-field"
+                type="search"
+                placeholder="Search community cards..."
+                oninput="renderCommunity()">
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="communityResults"
+            class="card-grid">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             SETS
+             ============================== -->
+
+        <section
+          id="screen-sets"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Card Sets
+              </h2>
+
+            </div>
+
+          </div>
+
+
+          <div class="panel">
+
+            <input
+              id="setSearch"
+              class="search-field"
+              type="search"
+              placeholder="Search sets..."
+              oninput="renderSets()">
+
+          </div>
+
+
+          <div
+            id="setsResults">
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             LEADERBOARD
+             ============================== -->
+
+        <section
+          id="screen-leaderboard"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Leaderboard
+              </h2>
+
+            </div>
+
+          </div>
+
+
+          <div class="panel">
+
+            <div id="leaderboardResults">
+              Loading leaderboard...
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- ==============================
+             ADMIN
+             ============================== -->
+
+        <section
+          id="screen-admin"
+          class="screen hidden">
+
+          <div class="page-header">
+
+            <div>
+
+              <h2>
+                Admin Panel
+              </h2>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="adminResults"
+            class="panel">
+
+            Loading...
+
+          </div>
+
+        </section>
+
+      </main>
+
+    </div>
+
+  </div>
+
+
+  <!-- ==========================================
+       CARD DETAIL MODAL
+       ========================================== -->
+
+  <div
+    id="cardDetailModal"
+    class="modal-backdrop hidden"
+    onclick="closeModalOnBackdrop(event, 'cardDetailModal')">
+
+    <div class="modal">
+
+      <div class="modal-header">
+
+        <h3>
+          Card Details
+        </h3>
+
+        <button
+          class="modal-close"
+          onclick="closeModal('cardDetailModal')">
+
+          ×
+
+        </button>
+
+      </div>
+
+      <div
+        id="cardDetailBody"
+        class="modal-body">
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button
+          class="btn"
+          onclick="closeModal('cardDetailModal')">
+
+          Close
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ==========================================
+       CARD DATA VIEWER MODAL
+       ========================================== -->
+
+  <div
+    id="cardDataModal"
+    class="modal-backdrop hidden"
+    onclick="closeModalOnBackdrop(event, 'cardDataModal')">
+
+    <div class="modal">
+
+      <div class="modal-header">
+        <h3>Card Data</h3>
+        <button class="modal-close" onclick="closeModal('cardDataModal')">×</button>
+      </div>
+
+      <div id="cardDataBody" class="modal-body"></div>
+
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal('cardDataModal')">Close</button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ==========================================
+       OWNERSHIP / COLLECTION MODAL
+       ========================================== -->
+
+  <div
+    id="ownershipModal"
+    class="modal-backdrop hidden"
+    onclick="closeModalOnBackdrop(event, 'ownershipModal')">
+
+    <div class="modal modal-large">
+
+      <div class="modal-header">
+        <div>
+          <h3 id="ownershipModalTitle">Add To My Collection</h3>
+          <div id="ownershipCardName" style="font-size:13px;color:var(--muted);margin-top:4px;"></div>
+        </div>
+        <button type="button" class="modal-close" onclick="closeModal('ownershipModal')">×</button>
+      </div>
+
+      <form id="ownershipForm">
+        <div class="modal-body">
+          <div class="form-grid">
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipQuantity">Quantity</label>
+              <input id="ownershipQuantity" class="field" type="number" min="1" step="1" value="1" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipPossession">Possession</label>
+              <select id="ownershipPossession" class="field">
+                <option value="Collection">Collection</option>
+                <option value="For Sale">For Sale</option>
+                <option value="Sold">Sold</option>
+                <option value="Traded">Traded</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipValue">Current Value</label>
+              <input id="ownershipValue" class="field" type="number" min="0" step="0.01" placeholder="Optional">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipGrade">Grade</label>
+              <input id="ownershipGrade" class="field" type="text" placeholder="e.g. 10">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipGradingCompany">Grading Company</label>
+              <input id="ownershipGradingCompany" class="field" type="text" placeholder="PSA, SGC, BGS...">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipForSalePrice">For Sale Price</label>
+              <input id="ownershipForSalePrice" class="field" type="number" min="0" step="0.01" placeholder="Optional">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipPurchasePrice">Purchase Price</label>
+              <input id="ownershipPurchasePrice" class="field" type="number" min="0" step="0.01" placeholder="Optional">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipPurchaseDate">Purchase Date</label>
+              <input id="ownershipPurchaseDate" class="field" type="date">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipPurchaseSeller">Purchase Seller</label>
+              <input id="ownershipPurchaseSeller" class="field" type="text" placeholder="Optional">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipSoldPrice">Sold Price</label>
+              <input id="ownershipSoldPrice" class="field" type="number" min="0" step="0.01" placeholder="Optional">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipSoldDate">Sold Date</label>
+              <input id="ownershipSoldDate" class="field" type="date">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipTradedWith">Traded With</label>
+              <input id="ownershipTradedWith" class="field" type="text" placeholder="Optional">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ownershipTradeDate">Trade Date</label>
+              <input id="ownershipTradeDate" class="field" type="date">
+            </div>
+
+            <div class="form-group full">
+              <label class="form-label" for="ownershipNotes">Notes</label>
+              <textarea id="ownershipNotes" class="field" rows="4" placeholder="Optional notes about your copy of this card"></textarea>
+            </div>
+
+          </div>
+
+          <div class="panel" style="margin-top:18px;box-shadow:none;">
+            <strong>One card, multiple copies</strong>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeModal('ownershipModal')">Cancel</button>
+          <button id="saveOwnershipButton" type="submit" class="btn btn-primary">Save To Collection</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+
+  <!-- ==========================================
+       ADD CARD MODAL
+       ========================================== -->
+
+  <div
+    id="addCardModal"
+    class="modal-backdrop hidden"
+    onclick="closeModalOnBackdrop(event, 'addCardModal')">
+
+    <div class="modal modal-large">
+
+      <div class="modal-header">
+        <h3 id="addCardModalTitle">Add Card</h3>
+        <button class="modal-close" onclick="closeModal('addCardModal')">×</button>
+      </div>
+
+      <form id="addCardForm" onsubmit="saveNewCard(event)">
+
+        <div class="modal-body">
+
+          <!-- CHOICE SCREEN -->
+          <div id="addCardChoiceMode">
+
+            <div class="panel" style="box-shadow:none;margin:0 0 18px;">
+              <strong>How would you like to add this card?</strong>
+            </div>
+
+            <div class="simple-add-choice-grid">
+
+              <button type="button" class="simple-add-option" onclick="showAddCardMode('photo')">
+                <div class="simple-add-option-icon">📷</div>
+                <div class="simple-add-option-title">Add Photo</div>
+              </button>
+
+              <button type="button" class="simple-add-option" onclick="showAddCardMode('library')">
+                <div class="simple-add-option-icon">📚</div>
+                <div class="simple-add-option-title">Choose From Library</div>
+              </button>
+
+              <button type="button" class="simple-add-option" onclick="showAddCardMode('manual')">
+                <div class="simple-add-option-icon">✏️</div>
+                <div class="simple-add-option-title">Enter Manually</div>
+              </button>
+
+            </div>
+          </div>
+
+          <!-- PHOTO MODE -->
+          <div id="addCardPhotoMode" class="hidden">
+
+            <button type="button" class="btn" onclick="showAddCardMode('choice')">
+              ← Back
+            </button>
+
+            <div class="simple-add-photo-box" style="margin-top:14px;">
+              <div style="font-size:34px;">📷</div>
+              <strong>Take or choose a card photo</strong>
+              <div style="font-size:12px;color:var(--muted);margin:6px 0 14px;">
+                A clear photo of the front works best.
+              </div>
+
+              <input
+                id="addCardPhoto"
+                class="field"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onchange="previewAddCardPhoto(event)">
+
+              <label class="form-label" for="addCardBackPhoto" style="display:block;margin-top:12px;">Back of card (optional, improves identification)</label>
+              <input
+                id="addCardBackPhoto"
+                class="field"
+                type="file"
+                accept="image/*">
+
+              <div id="addCardPhotoStatus" style="font-size:12px;color:var(--muted);margin-top:10px;"></div>
+
+              <img
+                id="addCardPhotoPreview"
+                class="simple-add-photo-preview hidden"
+                alt="Card preview">
+            </div>
+
+            <button
+              type="button"
+              id="identifyNewCardButton"
+              class="btn btn-primary"
+              onclick="identifyNewCardPhoto()">
+              Identify Card
+            </button>
+
+          </div>
+
+          <!-- LIBRARY MODE -->
+          <div id="addCardLibraryMode" class="hidden">
+
+            <button type="button" class="btn" onclick="showAddCardMode('choice')">
+              ← Back
+            </button>
+
+            <div class="form-group" style="margin-top:14px;">
+              <label class="form-label">Search Card Library</label>
+              <input
+                id="addCardLibrarySearch"
+                class="field"
+                type="search"
+                placeholder="Player, card number, set, brand, year..."
+                oninput="searchAddCardLibrary()">
+            </div>
+
+            <div id="addCardLibraryResults" class="simple-add-library-results">
+              <div class="empty-state">
+                Start typing to search the catalog.
+              </div>
+            </div>
+
+          </div>
+
+          <!-- MANUAL / REVIEW MODE -->
+          <div id="addCardManualMode" class="hidden">
+
+            <button type="button" class="btn" onclick="showAddCardMode('choice')">
+              ← Back
+            </button>
+
+            <div class="panel" style="box-shadow:none;margin:14px 0 15px;">
+              <strong>Card Information</strong>
+              <div id="addCardCatalogLockNote" class="catalog-lock-note hidden">
+                Catalog information is locked because this card came from the master catalog.
+              </div>
+            </div>
+
+            <div class="panel" style="box-shadow:none;margin:0 0 12px;">
+              <strong>Shared Card Details</strong>
+              <p class="muted" style="margin:5px 0 0;">These details describe the card itself and are shared in the catalog for every collector.</p>
+            </div>
+
+            <div class="simple-add-manual-grid">
+              <div class="form-group full"><label class="form-label">Player / Card Name *</label><input id="addCardName" class="field" type="text" required></div>
+              <div class="form-group"><label class="form-label">Sport</label><input id="addCardSport" class="field" type="text" placeholder="Baseball, Football, UFC..."></div>
+              <div class="form-group"><label class="form-label">Team / Organization</label><input id="addCardTeam" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Year</label><input id="addCardYear" class="field" type="number" min="1800" max="2100"></div>
+              <div class="form-group"><label class="form-label">Card Number</label><input id="addCardNumber" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Series / Subset</label><input id="addCardSeries" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Brand / Manufacturer</label><input id="addCardBrand" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Set Name</label><input id="addCardSetName" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Parallel / Variation</label><input id="addCardParallel" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Player Position</label><input id="addCardPosition" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Weight Division (combat sports)</label><input id="addCardWeightDivision" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Serial Numbering</label><input id="addCardSerialNumbering" class="field" type="text" placeholder="e.g. 12/99"></div>
+              <div class="form-group"><label class="form-label">Print Run</label><input id="addCardPrintRun" class="field" type="number" min="1"></div>
+              <div class="form-group"><label class="form-label">Barcode (if present)</label><input id="addCardBarcode" class="field" type="text"></div>
+              <div class="form-group full"><label class="form-label">Other card-identification notes</label><textarea id="addCardNotes" class="field" rows="2" placeholder="Only facts about the card itself, not your purchase or ownership."></textarea></div>
+            </div>
+
+            <div class="panel" style="box-shadow:none;margin:18px 0 12px;">
+              <strong>Card Features</strong>
+              <p class="muted" style="margin:5px 0 0;">Select only features confirmed on the card.</p>
+            </div>
+            <div class="simple-add-manual-grid">
+              <label class="form-group"><span class="form-label">Numbered / serial-numbered</span><input id="addCardNumbered" type="checkbox"></label>
+              <label class="form-group"><span class="form-label">Rookie card</span><input id="addCardRookie" type="checkbox"></label>
+              <label class="form-group"><span class="form-label">Patch / memorabilia</span><input id="addCardPatch" type="checkbox"></label>
+              <label class="form-group"><span class="form-label">Autographed</span><input id="addCardAutographed" type="checkbox"></label>
+              <label class="form-group"><span class="form-label">Relic</span><input id="addCardRelic" type="checkbox"></label>
+              <label class="form-group"><span class="form-label">Insert card</span><input id="addCardInsertCard" type="checkbox"></label>
+              <label class="form-group"><span class="form-label">Short print</span><input id="addCardShortPrint" type="checkbox"></label>
+              <label class="form-group"><span class="form-label">Variation</span><input id="addCardVariation" type="checkbox"></label>
+            </div>
+
+            <div class="panel" style="box-shadow:none;margin:20px 0 12px;">
+              <strong>Your Copy / Ownership Details</strong>
+              <p class="muted" style="margin:5px 0 0;">These details are private to your collection and do not change the shared card catalog.</p>
+            </div>
+            <div class="simple-add-manual-grid">
+              <div class="form-group"><label class="form-label">Condition / Grade</label><input id="addCardGrade" class="field" type="text" placeholder="Raw, PSA 10, SGC 9.5..."></div>
+              <div class="form-group"><label class="form-label">Quantity Owned</label><input id="addCardQuantity" class="field" type="number" min="0" step="1" value="1"></div>
+              <div class="form-group"><label class="form-label">Possession Status</label><select id="addCardPossession" class="field"><option value="Collection">Collection</option><option value="For Sale">For Sale</option><option value="Sold">Sold</option><option value="Traded">Traded</option></select></div>
+              <div class="form-group"><label class="form-label">Purchase Price</label><input id="addCardPurchasePrice" class="field" type="number" min="0" step="0.01" placeholder="0.00"></div>
+              <div class="form-group"><label class="form-label">Purchase Date</label><input id="addCardPurchaseDate" class="field" type="date"></div>
+              <div class="form-group"><label class="form-label">Purchased From</label><input id="addCardPurchaseSeller" class="field" type="text" placeholder="Store, seller, show..."></div>
+              <div class="form-group"><label class="form-label">Your Asking Price (if for sale)</label><input id="addCardForSalePrice" class="field" type="number" min="0" step="0.01" placeholder="0.00"></div>
+              <div class="form-group"><label class="form-label">Sold Price (if sold)</label><input id="addCardSoldPrice" class="field" type="number" min="0" step="0.01" placeholder="0.00"></div>
+              <div class="form-group"><label class="form-label">Sold Date</label><input id="addCardSoldDate" class="field" type="date"></div>
+              <div class="form-group"><label class="form-label">Traded With</label><input id="addCardTradedWith" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Trade Date</label><input id="addCardTradeDate" class="field" type="date"></div>
+              <div class="form-group full"><label class="form-label">Your Private Notes</label><textarea id="addCardPersonalNotes" class="field" rows="3" placeholder="What you paid, condition details, where it is stored, trade details, etc."></textarea></div>
             </div>
 
             <!-- Legacy fields kept so existing save/edit logic continues to work. -->
@@ -9335,12 +10534,7 @@ function buildOwnershipData() {
     traded_with: tradedWith || null,
     trade_date: tradeDate,
     notes:
-      clean(
-        getFieldValue(
-          "cardNotes",
-          "addCardNotes"
-        )
-      ) || null
+      clean(getFieldValue("cardPersonalNotes", "addCardPersonalNotes")) || null
   };
 }
 
