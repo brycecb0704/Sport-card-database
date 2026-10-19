@@ -8428,7 +8428,7 @@ function copyPhotoToOwnedField(file) {
   }
 }
 
-async function identifyNewCardPhoto() {
+async async function identifyNewCardPhoto() {
   const input = document.getElementById("addCardPhoto");
   const file = input?.files?.[0];
   const backFile = document.getElementById("addCardBackPhoto")?.files?.[0] || null;
@@ -9553,7 +9553,7 @@ async function saveOwnershipRecord(
 // SAVE CARD
 // ============================================================
 
-async function saveCardFromForm(event) {
+async async function saveCardFromForm(event) {
   const wasEditingExistingCard = !!editingCardId;
   if (event) {
     event.preventDefault();
