@@ -774,14 +774,14 @@ Deno.serve(async (request: Request) => {
           const payload = await response.json();
           const rows = Array.isArray(payload?.data) ? payload.data : [];
           const matches = rows.filter((row: Record<string, any>) => {
-            const rowPlayer = String(row.player ?? row.player_name ?? row.playerName ?? "");
-            const rowTitle = String(row.name ?? row.title ?? "");
+            const rowPlayer = String(row.player_name ?? row.playerName ?? row.player ?? row.player_name_full ?? "");
+            const rowTitle = String(row.card_name ?? row.name ?? row.title ?? row.full_name ?? "");
             const rowYear = String(row.year ?? "");
-            const rowNumber = String(row.cardNumber ?? row.card_number ?? row.card_number_text ?? row.number ?? "").trim().replace(/^#\s*/, "").replace(/\s+/g, "").toLowerCase();
+            const rowNumber = String(row.cardNumber ?? row.card_number ?? row.card_number_text ?? row.collector_number ?? row.collectorNumber ?? row.number ?? row.card_no ?? "").trim().replace(/^#\s*/, "").replace(/\s+/g, "").toLowerCase();
             const targetNumber = cardNumber.replace(/^#\s*/, "").replace(/\s+/g, "").toLowerCase();
-            const rowSet = String(row.set ?? row.setName ?? row.set_name ?? row.series ?? "");
+            const rowSet = String(row.set_name ?? row.setName ?? row.set ?? row.series ?? row.card_set ?? "");
             const rowBrand = String(row.manufacturer ?? row.brand ?? "");
-            const price = parseMoney(row.current_price ?? row.currentPrice ?? row.price ?? row.market_price);
+            const price = parseMoney(row.current_price ?? row.currentPrice ?? row.market_price ?? row.marketPrice ?? row.price_usd ?? row.priceUsd ?? row.estimated_value ?? row.price);
             const playerMatches =
               normalize(rowPlayer) === normalize(person) ||
               (!rowPlayer && phraseInTitle(rowTitle, person));
@@ -879,7 +879,7 @@ Deno.serve(async (request: Request) => {
 
     if (!hasEbayCredentials) {
       return jsonResponse({
-        error: "Soldgraph did not return enough reliable matching sales, and eBay fallback is not configured. Check Soldgraph logs and the card's set/year/card number.",
+        error: "CardPricer did not return a verified reference match, and eBay active-listing fallback is not configured. Check the card's year, set, and card number, or configure the eBay credentials.",
       }, 502);
     }
 
