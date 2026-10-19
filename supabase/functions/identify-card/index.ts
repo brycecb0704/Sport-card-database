@@ -104,33 +104,26 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ error: "The photo set is too large to identify. Try smaller photos or screenshots." }, 413);
   }
 
-  const prompt = `You are reading a sports/trading card from photo(s). Return ONLY a JSON object, no markdown fences or commentary.
+  const prompt = `You are reading a sports/trading card from photo(s). Return ONLY a JSON object, no other text, no markdown fences.
 
-This is the same identification approach that worked in the earlier Apps Script version. Read printed text, not just the player pictured. The first image is the FRONT. If present, the second image is the BACK of the SAME card.
-
-Fields to return:
+Fields to return (use "" for anything you cannot determine, never guess):
 {
-  "name": "player's full name",
-  "sport": "Baseball | Football | Basketball | Hockey | Soccer | UFC | Boxing | Racing | Wrestling | Other",
-  "team": "team name if shown",
-  "position": "position if shown",
-  "weight_division": "combat sports weight division if shown",
-  "card_number": "card number exactly as printed, including letters and symbols",
-  "card_series": "specific product line, such as Chrome, Prizm, Optic",
-  "card_brand": "manufacturer such as Topps, Bowman, Panini, Upper Deck",
-  "year_made": "printed copyright/release year, numbers only; do not confuse with stats seasons",
-  "parallel": "specific parallel only if visible; blank for a plain base card or if uncertain",
-  "set_name": "full set name if shown or confidently identifiable",
-  "barcode": "barcode text only if readable",
-  "numbered": true only if serial numbering is visible,
-  "rookie": true only if an RC logo or rookie marking is visible,
-  "patch": true only if a fabric/relic patch is visible,
-  "autographed": true only if an autograph is visible,
-  "confidence": "high, medium, or low",
-  "notes": "briefly explain uncertainty or fields the user should verify"
-}
+  "Name": "player's full name",
+  "Sport": "Baseball | Football | Basketball | Hockey | Soccer | UFC | Boxing | Racing | Wrestling | Other",
+  "Team": "team name if shown",
+  "Position": "player's position if shown on the card, e.g. Outfielder, Quarterback, Point Guard",
+  "Card Number": "the card number, usually preceded by # on the card",
+  "Card Series": "the specific product line, e.g. Chrome, Prizm, Optic",
+  "Card Brand": "Topps, Panini, Upper Deck, etc.",
+  "Year Made": "the year printed on the card, numbers only",
+  "Parallel": "e.g. Refractor, Aqua Refractor, Silver, Gold, Base - leave blank if it's a plain base card",
+  "Numbered": "e.g. /99, /25, 1/1 - leave blank if not numbered",
+  "Rookie": "Yes, No, or Unknown - only Yes if you see an RC logo or rookie marking",
+  "Patch": "Yes, No, or Unknown - Yes only if you see a visible fabric/jersey patch",
+  "Autographed": "Yes, No, or Unknown - Yes only if you see a visible autograph",
+  "Set Name": "the full set name if shown"
+}`;
 
-Do not guess any unreadable field. Use empty strings for unknown text and false for unconfirmed yes/no fields. Use the back to identify the card number, year, manufacturer, series, and set. Do not call a reflective finish a named parallel unless visible evidence supports it. Return all requested fields. Front filename: ${String(payload.file_name || "").slice(0, 120)}. Back filename: ${String(payload.back_file_name || "").slice(0, 120)}.`;
 
   try {
     let aiResult: any = null;
@@ -160,10 +153,8 @@ Do not guess any unreadable field. Use empty strings for unknown text and false 
               ],
             }],
             generationConfig: {
-              responseMimeType: "application/json",
-              responseSchema: cardSchema,
-              temperature: 0.1,
-              maxOutputTokens: 1200,
+              maxOutputTokens: 2048,
+              thinkingConfig: { thinkingBudget: 0 },
             },
           }),
         },
@@ -209,26 +200,26 @@ Do not guess any unreadable field. Use empty strings for unknown text and false 
 
     // Normalize values to the exact shape expected by the existing website form.
     const normalized = {
-      name: String(card.name || ""),
-      sport: String(card.sport || ""),
-      team: String(card.team || ""),
-      position: String(card.position || ""),
-      weight_division: String(card.weight_division || ""),
-      card_number: String(card.card_number || ""),
-      card_series: String(card.card_series || ""),
-      card_brand: String(card.card_brand || ""),
-      year_made: String(card.year_made || ""),
-      parallel: String(card.parallel || ""),
-      set_name: String(card.set_name || ""),
-      barcode: String(card.barcode || ""),
-      numbered: card.numbered === true,
-      rookie: card.rookie === true,
-      patch: card.patch === true,
-      autographed: card.autographed === true,
-      confidence: ["high", "medium", "low"].includes(String(card.confidence).toLowerCase())
+      name: String(card["Name"] || card.name || ""),
+      sport: String(card["Sport"] || card.sport || ""),
+      team: String(card["Team"] || card.team || ""),
+      position: String(card["Position"] || card.position || ""),
+      weight_division: String(card["Weight Division"] || card.weight_division || ""),
+      card_number: String(card["Card Number"] || card.card_number || ""),
+      card_series: String(card["Card Series"] || card.card_series || ""),
+      card_brand: String(card["Card Brand"] || card.card_brand || ""),
+      year_made: String(card["Year Made"] || card.year_made || ""),
+      parallel: String(card["Parallel"] || card.parallel || ""),
+      set_name: String(card["Set Name"] || card.set_name || ""),
+      barcode: String(card["Barcode"] || card.barcode || ""),
+      numbered: card["Numbered"] === true || card["Numbered"] === "Yes" || card.numbered === true,
+      rookie: card["Rookie"] === true || card["Rookie"] === "Yes" || card.rookie === true,
+      patch: card["Patch"] === true || card["Patch"] === "Yes" || card.patch === true,
+      autographed: card["Autographed"] === true || card["Autographed"] === "Yes" || card.autographed === true,
+      confidence: ["high", "medium", "low"].includes(String(card.confidence || "").toLowerCase())
         ? String(card.confidence).toLowerCase()
-        : "low",
-      notes: String(card.notes || ""),
+        : "medium",
+      notes: String(card.notes || card["Notes"] || ""),
     };
 
     if (!normalized.name && !normalized.card_brand && !normalized.set_name && !normalized.card_number) {
