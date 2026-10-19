@@ -104,71 +104,107 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ error: "The photo set is too large to identify. Try smaller photos or screenshots." }, 413);
   }
 
-  const prompt = `You identify sports trading cards from photos for a card catalog.
-The first image is the FRONT of one card. If a second image is present, it is the BACK of the SAME card. Use both images together.
-Prioritize readable printed text and visible card design over guesses from the player's appearance. Use the back to confirm the card number, copyright/release year, manufacturer, set, and player name when visible.
-Read only details supported by the images. Do not invent a set, year, parallel, card number, or player identity.
-Use empty strings for unreadable or unknown text. Distinguish the card's printed copyright/release year from statistics seasons.
-Distinguish manufacturer/brand from set/series. Identify a parallel only when visibly supported by text or clear visual evidence; do not assume a foil-looking card is a named parallel from lighting alone.
-Set numbered, rookie, patch, and autographed to true only when clearly supported by visible evidence; otherwise false.
-If details conflict or the photo is unclear, return the readable fields, set confidence to low, and explain what needs checking in notes.
-Return only the requested structured JSON. Front filename: ${String(payload.file_name || "").slice(0, 120)}. Back filename: ${String(payload.back_file_name || "").slice(0, 120)}.`;
+  const prompt = `You are reading a sports/trading card from photo(s). Return ONLY a JSON object, no markdown fences or commentary.
+
+This is the same identification approach that worked in the earlier Apps Script version. Read printed text, not just the player pictured. The first image is the FRONT. If present, the second image is the BACK of the SAME card.
+
+Fields to return:
+{
+  "name": "player's full name",
+  "sport": "Baseball | Football | Basketball | Hockey | Soccer | UFC | Boxing | Racing | Wrestling | Other",
+  "team": "team name if shown",
+  "position": "position if shown",
+  "weight_division": "combat sports weight division if shown",
+  "card_number": "card number exactly as printed, including letters and symbols",
+  "card_series": "specific product line, such as Chrome, Prizm, Optic",
+  "card_brand": "manufacturer such as Topps, Bowman, Panini, Upper Deck",
+  "year_made": "printed copyright/release year, numbers only; do not confuse with stats seasons",
+  "parallel": "specific parallel only if visible; blank for a plain base card or if uncertain",
+  "set_name": "full set name if shown or confidently identifiable",
+  "barcode": "barcode text only if readable",
+  "numbered": true only if serial numbering is visible,
+  "rookie": true only if an RC logo or rookie marking is visible,
+  "patch": true only if a fabric/relic patch is visible,
+  "autographed": true only if an autograph is visible,
+  "confidence": "high, medium, or low",
+  "notes": "briefly explain uncertainty or fields the user should verify"
+}
+
+Do not guess any unreadable field. Use empty strings for unknown text and false for unconfirmed yes/no fields. Use the back to identify the card number, year, manufacturer, series, and set. Do not call a reflective finish a named parallel unless visible evidence supports it. Return all requested fields. Front filename: ${String(payload.file_name || "").slice(0, 120)}. Back filename: ${String(payload.back_file_name || "").slice(0, 120)}.`;
 
   try {
-    const aiResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": geminiApiKey,
-        },
-        body: JSON.stringify({
-          contents: [{
-            role: "user",
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: mimeType, data: image } },
-              ...(backImage ? [
-                { text: "BACK OF THE SAME CARD:" },
-                { inline_data: { mime_type: backMimeType, data: backImage } },
-              ] : []),
-            ],
-          }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: cardSchema,
-            temperature: 0.1,
-            maxOutputTokens: 700,
+    let aiResult: any = null;
+    let lastStatus = 0;
+    let lastError = "";
+    // The old working Apps Script retried temporary Gemini busy/rate-limit errors.
+    // Keep that resilience here without changing the website's API contract.
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const aiResponse = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": geminiApiKey,
           },
-        }),
-      },
-    );
+          body: JSON.stringify({
+            contents: [{
+              role: "user",
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: mimeType, data: image } },
+                ...(backImage ? [
+                  { text: "This is the BACK of the SAME card. Use it to read the printed number/year/set:" },
+                  { inline_data: { mime_type: backMimeType, data: backImage } },
+                ] : []),
+              ],
+            }],
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: cardSchema,
+              temperature: 0.1,
+              maxOutputTokens: 1200,
+            },
+          }),
+        },
+      );
 
-    const aiResult = await aiResponse.json().catch(() => ({}));
-    if (!aiResponse.ok) {
-      console.error("Gemini identification request failed:", aiResponse.status, aiResult);
-      if (aiResponse.status === 429) {
-        return jsonResponse({ error: "The free AI request limit was reached. Wait a little and try again." }, 429);
+      lastStatus = aiResponse.status;
+      const responseText = await aiResponse.text();
+      try { aiResult = JSON.parse(responseText); } catch { aiResult = { raw_response: responseText.slice(0, 1000) }; }
+      if (aiResponse.ok) break;
+
+      lastError = String(aiResult?.error?.message || aiResult?.message || "Gemini request failed");
+      console.error("Gemini identification request failed:", lastStatus, lastError.slice(0, 400));
+      if ((lastStatus === 429 || lastStatus === 503) && attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        continue;
       }
-      return jsonResponse({ error: "The card-identification service could not process that photo. Please try a clearer image." }, 502);
+      if (lastStatus === 429) {
+        return jsonResponse({ error: "Gemini is rate-limiting card identification right now. Wait briefly and try again." }, 429);
+      }
+      return jsonResponse({ error: "Gemini request failed (" + lastStatus + "): " + lastError.slice(0, 220) }, 502);
     }
 
     const generatedText = aiResult?.candidates?.[0]?.content?.parts
       ?.map((part: { text?: string }) => part.text || "")
       .join("")
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
       .trim();
 
     if (!generatedText) {
-      return jsonResponse({ error: "The AI could not read that card. Try a clearer photo with the card filling the frame." }, 422);
+      const finishReason = String(aiResult?.candidates?.[0]?.finishReason || "");
+      console.error("Gemini returned no identification text. Finish reason:", finishReason);
+      return jsonResponse({ error: "Gemini returned no card details" + (finishReason ? " (reason: " + finishReason + ")" : "") + ". Try a clear, straight-on photo." }, 422);
     }
 
     let card: Record<string, unknown>;
     try {
       card = JSON.parse(generatedText);
     } catch {
-      console.error("Gemini returned non-JSON identification output.");
-      return jsonResponse({ error: "The identification service returned an unreadable result. Please try again." }, 502);
+      console.error("Gemini returned non-JSON identification output:", generatedText.slice(0, 500));
+      return jsonResponse({ error: "Gemini returned card details in an unreadable format. Please try again." }, 502);
     }
 
     // Normalize values to the exact shape expected by the existing website form.
@@ -189,15 +225,15 @@ Return only the requested structured JSON. Front filename: ${String(payload.file
       rookie: card.rookie === true,
       patch: card.patch === true,
       autographed: card.autographed === true,
-      confidence: ["high", "medium", "low"].includes(String(card.confidence))
-        ? String(card.confidence)
+      confidence: ["high", "medium", "low"].includes(String(card.confidence).toLowerCase())
+        ? String(card.confidence).toLowerCase()
         : "low",
       notes: String(card.notes || ""),
     };
 
-    if (!normalized.name && !normalized.card_brand && !normalized.set_name) {
+    if (!normalized.name && !normalized.card_brand && !normalized.set_name && !normalized.card_number) {
       return jsonResponse({
-        error: "I couldn't identify enough details from that photo. Try a clear, straight-on photo of the front of the card.",
+        error: "I couldn't identify enough details from that photo. Try a clear, straight-on photo of the front and back of the card.",
       }, 422);
     }
 
