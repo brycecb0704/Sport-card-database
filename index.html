@@ -9756,6 +9756,43 @@ async function saveCardFromForm(event) {
             clean(cardData.sport).toLowerCase()
         );
 
+      let teamId = null;
+      if (cardData.team) {
+        const teamLookup = await supabaseClient.from("teams").select("id").ilike("name", cardData.team).limit(1).maybeSingle();
+        if (teamLookup.error) throw teamLookup.error;
+        if (teamLookup.data) teamId = teamLookup.data.id;
+        else {
+          const teamInsert = await supabaseClient.from("teams").insert({ name: cardData.team, sport_id: sport?.id || null }).select("id").single();
+          if (teamInsert.error) {
+            // A concurrent insert may have created the team between lookup and insert.
+            const retryTeam = await supabaseClient.from("teams").select("id").ilike("name", cardData.team).limit(1).maybeSingle();
+            if (retryTeam.error || !retryTeam.data) throw teamInsert.error;
+            teamId = retryTeam.data.id;
+          } else teamId = teamInsert.data.id;
+        }
+      }
+
+      let playerId = null;
+      if (cardData.name) {
+        const playerLookup = await supabaseClient.from("players").select("id").ilike("name", cardData.name).limit(1).maybeSingle();
+        if (playerLookup.error) throw playerLookup.error;
+        if (playerLookup.data) playerId = playerLookup.data.id;
+        else {
+          const playerInsert = await supabaseClient.from("players").insert({
+            name: cardData.name,
+            sport_id: sport?.id || null,
+            team_id: teamId,
+            position: cardData.position || null,
+            weight_division: cardData.weightDivision || null
+          }).select("id").single();
+          if (playerInsert.error) {
+            const retryPlayer = await supabaseClient.from("players").select("id").ilike("name", cardData.name).limit(1).maybeSingle();
+            if (retryPlayer.error || !retryPlayer.data) throw playerInsert.error;
+            playerId = retryPlayer.data.id;
+          } else playerId = playerInsert.data.id;
+        }
+      }
+
       const cardRecord = {
         name: cardData.name,
         card_id:
@@ -9772,6 +9809,10 @@ async function saveCardFromForm(event) {
         card_number: cardData.cardNumber || null,
         card_set_id: cardSet?.id || null,
         sport_id: sport?.id || null,
+        player_id: playerId,
+        team_id: teamId,
+        position: cardData.position || null,
+        weight_division: cardData.weightDivision || null,
         year_made: cardData.year,
         card_series: cardData.series || null,
         card_brand: cardData.brand || null,
@@ -11079,160 +11120,58 @@ async function fileToBase64(file) {
 // FILL CARD FORM FROM AI
 // ============================================================
 
-function fillCardFormFromAI(
-  data
-) {
-  setFieldValue(
-    data.name,
-    "cardName",
-    "addCardName"
-  );
-
-  setFieldValue(
-    data.sport,
-    "cardSport",
-    "addCardSport"
-  );
-
-  setFieldValue(
-    data.team,
-    "cardTeam",
-    "addCardTeam"
-  );
-
-  setFieldValue(
-    data["Team"],
-    "cardTeam",
-    "addCardTeam"
-  );
-
-  setFieldValue(
-    data.position,
-    "cardPosition",
-    "addCardPosition"
-  );
-
-  setFieldValue(
-    data["Position"],
-    "cardPosition",
-    "addCardPosition"
-  );
-
-  setFieldValue(
-    data["Weight Division"],
-    "cardWeightDivision",
-    "addCardWeightDivision"
-  );
-
-  setFieldValue(
-    data.weight_division,
-    "cardWeightDivision",
-    "addCardWeightDivision"
-  );
-
-  setFieldValue(
-    data["Card Number"],
-    "cardNumber",
-    "addCardNumber"
-  );
-
-  setFieldValue(
-    data.card_number,
-    "cardNumber",
-    "addCardNumber"
-  );
-
-  setFieldValue(
-    data["Card Series"],
-    "cardSeries",
-    "addCardSeries"
-  );
-
-  setFieldValue(
-    data.card_series,
-    "cardSeries",
-    "addCardSeries"
-  );
-
-  setFieldValue(
-    data["Card Brand"],
-    "cardBrand",
-    "addCardBrand"
-  );
-
-  setFieldValue(
-    data.card_brand,
-    "cardBrand",
-    "addCardBrand"
-  );
-
-  setFieldValue(
-    data["Year Made"],
-    "cardYear",
-    "addCardYear"
-  );
-
-  setFieldValue(
-    data.year_made,
-    "cardYear",
-    "addCardYear"
-  );
-
-  setFieldValue(
-    data.parallel,
-    "cardParallel",
-    "addCardParallel"
-  );
-
-  setFieldValue(
-    data["Parallel"],
-    "cardParallel",
-    "addCardParallel"
-  );
-
-  setFieldValue(
-    data["Set Name"],
-    "cardSetName",
-    "addCardSetName"
-  );
-
-  setFieldValue(
-    data.set_name,
-    "cardSetName",
-    "addCardSetName"
-  );
-
-  setFieldValue(
-    data.barcode,
-    "cardBarcode",
-    "addCardBarcode"
-  );
-
-  setFieldChecked(
-    data.numbered,
-    "cardNumbered",
-    "addCardNumbered"
-  );
-
-  setFieldChecked(
-    data.rookie,
-    "cardRookie",
-    "addCardRookie"
-  );
-
-  setFieldChecked(
-    data.patch,
-    "cardPatch",
-    "addCardPatch"
-  );
-
-  setFieldChecked(
-    data.autographed,
-    "cardAutographed",
-    "addCardAutographed"
-  );
+function firstCardValue(data, ...keys) {
+  for (const key of keys) {
+    const value = data?.[key];
+    if (value !== null && value !== undefined && String(value).trim() !== "") return value;
+  }
+  return "";
 }
 
+function fillCardFormFromAI(data = {}) {
+  // The recognizer may return the original Apps Script title-case fields,
+  // snake_case fields, or camelCase aliases. Never let an empty alias
+  // overwrite a value already extracted from the image.
+  const aliases = {
+    name: ["name", "Name", "player", "Player", "player_name"],
+    sport: ["sport", "Sport"],
+    team: ["team", "Team", "team_name"],
+    position: ["position", "Position"],
+    weightDivision: ["weight_division", "Weight Division", "weightDivision"],
+    cardNumber: ["card_number", "Card Number", "cardNumber", "number", "Number"],
+    series: ["card_series", "Card Series", "cardSeries", "series", "Series"],
+    brand: ["card_brand", "Card Brand", "cardBrand", "brand", "Brand"],
+    year: ["year_made", "Year Made", "yearMade", "year", "Year"],
+    parallel: ["parallel", "Parallel"],
+    setName: ["set_name", "Set Name", "setName", "set", "Set"],
+    barcode: ["barcode", "Barcode"],
+    notes: ["notes", "Notes", "description", "Description"]
+  };
+  const set = (field, ...keys) => setFieldValue(firstCardValue(data, ...keys), field, "addCard" + field[0].toUpperCase() + field.slice(1));
+  setFieldValue(firstCardValue(data, ...aliases.name), "cardName", "addCardName");
+  setFieldValue(firstCardValue(data, ...aliases.sport), "cardSport", "addCardSport");
+  setFieldValue(firstCardValue(data, ...aliases.team), "cardTeam", "addCardTeam");
+  setFieldValue(firstCardValue(data, ...aliases.position), "cardPosition", "addCardPosition");
+  setFieldValue(firstCardValue(data, ...aliases.weightDivision), "cardWeightDivision", "addCardWeightDivision");
+  setFieldValue(firstCardValue(data, ...aliases.cardNumber), "cardNumber", "addCardNumber");
+  setFieldValue(firstCardValue(data, ...aliases.series), "cardSeries", "addCardSeries");
+  setFieldValue(firstCardValue(data, ...aliases.brand), "cardBrand", "addCardBrand");
+  setFieldValue(firstCardValue(data, ...aliases.year), "cardYear", "addCardYear");
+  setFieldValue(firstCardValue(data, ...aliases.parallel), "cardParallel", "addCardParallel");
+  setFieldValue(firstCardValue(data, ...aliases.setName), "cardSetName", "addCardSetName");
+  setFieldValue(firstCardValue(data, ...aliases.barcode), "cardBarcode", "addCardBarcode");
+  setFieldValue(firstCardValue(data, ...aliases.notes), "cardNotes", "addCardNotes");
+
+  const truthy = value => value === true || /^(yes|true|1|y)$/i.test(String(value ?? "").trim());
+  setFieldChecked(truthy(firstCardValue(data, "numbered", "Numbered")), "cardNumbered", "addCardNumbered");
+  setFieldChecked(truthy(firstCardValue(data, "rookie", "Rookie")), "cardRookie", "addCardRookie");
+  setFieldChecked(truthy(firstCardValue(data, "patch", "Patch")), "cardPatch", "addCardPatch");
+  setFieldChecked(truthy(firstCardValue(data, "autographed", "Autographed", "autograph", "Autograph")), "cardAutographed", "addCardAutographed");
+
+  // If identification did not confidently read a year, do not invent one.
+  const yearField = findField("cardYear", "addCardYear");
+  if (yearField && yearField.value && !/^\d{4}$/.test(String(yearField.value).trim())) yearField.value = "";
+}
 
 // ============================================================
 // FILTER FOR SALE / SOLD / TRADED
