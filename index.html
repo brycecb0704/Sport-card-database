@@ -6852,7 +6852,7 @@ function getCurrentUserOwnershipSummary() {
                   <div class="price-box">
 
                     <div>
-                      <span>${price.source === "ebay_sold_comps" ? "Estimated Market Value (Sold Comps)" : price.source === "cardpricer_reference" ? "Estimated Reference Value (CardPricer)" : "Estimated Value (Active Listings)"}</span>
+                      <span>${Number(price.estimated_value) > 0 ? (price.source === "ebay_sold_comps" ? "Estimated Market Value (Sold Comps)" : price.source === "cardpricer_reference" ? "Estimated Reference Value (CardPricer)" : "Estimated Value (Active Listings)") : "Pricing Check — No Reliable Estimate"}</span>
                       <strong>
                         ${
                           Number(price.estimated_value) > 0
@@ -6866,8 +6866,9 @@ function getCurrentUserOwnershipSummary() {
                       <span>Confidence</span>
                       <strong>
                         ${escapeHtml(
-                          price.confidence ||
-                          "Unknown"
+                          Number(price.estimated_value) > 0
+                            ? (price.confidence ? String(price.confidence) + "/100" : "Unknown")
+                            : (price.confidence ? "Low (" + String(price.confidence) + "/100)" : "Unknown")
                         )}
                       </strong>
                     </div>
@@ -6888,14 +6889,14 @@ function getCurrentUserOwnershipSummary() {
                     </div>
 
                     ${
-                      Number(price.low_price) > 0 && Number(price.high_price) > 0
+                      Number(price.low_price) > 0 && Number(price.high_price) > 0 && Number(price.listing_count) > 1
                         ? "<div><span>Observed Range</span><strong>" + money(price.low_price) + "–" + money(price.high_price) + "</strong></div>"
                         : ""
                     }
 
                     ${
                       Number(price.listing_count) > 0
-                        ? "<div><span>Matched Listings</span><strong>" + escapeHtml(price.listing_count) + "</strong></div>"
+                        ? "<div><span>" + (Number(price.estimated_value) > 0 ? "Matched Listings" : "Listings Found (not enough to value)") + "</span><strong>" + escapeHtml(price.listing_count) + "</strong></div>"
                         : ""
                     }
 
