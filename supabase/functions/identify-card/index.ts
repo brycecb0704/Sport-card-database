@@ -81,7 +81,7 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ error: "Could not verify your sign-in. Please try again." }, 502);
   }
 
-  let payload: { image?: unknown; mime_type?: unknown; file_name?: unknown };
+  let payload: { image?: unknown; mime_type?: unknown; back_image?: unknown; back_mime_type?: unknown; file_name?: unknown; back_file_name?: unknown };
   try {
     payload = await request.json();
   } catch {
@@ -90,27 +90,33 @@ Deno.serve(async (request: Request) => {
 
   const image = typeof payload.image === "string" ? payload.image : "";
   const mimeType = typeof payload.mime_type === "string" ? payload.mime_type : "image/jpeg";
+  const backImage = typeof payload.back_image === "string" ? payload.back_image : "";
+  const backMimeType = typeof payload.back_mime_type === "string" ? payload.back_mime_type : "image/jpeg";
+  const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
   if (!image) {
     return jsonResponse({ error: "Please select a card photo first." }, 400);
   }
-  if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(mimeType)) {
-    return jsonResponse({ error: "Please use a JPG, PNG, WebP, or GIF image." }, 415);
+  if (!allowedMimeTypes.includes(mimeType) || (backImage && !allowedMimeTypes.includes(backMimeType))) {
+    return jsonResponse({ error: "Please use JPG, PNG, WebP, or GIF photos." }, 415);
   }
-  // Keep requests bounded; the website should resize photos before sending them.
-  if (image.length > 5_500_000) {
-    return jsonResponse({ error: "That photo is too large to identify. Try a smaller image or screenshot." }, 413);
+  // Bound each image and the combined payload to protect free-tier function limits.
+  if (image.length > 5_000_000 || backImage.length > 5_000_000 || image.length + backImage.length > 8_000_000) {
+    return jsonResponse({ error: "The photo set is too large to identify. Try smaller photos or screenshots." }, 413);
   }
 
   const prompt = `You identify sports trading cards from photos for a card catalog.
-Read only details supported by the image. Do not invent a set, year, parallel, card number, or player identity.
-Use empty strings for unreadable or unknown text. Set numbered, rookie, patch, and autographed to true only when clearly supported by visible evidence; otherwise false.
-For year_made, use the printed year or a release year only if you can confidently infer it from clear card branding. Do not confuse a player's statistics year with the card's year.
-Distinguish the manufacturer/brand from the set name. If multiple cards or a blurry image prevent reliable identification, use low confidence and explain in notes.
-Return only the requested structured JSON. Filename for context: ${String(payload.file_name || "").slice(0, 120)}.`;
+The first image is the FRONT of one card. If a second image is present, it is the BACK of the SAME card. Use both images together.
+Prioritize readable printed text and visible card design over guesses from the player's appearance. Use the back to confirm the card number, copyright/release year, manufacturer, set, and player name when visible.
+Read only details supported by the images. Do not invent a set, year, parallel, card number, or player identity.
+Use empty strings for unreadable or unknown text. Distinguish the card's printed copyright/release year from statistics seasons.
+Distinguish manufacturer/brand from set/series. Identify a parallel only when visibly supported by text or clear visual evidence; do not assume a foil-looking card is a named parallel from lighting alone.
+Set numbered, rookie, patch, and autographed to true only when clearly supported by visible evidence; otherwise false.
+If details conflict or the photo is unclear, return the readable fields, set confidence to low, and explain what needs checking in notes.
+Return only the requested structured JSON. Front filename: ${String(payload.file_name || "").slice(0, 120)}. Back filename: ${String(payload.back_file_name || "").slice(0, 120)}.`;
 
   try {
     const aiResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
       {
         method: "POST",
         headers: {
@@ -123,6 +129,10 @@ Return only the requested structured JSON. Filename for context: ${String(payloa
             parts: [
               { text: prompt },
               { inline_data: { mime_type: mimeType, data: image } },
+              ...(backImage ? [
+                { text: "BACK OF THE SAME CARD:" },
+                { inline_data: { mime_type: backMimeType, data: backImage } },
+              ] : []),
             ],
           }],
           generationConfig: {
