@@ -10328,6 +10328,12 @@ function buildCardData() {
     )
   );
 
+  const variant = clean(getFieldValue("cardVariant", "addCardVariant"));
+  const relic = getFieldChecked("cardRelic", "addCardRelic");
+  const insertCard = getFieldChecked("cardInsertCard", "addCardInsertCard");
+  const shortPrint = getFieldChecked("cardShortPrint", "addCardShortPrint");
+  const variation = getFieldChecked("cardVariation", "addCardVariation");
+
   const notes = clean(
     getFieldValue(
       "cardNotes",
@@ -10387,10 +10393,15 @@ function buildCardData() {
     serialNumbering,
     printRun,
     barcode,
+    variant,
     notes,
     numbered,
     rookie,
     patch,
+    relic,
+    insertCard,
+    shortPrint,
+    variation,
     autographed,
     identityKey
   };
@@ -12357,9 +12368,16 @@ function fillCardFormFromAI(data = {}) {
   setFieldValue(firstCardValue(data, ...aliases.notes), "cardNotes", "addCardNotes");
 
   const truthy = value => value === true || /^(yes|true|1|y)$/i.test(String(value ?? "").trim());
+  setFieldValue(firstCardValue(data, "serial_numbering", "Serial Numbering", "serialNumbering", "Numbered"), "cardSerialNumbering", "addCardSerialNumbering");
+  setFieldValue(firstCardValue(data, "print_run", "Print Run", "printRun"), "cardPrintRun", "addCardPrintRun");
+  setFieldValue(firstCardValue(data, "variant_type", "Variant Type", "variant", "Variant"), "cardVariant", "addCardVariant");
   setFieldChecked(truthy(firstCardValue(data, "numbered", "Numbered")), "cardNumbered", "addCardNumbered");
   setFieldChecked(truthy(firstCardValue(data, "rookie", "Rookie")), "cardRookie", "addCardRookie");
   setFieldChecked(truthy(firstCardValue(data, "patch", "Patch")), "cardPatch", "addCardPatch");
+  setFieldChecked(truthy(firstCardValue(data, "relic", "Relic")), "cardRelic", "addCardRelic");
+  setFieldChecked(truthy(firstCardValue(data, "insert_card", "Insert Card", "insertCard")), "cardInsertCard", "addCardInsertCard");
+  setFieldChecked(truthy(firstCardValue(data, "short_print", "Short Print", "shortPrint")), "cardShortPrint", "addCardShortPrint");
+  setFieldChecked(truthy(firstCardValue(data, "variation", "Variation")), "cardVariation", "addCardVariation");
   setFieldChecked(truthy(firstCardValue(data, "autographed", "Autographed", "autograph", "Autograph")), "cardAutographed", "addCardAutographed");
 
   // If identification did not confidently read a year, do not invent one.
