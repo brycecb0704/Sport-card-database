@@ -1,4 +1,4 @@
-// Sports Card Database — secure card-photo identification
+// Sports Card Database — secure card-photo identification (front/back support)
 // Deploy this file as the Supabase Edge Function named "identify-card".
 // Required Edge Function secret: GEMINI_API_KEY
 // Keep the Gemini key in Supabase secrets; never place it in index.html.
