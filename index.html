@@ -8428,7 +8428,7 @@ function copyPhotoToOwnedField(file) {
   }
 }
 
-async async function identifyNewCardPhoto() {
+async async async function identifyNewCardPhoto() {
   const input = document.getElementById("addCardPhoto");
   const file = input?.files?.[0];
   const backFile = document.getElementById("addCardBackPhoto")?.files?.[0] || null;
@@ -8862,7 +8862,7 @@ async function openEditCard(cardId) {
 // SET HELPERS
 // ============================================================
 
-async function findOrCreateSet({
+async async function findOrCreateSet({
   name,
   year,
   sport,
