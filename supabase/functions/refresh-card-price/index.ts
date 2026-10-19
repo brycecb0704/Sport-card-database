@@ -781,17 +781,34 @@ Deno.serve(async (request: Request) => {
             const targetNumber = cardNumber.replace(/^#\s*/, "").replace(/\s+/g, "").toLowerCase();
             const rowSet = String(row.set_name ?? row.setName ?? row.set ?? row.series ?? row.card_set ?? "");
             const rowBrand = String(row.manufacturer ?? row.brand ?? "");
+            const rowParallel = String(row.parallel ?? row.variation ?? row.variant ?? row.parallel_name ?? row.parallelName ?? "");
+            const targetParallel = String(cardForMatch.parallel ?? "").trim();
             const price = parseMoney(row.current_price ?? row.currentPrice ?? row.market_price ?? row.marketPrice ?? row.price_usd ?? row.priceUsd ?? row.estimated_value ?? row.price);
             const playerMatches =
               normalize(rowPlayer) === normalize(person) ||
               (!rowPlayer && phraseInTitle(rowTitle, person));
+            const setMatches = !setName || !rowSet ||
+              normalize(rowSet) === normalize(setName) ||
+              normalize(rowSet).includes(normalize(setName)) ||
+              normalize(setName).includes(normalize(rowSet)) ||
+              Boolean(setSeries && normalize(rowSet).includes(normalize(setSeries)));
+            const brandMatches = !setBrand || !rowBrand ||
+              normalize(rowBrand) === normalize(setBrand) ||
+              normalize(rowBrand).includes(normalize(setBrand)) ||
+              normalize(setBrand).includes(normalize(rowBrand));
+            // Never use a known different parallel/variation as the reference
+            // price. If this card is a parallel, an unlabelled reference row is
+            // not sufficient evidence to claim that it prices that parallel.
+            const parallelMatches = targetParallel
+              ? Boolean(rowParallel && normalize(rowParallel) === normalize(targetParallel))
+              : !rowParallel;
             return price !== null &&
               playerMatches &&
               rowYear === year &&
               rowNumber === targetNumber &&
-              (!setBrand || !rowBrand || normalize(rowBrand).includes(normalize(setBrand)) || normalize(setBrand).includes(normalize(rowBrand))) &&
-              (!setName || !rowSet || normalize(rowSet).includes(normalize(setName)) || normalize(setName).includes(normalize(rowSet)) ||
-                (setSeries && normalize(rowSet).includes(normalize(setSeries))));
+              brandMatches &&
+              setMatches &&
+              parallelMatches;
           });
           if (matches.length) {
             const prices = matches.map((row: Record<string, any>) => parseMoney(row.current_price ?? row.currentPrice ?? row.market_price ?? row.marketPrice ?? row.price_usd ?? row.priceUsd ?? row.estimated_value ?? row.price)).filter((p: number | null): p is number => p !== null);
