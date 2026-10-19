@@ -2861,6 +2861,13 @@
                 capture="environment"
                 onchange="previewAddCardPhoto(event)">
 
+              <label class="form-label" for="addCardBackPhoto" style="display:block;margin-top:12px;">Back of card (optional, improves identification)</label>
+              <input
+                id="addCardBackPhoto"
+                class="field"
+                type="file"
+                accept="image/*">
+
               <div id="addCardPhotoStatus" style="font-size:12px;color:var(--muted);margin-top:10px;"></div>
 
               <img
@@ -8424,9 +8431,10 @@ function copyPhotoToOwnedField(file) {
 async function identifyNewCardPhoto() {
   const input = document.getElementById("addCardPhoto");
   const file = input?.files?.[0];
+  const backFile = document.getElementById("addCardBackPhoto")?.files?.[0] || null;
 
   if (!file) {
-    showToast("Please choose a card photo first.", "error");
+    showToast("Please choose a front photo first.", "error");
     return;
   }
 
@@ -8437,7 +8445,7 @@ async function identifyNewCardPhoto() {
   }
 
   try {
-    const data = await identifyCardFromImage(file);
+    const data = await identifyCardFromImage(file, backFile);
     copyPhotoToOwnedField(file);
 
     if (data) {
@@ -10877,7 +10885,8 @@ async function refreshCardPrice(
 // ============================================================
 
 async function identifyCardFromImage(
-  file
+  file,
+  backFile = null
 ) {
   if (!file) {
     showToast(
@@ -10888,8 +10897,8 @@ async function identifyCardFromImage(
   }
 
   try {
-    const imagePayload =
-      await fileToBase64(file);
+    const imagePayload = await fileToBase64(file);
+    const backImagePayload = backFile ? await fileToBase64(backFile) : null;
 
     const result =
       await supabaseClient
@@ -10898,12 +10907,12 @@ async function identifyCardFromImage(
           IDENTIFY_FUNCTION_NAME,
           {
             body: {
-              image:
-                imagePayload.base64,
-              mime_type:
-                imagePayload.mimeType,
-              file_name:
-                file.name
+              image: imagePayload.base64,
+              mime_type: imagePayload.mimeType,
+              back_image: backImagePayload?.base64 || "",
+              back_mime_type: backImagePayload?.mimeType || "",
+              file_name: file.name,
+              back_file_name: backFile?.name || ""
             }
           }
         );
