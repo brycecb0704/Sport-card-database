@@ -117,11 +117,21 @@ Fields to return (use "" for anything you cannot determine, never guess):
   "Card Brand": "Topps, Panini, Upper Deck, etc.",
   "Year Made": "the year printed on the card, numbers only",
   "Parallel": "e.g. Refractor, Aqua Refractor, Silver, Gold, Base - leave blank if it's a plain base card",
-  "Numbered": "e.g. /99, /25, 1/1 - leave blank if not numbered",
-  "Rookie": "Yes, No, or Unknown - only Yes if you see an RC logo or rookie marking",
-  "Patch": "Yes, No, or Unknown - Yes only if you see a visible fabric/jersey patch",
-  "Autographed": "Yes, No, or Unknown - Yes only if you see a visible autograph",
-  "Set Name": "the full set name if shown"
+  "Numbered": "Yes/No/Unknown, only Yes when serial numbering is printed",
+  "Serial Numbering": "exact stamped numbering such as 12/99 or 1/1, blank if none visible",
+  "Print Run": "numeric total print run only if explicitly known from visible numbering",
+  "Rookie": "Yes, No, or Unknown - only Yes if an RC logo or rookie marking is visible",
+  "Patch": "Yes, No, or Unknown - Yes only if a fabric/jersey patch is visible",
+  "Relic": "Yes, No, or Unknown - Yes only if a memorabilia piece is part of the card",
+  "Autographed": "Yes, No, or Unknown - Yes only if an autograph or autograph label is visible",
+  "Variant Type": "specific image/variation type if identifiable, otherwise blank",
+  "Insert Card": "Yes/No/Unknown only when the card is visibly an insert/subset",
+  "Short Print": "Yes/No/Unknown only when supported by the card or reliable visible markings",
+  "Variation": "Yes/No/Unknown only when supported by visible evidence",
+  "Barcode": "barcode text only if readable on the back",
+  "Weight Division": "combat sports division only if printed or clearly identifiable",
+  "Confidence": "high, medium, or low",
+  "Notes": "briefly state uncertain fields; do not guess"
 }`;
 
 
@@ -199,27 +209,43 @@ Fields to return (use "" for anything you cannot determine, never guess):
     }
 
     // Normalize values to the exact shape expected by the existing website form.
+    const textValue = (...values: unknown[]) => {
+      const value = values.find((item) => item !== undefined && item !== null && String(item).trim() !== "");
+      return value === undefined ? "" : String(value).trim();
+    };
+    const yes = (...values: unknown[]) => {
+      const value = values.find((item) => item !== undefined && item !== null && String(item).trim() !== "");
+      return value === true || /^(yes|true|1|y)$/i.test(String(value ?? "").trim());
+    };
+    const numberedText = textValue(card["Serial Numbering"], card.serial_numbering, card["Numbered"] === true ? "Yes" : "", card["Numbered"], card.numbered);
     const normalized = {
-      name: String(card["Name"] || card.name || ""),
-      sport: String(card["Sport"] || card.sport || ""),
-      team: String(card["Team"] || card.team || ""),
-      position: String(card["Position"] || card.position || ""),
-      weight_division: String(card["Weight Division"] || card.weight_division || ""),
-      card_number: String(card["Card Number"] || card.card_number || ""),
-      card_series: String(card["Card Series"] || card.card_series || ""),
-      card_brand: String(card["Card Brand"] || card.card_brand || ""),
-      year_made: String(card["Year Made"] || card.year_made || ""),
-      parallel: String(card["Parallel"] || card.parallel || ""),
-      set_name: String(card["Set Name"] || card.set_name || ""),
-      barcode: String(card["Barcode"] || card.barcode || ""),
-      numbered: card["Numbered"] === true || card["Numbered"] === "Yes" || card.numbered === true,
-      rookie: card["Rookie"] === true || card["Rookie"] === "Yes" || card.rookie === true,
-      patch: card["Patch"] === true || card["Patch"] === "Yes" || card.patch === true,
-      autographed: card["Autographed"] === true || card["Autographed"] === "Yes" || card.autographed === true,
-      confidence: ["high", "medium", "low"].includes(String(card.confidence || "").toLowerCase())
-        ? String(card.confidence).toLowerCase()
+      name: textValue(card["Name"], card.name, card["Player Name"], card.player_name),
+      sport: textValue(card["Sport"], card.sport),
+      team: textValue(card["Team"], card.team, card["Team Name"], card.team_name),
+      position: textValue(card["Position"], card.position),
+      weight_division: textValue(card["Weight Division"], card.weight_division, card.weightDivision),
+      card_number: textValue(card["Card Number"], card.card_number, card.cardNumber),
+      card_series: textValue(card["Card Series"], card.card_series, card.series),
+      card_brand: textValue(card["Card Brand"], card.card_brand, card.brand),
+      year_made: textValue(card["Year Made"], card.year_made, card.year),
+      parallel: textValue(card["Parallel"], card.parallel),
+      set_name: textValue(card["Set Name"], card.set_name, card.setName),
+      barcode: textValue(card["Barcode"], card.barcode, card.barcode_text),
+      variant_type: textValue(card["Variant Type"], card.variant_type, card.variant),
+      serial_numbering: numberedText,
+      print_run: Number(textValue(card["Print Run"], card.print_run, card.printRun)) || null,
+      numbered: yes(card["Numbered"], card.numbered) || !!numberedText,
+      rookie: yes(card["Rookie"], card.rookie),
+      patch: yes(card["Patch"], card.patch),
+      relic: yes(card["Relic"], card.relic),
+      insert_card: yes(card["Insert Card"], card.insert_card, card.insertCard),
+      short_print: yes(card["Short Print"], card.short_print, card.shortPrint),
+      variation: yes(card["Variation"], card.variation),
+      autographed: yes(card["Autographed"], card.autographed, card.autograph),
+      confidence: ["high", "medium", "low"].includes(textValue(card["Confidence"], card.confidence).toLowerCase())
+        ? textValue(card["Confidence"], card.confidence).toLowerCase()
         : "medium",
-      notes: String(card.notes || card["Notes"] || ""),
+      notes: textValue(card["Notes"], card.notes),
     };
 
     if (!normalized.name && !normalized.card_brand && !normalized.set_name && !normalized.card_number) {
