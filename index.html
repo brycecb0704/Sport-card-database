@@ -10706,7 +10706,7 @@ async function ensureSupabaseCard(catalogCard) {
     if (!existing.data.card_brand && catalogCard.card_brand) missing.card_brand = catalogCard.card_brand;
     if (!existing.data.card_series && catalogCard.card_series) missing.card_series = catalogCard.card_series;
     if (!existing.data.parallel && catalogCard.parallel) missing.parallel = catalogCard.parallel;
-    if (!existing.data.card_set_id && catalogCard.card_set_id) missing.card_set_id = catalogCard.card_set_id;
+    if (!existing.data.card_set_id && setMatch?.id) missing.card_set_id = setMatch.id;
     if (Object.keys(missing).length) {
       const updated = await supabaseClient.from("cards").update(missing).eq("id", existing.data.id).select("*").single();
       if (updated.error) throw updated.error;
@@ -10723,9 +10723,15 @@ async function ensureSupabaseCard(catalogCard) {
     );
   const team = catalogCard.team ? await findOrCreateTeam(catalogCard.team, sport?.id || null) : null;
   const player = catalogCard.name ? await findOrCreatePlayer(catalogCard.name, sport?.id || null, team?.id || null, catalogCard.position || null, catalogCard.weight_division || null) : null;
-  const setMatch = catalogCard.card_set_id
-    ? getSet(catalogCard.card_set_id)
-    : allSets.find(item => clean(item.name).toLowerCase() === clean(getSetName(catalogCard)).toLowerCase() && Number(item.year_made || item.year) === Number(catalogCard.year_made));
+  // card_set_id from Google Sheets is not guaranteed to be a Supabase UUID.
+  // Resolve/create the real Supabase set record before writing the foreign key.
+  const setMatch = await findOrCreateSet({
+    name: getSetName(catalogCard),
+    year: catalogCard.year_made,
+    sport: catalogCard.sport,
+    brand: catalogCard.card_brand,
+    series: catalogCard.card_series
+  });
   const identityKey =
     makeIdentityKey([
       catalogCard.card_id
@@ -10738,7 +10744,7 @@ async function ensureSupabaseCard(catalogCard) {
     sport_id: sport?.id || null,
     team_id: team?.id || null,
     player_id: player?.id || null,
-    card_set_id: setMatch?.id || setMatch?.card_set_id || null,
+    card_set_id: setMatch?.id || null,
     position: catalogCard.position || player?.position || null,
     weight_division: catalogCard.weight_division || player?.weight_division || null,
     year_made:
@@ -11190,7 +11196,31 @@ async function saveCardFromForm(event) {
         }
 
         if (existingCard.data) {
-          cardResult = { data: existingCard.data, error: null };
+          // Preserve curated catalog values; only fill blanks from the new scan.
+          const missing = {};
+          for (const key of [
+            "card_number", "card_set_id", "sport_id", "player_id", "team_id",
+            "position", "weight_division", "year_made", "card_series", "card_brand",
+            "parallel", "variant_type", "print_run", "serial_numbering", "barcode",
+            "description"
+          ]) {
+            const current = existingCard.data[key];
+            const incoming = cardRecord[key];
+            if ((current === null || current === undefined || current === "") &&
+                incoming !== null && incoming !== undefined && incoming !== "") {
+              missing[key] = incoming;
+            }
+          }
+          for (const key of ["numbered", "rookie", "patch", "relic", "autographed", "insert_card", "short_print", "variation"]) {
+            if (!existingCard.data[key] && cardRecord[key]) missing[key] = true;
+          }
+          if (Object.keys(missing).length) {
+            const updated = await supabaseClient.from("cards").update(missing).eq("id", existingCard.data.id).select("*").single();
+            if (updated.error) throw updated.error;
+            cardResult = { data: updated.data, error: null };
+          } else {
+            cardResult = { data: existingCard.data, error: null };
+          }
         } else {
           cardResult =
             await supabaseClient
