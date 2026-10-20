@@ -818,6 +818,40 @@
       font-weight: 800;
     }
 
+    /* Shared polish for ownership editor, collection controls and card screens */
+    #ownershipModal .modal {
+      display:flex; flex-direction:column; width:min(980px,96vw);
+      height:min(820px,92vh); max-height:92vh; overflow:hidden; border-radius:20px;
+    }
+    #ownershipModal form { display:flex; flex:1 1 auto; flex-direction:column; min-height:0; }
+    #ownershipModal .modal-header { flex:0 0 auto; padding:18px 22px; }
+    #ownershipModal .modal-header h3 { font-size:20px; font-weight:800; letter-spacing:-.025em; }
+    #ownershipModal .modal-body { flex:1 1 auto; min-height:0; max-height:none; overflow-y:auto; padding:clamp(14px,2vw,24px); }
+    #ownershipModal .form-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+    #ownershipModal .form-group { min-width:0; gap:7px; }
+    #ownershipModal .form-label { font-size:11px; text-transform:uppercase; letter-spacing:.045em; color:var(--muted); }
+    #ownershipModal .field { min-width:0; width:100%; min-height:44px; border-radius:10px; padding:10px 12px; }
+    #ownershipModal .modal-footer { flex:0 0 auto; padding:14px 22px; border-top:1px solid var(--border); background:var(--surface); }
+    #ownershipModal .modal-footer .btn { min-height:44px; }
+    #screen-collection .search-filter-bar { gap:12px; align-items:center; }
+    #screen-collection .search-filter-bar .field,
+    #screen-collection .search-filter-bar .search-field { min-height:44px; border-radius:10px; }
+    #screen-collection .page-header { gap:16px; align-items:center; }
+    #screen-catalog .search-filter-bar { gap:12px; }
+    #screen-catalog .field, #screen-catalog .search-field { min-height:44px; border-radius:10px; }
+    .card-tile, .card-item, .card-grid > * { min-width:0; }
+    @media(max-width:900px) { #ownershipModal .form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media(max-width:600px) {
+      #ownershipModal { padding:6px; }
+      #ownershipModal .modal { width:100%; height:96dvh; max-height:96dvh; border-radius:14px; }
+      #ownershipModal .modal-header { padding:12px 14px; }
+      #ownershipModal .modal-body { padding:14px; }
+      #ownershipModal .form-grid { grid-template-columns:1fr; }
+      #ownershipModal .modal-footer { padding:10px 14px; }
+      #screen-collection .page-header { align-items:stretch; flex-direction:column; }
+      #screen-collection .page-header > div:last-child { justify-content:flex-start !important; }
+    }
+
     /* Add Card: consistent, app-like layout */
     #addCardModal {
       padding: clamp(8px, 2vw, 24px);
@@ -2943,15 +2977,20 @@
 
       <form id="ownershipForm">
         <div class="modal-body">
+          <div class="ownership-form-intro panel" style="margin:0 0 18px;box-shadow:none;">
+            <strong>Your copy of this card</strong>
+            <p class="muted" style="margin:5px 0 0;">These settings apply only to your ownership record. They do not change the shared card catalog or other collectors' copies.</p>
+          </div>
+          <div class="ownership-section-title" style="grid-column:1/-1;margin:0 0 10px;padding-bottom:9px;border-bottom:1px solid var(--border);font-weight:800;">Collection &amp; Condition</div>
           <div class="form-grid">
 
             <div class="form-group">
-              <label class="form-label" for="ownershipQuantity">Quantity</label>
+              <label class="form-label" for="ownershipQuantity">Quantity owned</label>
               <input id="ownershipQuantity" class="field" type="number" min="1" step="1" value="1" required>
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="ownershipPossession">Possession</label>
+              <label class="form-label" for="ownershipPossession">Status</label>
               <select id="ownershipPossession" class="field">
                 <option value="Collection">Collection</option>
                 <option value="For Sale">For Sale</option>
@@ -2961,12 +3000,12 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="ownershipValue">Current Value</label>
+              <label class="form-label" for="ownershipValue">Your Estimated Value</label>
               <input id="ownershipValue" class="field" type="number" min="0" step="0.01" placeholder="Optional">
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="ownershipGrade">Grade</label>
+              <label class="form-label" for="ownershipGrade">Condition / Grade</label>
               <input id="ownershipGrade" class="field" type="text" placeholder="e.g. 10">
             </div>
 
@@ -2976,7 +3015,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="ownershipForSalePrice">For Sale Price</label>
+              <label class="form-label" for="ownershipForSalePrice">Your Asking Price</label>
               <input id="ownershipForSalePrice" class="field" type="number" min="0" step="0.01" placeholder="Optional">
             </div>
 
@@ -2991,7 +3030,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="ownershipPurchaseSeller">Purchase Seller</label>
+              <label class="form-label" for="ownershipPurchaseSeller">Purchased From</label>
               <input id="ownershipPurchaseSeller" class="field" type="text" placeholder="Optional">
             </div>
 
@@ -3016,7 +3055,7 @@
             </div>
 
             <div class="form-group full">
-              <label class="form-label" for="ownershipNotes">Notes</label>
+              <label class="form-label" for="ownershipNotes">Private Notes</label>
               <textarea id="ownershipNotes" class="field" rows="4" placeholder="Optional notes about your copy of this card"></textarea>
             </div>
 
