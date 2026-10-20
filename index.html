@@ -2933,11 +2933,11 @@
               <div class="form-group full"><label class="form-label">Player / Card Name *</label><input id="addCardName" class="field" type="text" required></div>
               <div class="form-group"><label class="form-label">Sport</label><input id="addCardSport" class="field" type="text" placeholder="Baseball, Football, UFC..."></div>
               <div class="form-group"><label class="form-label">Team / Organization</label><input id="addCardTeam" class="field" type="text"></div>
-              <div class="form-group"><label class="form-label">Year</label><input id="addCardYear" class="field" type="number" min="1800" max="2100"></div>
+              <div class="form-group"><label class="form-label">Product / Release Year</label><input id="addCardYear" class="field" type="number" min="1800" max="2100"></div>
               <div class="form-group"><label class="form-label">Card Number</label><input id="addCardNumber" class="field" type="text"></div>
               <div class="form-group"><label class="form-label">Series / Subset</label><input id="addCardSeries" class="field" type="text"></div>
               <div class="form-group"><label class="form-label">Brand / Manufacturer</label><input id="addCardBrand" class="field" type="text"></div>
-              <div class="form-group"><label class="form-label">Set Name</label><input id="addCardSetName" class="field" type="text"></div>
+              <div class="form-group"><label class="form-label">Full Set Name</label><input id="addCardSetName" class="field" type="text"></div>
               <div class="form-group"><label class="form-label">Parallel</label><input id="addCardParallel" class="field" type="text"></div>
               <div class="form-group"><label class="form-label">Variant Type</label><input id="addCardVariant" class="field" type="text" placeholder="Image variation, refractor type..."></div>
               <div class="form-group"><label class="form-label">Player Position</label><input id="addCardPosition" class="field" type="text"></div>
@@ -11292,18 +11292,18 @@ function fillCardFormFromAI(data = {}) {
   // snake_case fields, or camelCase aliases. Never let an empty alias
   // overwrite a value already extracted from the image.
   const aliases = {
-    name: ["name", "Name", "player", "Player", "player_name"],
-    sport: ["sport", "Sport"],
-    team: ["team", "Team", "team_name"],
-    position: ["position", "Position"],
+    name: ["name", "Name", "player", "Player", "player_name", "Player Name"],
+    sport: ["sport", "Sport", "sport_name"],
+    team: ["team", "Team", "team_name", "Team Name"],
+    position: ["position", "Position", "player_position"],
     weightDivision: ["weight_division", "Weight Division", "weightDivision"],
-    cardNumber: ["card_number", "Card Number", "cardNumber", "number", "Number"],
-    series: ["card_series", "Card Series", "cardSeries", "series", "Series"],
-    brand: ["card_brand", "Card Brand", "cardBrand", "brand", "Brand"],
-    year: ["year_made", "Year Made", "yearMade", "year", "Year"],
-    parallel: ["parallel", "Parallel"],
-    setName: ["set_name", "Set Name", "setName", "set", "Set"],
-    barcode: ["barcode", "Barcode"],
+    cardNumber: ["card_number", "Card Number", "cardNumber", "number", "Number", "card_no"],
+    series: ["card_series", "Card Series", "cardSeries", "series", "Series", "subset"],
+    brand: ["card_brand", "Card Brand", "cardBrand", "brand", "Brand", "manufacturer"],
+    year: ["year_made", "Year Made", "yearMade", "year", "Year", "release_year", "releaseYear"],
+    parallel: ["parallel", "Parallel", "parallel_name"],
+    setName: ["set_name", "Set Name", "setName", "card_set_name", "product_name", "set", "Set"],
+    barcode: ["barcode", "Barcode", "barcode_text"],
     notes: ["notes", "Notes", "description", "Description"]
   };
   const set = (field, ...keys) => setFieldValue(firstCardValue(data, ...keys), field, "addCard" + field[0].toUpperCase() + field.slice(1));
