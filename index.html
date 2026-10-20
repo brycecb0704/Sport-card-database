@@ -9628,7 +9628,7 @@ function copyPhotoToOwnedField(file) {
   }
 }
 
-async async async function identifyNewCardPhoto() {
+async function identifyNewCardPhoto() {
   const input = document.getElementById("addCardPhoto");
   const file = input?.files?.[0];
   const backFile = document.getElementById("addCardBackPhoto")?.files?.[0] || null;
@@ -10062,7 +10062,7 @@ async function openEditCard(cardId) {
 // SET HELPERS
 // ============================================================
 
-async async function findOrCreateSet({
+async function findOrCreateSet({
   name,
   year,
   sport,
@@ -10556,7 +10556,7 @@ function buildOwnershipData() {
 // Google Sheets card_id -> Supabase cards.id UUID
 // ============================================================
 
-async function findOrCreateTeam(name, sportId = null) {
+async async function findOrCreateTeam(name, sportId = null) {
   const teamName = clean(name);
   if (!teamName) return null;
   let query = supabaseClient.from("teams").select("*").ilike("name", teamName).limit(1);
@@ -10576,7 +10576,7 @@ async function findOrCreateTeam(name, sportId = null) {
   throw inserted.error;
 }
 
-async function findOrCreatePlayer(name, sportId = null, teamId = null, position = null, weightDivision = null) {
+async async function findOrCreatePlayer(name, sportId = null, teamId = null, position = null, weightDivision = null) {
   const playerName = clean(name);
   if (!playerName) return null;
   let query = supabaseClient.from("players").select("*").ilike("name", playerName).limit(1);
@@ -10842,7 +10842,7 @@ async function saveOwnershipRecord(
 // SAVE CARD
 // ============================================================
 
-async async function saveCardFromForm(event) {
+async function saveCardFromForm(event) {
   const wasEditingExistingCard = !!editingCardId;
   if (event) {
     event.preventDefault();
