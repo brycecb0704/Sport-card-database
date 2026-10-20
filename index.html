@@ -4367,6 +4367,9 @@
   let allProfiles = [];
   let allPrices = [];
   let allSports = [];
+  let allTeams = [];
+  let allPlayers = [];
+  let allSupabaseSets = [];
 
   // Performance indexes. These keep normal card/set/ownership lookups
   // O(1) instead of repeatedly scanning tens of thousands of records.
@@ -5772,7 +5775,10 @@
       profiles,
       prices,
       sports,
-      supabaseCards
+      supabaseCards,
+      teams,
+      players,
+      supabaseSets
     ] = await Promise.all([
 
       safeTableLoad(
@@ -5808,33 +5814,92 @@
         "users",
         "cards",
         "*"
+      ),
+
+      safeTableLoad(
+        supabaseClient,
+        "users",
+        "teams",
+        "*"
+      ),
+
+      safeTableLoad(
+        supabaseClient,
+        "users",
+        "players",
+        "*"
+      ),
+
+      safeTableLoad(
+        supabaseClient,
+        "users",
+        "card_sets",
+        "*"
       )
 
     ]);
 
-    allCards =
-      (catalog ? catalog.cards : [])
-        .sort(
-          (a, b) =>
-            clean(a.name).localeCompare(
-              clean(b.name)
-            )
-        );
-
-    allSets =
-      (catalog ? catalog.sets : [])
-        .sort(
-          (a, b) =>
-            clean(a.name).localeCompare(
-              clean(b.name)
-            )
-        );
-
+    const sheetCards = catalog ? catalog.cards : [];
+    const sheetSets = catalog ? catalog.sets : [];
     allOwnership = ownership;
     allSupabaseCards = supabaseCards;
     allProfiles = profiles;
     allPrices = prices;
     allSports = sports;
+    allTeams = teams;
+    allPlayers = players;
+    allSupabaseSets = supabaseSets;
+
+    // Keep the Google Sheets master catalog intact, and append Supabase-only
+    // cards created through photo identification/manual entry. Otherwise a
+    // newly added card disappears from the UI on the next reload.
+    const sheetCardIds = new Set(sheetCards.map(card => String(card.card_id || "")));
+    const teamsById = new Map(allTeams.map(team => [String(team.id), team]));
+    const playersById = new Map(allPlayers.map(player => [String(player.id), player]));
+    const supabaseSetsById = new Map(allSupabaseSets.map(set => [String(set.id), set]));
+    const sportsById = new Map(allSports.map(sport => [String(sport.id), sport]));
+    const supabaseOnlyCards = allSupabaseCards
+      .filter(card => card.card_id && !sheetCardIds.has(String(card.card_id)))
+      .map(card => {
+        const team = teamsById.get(String(card.team_id || ""));
+        const player = playersById.get(String(card.player_id || ""));
+        const set = supabaseSetsById.get(String(card.card_set_id || ""));
+        return {
+          ...card,
+          card_id: String(card.card_id),
+          name: card.name || player?.name || "Unknown Card",
+          card_number: card.card_number || "",
+          sport: sportsById.get(String(card.sport_id || ""))?.name || "",
+          team: team?.name || "",
+          position: card.position || player?.position || "",
+          weight_division: card.weight_division || player?.weight_division || "",
+          year_made: card.year_made ?? set?.year ?? null,
+          card_series: card.card_series || set?.series || "",
+          card_brand: card.card_brand || set?.brand || "",
+          set_name: set?.name || "",
+          card_set_id: card.card_set_id || null,
+          source: card.source || "Supabase"
+        };
+      });
+
+    allCards = [...sheetCards, ...supabaseOnlyCards].sort(
+      (a, b) => clean(a.name).localeCompare(clean(b.name))
+    );
+
+    allSets = [...sheetSets];
+    const knownSetIds = new Set(allSets.map(set => String(set.card_set_id || set.id || "")));
+    allSupabaseSets.forEach(set => {
+      if (knownSetIds.has(String(set.id))) return;
+      allSets.push({
+        ...set,
+        id: set.id,
+        card_set_id: set.id,
+        year_made: set.year,
+        card_brand: set.brand,
+        card_series: set.series
+      });
+    });
+    allSets.sort((a, b) => clean(a.name).localeCompare(clean(b.name)));
 
     // Build lookup indexes once after loading instead of doing
     // repeated Array.find/filter scans throughout the UI.
