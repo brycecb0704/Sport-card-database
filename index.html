@@ -818,25 +818,65 @@
       font-weight: 800;
     }
 
-    /* Add Card layout improvements */
+    /* Add Card: consistent, app-like layout */
+    #addCardModal {
+      padding: clamp(8px, 2vw, 24px);
+      align-items: center;
+    }
+
     #addCardModal .modal {
-      width: min(1200px, 96vw);
-      max-height: 94vh;
+      display: flex;
+      flex-direction: column;
+      width: min(1120px, 96vw);
+      height: min(860px, 92vh);
+      max-height: 92vh;
+      overflow: hidden;
+      border-radius: 20px;
+    }
+
+    #addCardModal .modal-header {
+      flex: 0 0 auto;
+      min-height: 70px;
+      padding: 16px 22px;
+    }
+
+    #addCardModal .modal-header h3 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -.025em;
+    }
+
+    #addCardModal form {
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      min-height: 0;
     }
 
     #addCardModal .modal-body {
-      max-height: calc(94vh - 145px);
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
       overflow-y: auto;
-      padding: 22px;
+      overscroll-behavior: contain;
+      padding: clamp(14px, 2.2vw, 26px);
+      scrollbar-gutter: stable;
     }
 
-    #addCardModal .form-grid {
+    #addCardModal .modal-body > div:not(.hidden) {
+      min-width: 0;
+    }
+
+    #addCardModal .simple-add-manual-grid {
+      display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
+      align-items: start;
+      gap: 16px;
     }
 
     #addCardModal .form-group {
       min-width: 0;
+      gap: 7px;
     }
 
     #addCardModal .form-group.full {
@@ -845,46 +885,236 @@
 
     #addCardModal .form-label {
       font-size: 11px;
+      line-height: 1.35;
       text-transform: uppercase;
-      letter-spacing: .04em;
+      letter-spacing: .045em;
+      color: var(--muted);
     }
 
     #addCardModal .field {
-      min-height: 42px;
+      width: 100%;
+      min-width: 0;
+      min-height: 44px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+
+    #addCardModal .field:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+      outline: none;
     }
 
     #addCardModal textarea.field {
-      min-height: 90px;
+      min-height: 92px;
       resize: vertical;
     }
 
     #addCardModal .panel {
+      margin-left: 0 !important;
+      margin-right: 0 !important;
       background: var(--surface-2);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 15px !important;
+      border-radius: 13px;
+      padding: 16px !important;
+    }
+
+    #addCardModal .panel strong {
+      font-size: 14px;
+      letter-spacing: -.01em;
     }
 
     #addCardModal .modal-footer {
-      position: sticky;
-      bottom: 0;
+      flex: 0 0 auto;
+      position: relative;
+      bottom: auto;
+      padding: 14px 22px;
       background: var(--surface);
+      border-top: 1px solid var(--border);
       z-index: 3;
     }
 
+    #addCardModal .modal-footer .btn {
+      min-height: 44px;
+      min-width: 104px;
+    }
+
+    #addCardModal .simple-add-choice-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    #addCardModal .simple-add-option {
+      min-height: 150px;
+      padding: 22px 16px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(0,0,0,.035);
+      transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+
+    #addCardModal .simple-add-option:hover,
+    #addCardModal .simple-add-option:focus-visible {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+      box-shadow: var(--shadow);
+      outline: none;
+    }
+
+    #addCardModal .simple-add-option-icon {
+      font-size: 30px;
+      margin-bottom: 12px;
+    }
+
+    #addCardModal .simple-add-option-title {
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    #addCardModal .simple-add-photo-box {
+      padding: clamp(16px, 3vw, 30px);
+      border: 1px dashed var(--border);
+      border-radius: 16px;
+      background: var(--surface-2);
+      text-align: center;
+    }
+
+    #addCardModal .simple-add-photo-box .field {
+      text-align: left;
+      background: var(--surface);
+    }
+
+    #addCardModal .simple-add-photo-preview {
+      display: block;
+      max-width: min(100%, 340px);
+      max-height: 340px;
+      object-fit: contain;
+      margin: 18px auto 0;
+      border-radius: 12px;
+      background: var(--surface);
+    }
+
+    #addCardModal .simple-add-library-results {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    #addCardModal .simple-add-library-result {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      width: 100%;
+      min-width: 0;
+      padding: 10px 12px;
+      text-align: left;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    #addCardModal .simple-add-library-result:hover {
+      border-color: var(--accent);
+      background: var(--surface-2);
+    }
+
+    #addCardModal .simple-add-library-image {
+      flex: 0 0 48px;
+      width: 48px;
+      height: 64px;
+      object-fit: contain;
+      border-radius: 6px;
+      background: var(--surface-2);
+    }
+
+    #addCardModal .simple-add-library-name {
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    #addCardModal .simple-add-library-meta {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    #addCardModal input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
     @media (max-width: 900px) {
-      #addCardModal .form-grid {
+      #addCardModal .simple-add-manual-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
     @media (max-width: 600px) {
-      #addCardModal .form-grid {
+      #addCardModal {
+        padding: 6px;
+      }
+
+      #addCardModal .modal {
+        width: 100%;
+        height: 96dvh;
+        max-height: 96dvh;
+        border-radius: 14px;
+      }
+
+      #addCardModal .modal-header {
+        min-height: 58px;
+        padding: 10px 14px;
+      }
+
+      #addCardModal .modal-body {
+        padding: 14px;
+      }
+
+      #addCardModal .simple-add-manual-grid,
+      #addCardModal .simple-add-choice-grid {
         grid-template-columns: 1fr;
       }
 
       #addCardModal .form-group.full {
         grid-column: auto;
+      }
+
+      #addCardModal .simple-add-option {
+        min-height: 90px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        text-align: left;
+        padding: 16px;
+      }
+
+      #addCardModal .simple-add-option-icon {
+        margin: 0;
+      }
+
+      #addCardModal .modal-footer {
+        padding: 10px 14px;
+      }
+
+      #addCardModal .modal-footer .btn {
+        flex: 1;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #addCardModal * {
+        transition: none !important;
+        scroll-behavior: auto !important;
       }
     }
 
