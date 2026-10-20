@@ -104,7 +104,7 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ error: "The photo set is too large to identify. Try smaller photos or screenshots." }, 413);
   }
 
-  const prompt = `You are reading a sports/trading card from photo(s). Return ONLY a JSON object, no other text, no markdown fences.
+  const prompt = `You are an expert sports trading-card cataloger. Identify the exact physical card shown in the front photo and optional back photo. Return ONLY a JSON object, no other text, no markdown fences. Use both photos together when supplied. Read printed facts carefully; do not invent serial numbering, parallels, autograph, relic, or rookie status. If a fact is not readable, leave it blank and explain uncertainty in Notes. For player/team details, use the team relevant to the card season when confidently identifiable, not automatically the player current team. Set Name should identify the specific product, not just Baseball Cards.
 
 Fields to return (use "" for anything you cannot determine, never guess):
 {
@@ -115,7 +115,8 @@ Fields to return (use "" for anything you cannot determine, never guess):
   "Card Number": "the card number, usually preceded by # on the card",
   "Card Series": "the specific product line, e.g. Chrome, Prizm, Optic",
   "Card Brand": "Topps, Panini, Upper Deck, etc.",
-  "Year Made": "the year printed on the card, numbers only",
+  "Set Name": "the full product/set name, combining brand, year, and product line when identifiable (e.g. 2025 Topps Series 1, 2024 Panini Prizm Football)",
+  "Year Made": "the product release year for this card/set, not the player birth year or current year; use visible set branding and the back of card when possible; blank if genuinely uncertain",
   "Parallel": "e.g. Refractor, Aqua Refractor, Silver, Gold, Base - leave blank if it's a plain base card",
   "Numbered": "Yes/No/Unknown, only Yes when serial numbering is printed",
   "Serial Numbering": "exact stamped numbering such as 12/99 or 1/1, blank if none visible",
