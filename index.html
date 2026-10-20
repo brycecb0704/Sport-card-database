@@ -1001,6 +1001,21 @@
       background: var(--surface);
     }
 
+    #addCardModal .simple-add-option {
+      display: block;
+      width: 100%;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    #addCardModal .simple-add-option .simple-add-library-meta {
+      margin-top: 8px;
+    }
+
+    #addCardModal #addCardManualMode > .form-group {
+      margin-bottom: 14px;
+    }
+
     #addCardModal .simple-add-library-results {
       display: grid;
       gap: 8px;
@@ -3053,17 +3068,18 @@
 
               <button type="button" class="simple-add-option" onclick="showAddCardMode('photo')">
                 <div class="simple-add-option-icon">📷</div>
-                <div class="simple-add-option-title">Add Photo</div>
+                <div class="simple-add-option-title">Identify With AI</div>
+                <div class="simple-add-library-meta">Use a photo to recognize the card</div>
               </button>
 
               <button type="button" class="simple-add-option" onclick="showAddCardMode('library')">
                 <div class="simple-add-option-icon">📚</div>
-                <div class="simple-add-option-title">Choose From Library</div>
+                <div class="simple-add-option-title">Search Card Library</div><div class="simple-add-library-meta">Find an existing catalog card</div>
               </button>
 
               <button type="button" class="simple-add-option" onclick="showAddCardMode('manual')">
                 <div class="simple-add-option-icon">✏️</div>
-                <div class="simple-add-option-title">Enter Manually</div>
+                <div class="simple-add-option-title">Search Manually</div><div class="simple-add-library-meta">Search by name, year, number, or set</div>
               </button>
 
             </div>
@@ -3141,7 +3157,7 @@
 
           </div>
 
-          <!-- MANUAL / REVIEW MODE -->
+          <!-- MANUAL SEARCH MODE: users search; they do not author catalog data. -->
           <div id="addCardManualMode" class="hidden">
 
             <button type="button" class="btn" onclick="showAddCardMode('choice')">
@@ -3149,16 +3165,20 @@
             </button>
 
             <div class="panel" style="box-shadow:none;margin:14px 0 15px;">
-              <strong>Card Information</strong>
-              <div id="addCardCatalogLockNote" class="catalog-lock-note hidden">
-                Catalog information is locked because this card came from the master catalog.
-              </div>
+              <strong>Search for your card</strong>
+              <p class="muted" style="margin:5px 0 0;">Search by player or card name, year, card number, brand, set, or team. Shared card information is managed by the catalog and AI—not edited here.</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="addCardManualSearch">Card search</label>
+              <input id="addCardManualSearch" class="field" type="search" autocomplete="off" placeholder="e.g. Jarren Duran, 2026, #560, Topps Series 2" oninput="searchAddCardManual()">
+            </div>
+            <div id="addCardManualResults" class="simple-add-library-results">
+              <div class="empty-state">Enter a few details to find a card in the shared catalog.</div>
             </div>
 
-            <div class="panel" style="box-shadow:none;margin:0 0 12px;">
-              <strong>Shared Card Details</strong>
-              <p class="muted" style="margin:5px 0 0;">These facts describe the card and are shared in the catalog for every collector.</p>
-            </div>
+            <!-- AI compatibility/review fields are retained for the existing identification/save path.
+                 They are not exposed as editable catalog fields to collectors. -->
+            <div id="addCardAiCompatibilityFields" hidden>
             <div class="simple-add-manual-grid">
               <div class="form-group full"><label class="form-label">Player / Card Name *</label><input id="addCardName" class="field" type="text" required></div>
               <div class="form-group"><label class="form-label">Sport</label><input id="addCardSport" class="field" type="text" placeholder="Baseball, Football, UFC..."></div>
@@ -3218,6 +3238,7 @@
               <input id="addCatalogBack" type="file" accept="image/*">
               <input id="addOwnedFront" type="file" accept="image/*">
               <input id="addOwnedBack" type="file" accept="image/*">
+            </div>
             </div>
           </div>
 
@@ -8738,6 +8759,46 @@ async function identifyNewCardPhoto() {
 
 function getAddCardLibraryCards() {
   return Array.isArray(allCards) ? allCards : [];
+}
+
+// Manual entry is deliberately search-only. It never creates or edits
+// shared catalog fields; selecting a result records the user's ownership.
+function searchAddCardManual() {
+  const input = document.getElementById("addCardManualSearch");
+  const container = document.getElementById("addCardManualResults");
+  if (!container) return;
+
+  const search = clean(input?.value).toLowerCase();
+  if (search.length < 2) {
+    container.innerHTML = '<div class="empty-state">Enter at least two characters to search the catalog.</div>';
+    return;
+  }
+
+  const terms = search.split(/\\s+/).filter(Boolean);
+  const matches = getAddCardLibraryCards().filter(card => {
+    const text = [
+      card.name, card.card_number, card.card_series, card.card_brand,
+      card.sport, card.team, card.parallel, card.year_made,
+      getSetName(card), card.barcode
+    ].map(clean).join(" ").toLowerCase();
+    return terms.every(term => text.includes(term));
+  }).slice(0, 50);
+
+  container.innerHTML = matches.length
+    ? matches.map(card => {
+        const image = getCardImage(card, "front") || "";
+        const meta = [
+          card.year_made, card.card_brand, card.card_series,
+          getSetName(card), card.card_number ? "#" + card.card_number : ""
+        ].filter(Boolean).join(" • ");
+        return `
+          <button type="button" class="simple-add-library-result" onclick="chooseCardFromLibrary('${escapeHtml(card.card_id)}')">
+            ${image ? `<img class="simple-add-library-image" src="${escapeHtml(image)}" alt="">` : '<div class="simple-add-library-image"></div>'}
+            <div><div class="simple-add-library-name">${escapeHtml(card.name || "Unnamed Card")}</div>
+            <div class="simple-add-library-meta">${escapeHtml(meta || card.sport || "Catalog Card")}</div></div>
+          </button>`;
+      }).join("")
+    : '<div class="empty-state">No matching cards found. Try a shorter search or use Identify With AI to recognize a new card.</div>';
 }
 
 function searchAddCardLibrary() {
