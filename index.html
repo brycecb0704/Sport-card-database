@@ -9967,7 +9967,7 @@ async function populateAddCardForm(card, ownership = null) {
   );
 
   setFieldChecked(
-    card.patch || card.relic,
+    card.patch,
     "cardPatch",
     "addCardPatch"
   );
@@ -10771,7 +10771,7 @@ async function ensureSupabaseCard(catalogCard) {
     card_series: catalogCard.card_series || null,
     card_brand: catalogCard.card_brand || null,
     parallel: catalogCard.parallel || null,
-    variant_type: catalogCard.variant || null,
+    variant_type: catalogCard.variant_type || catalogCard.variant || null,
     numbered: !!catalogCard.numbered,
     print_run:
       catalogCard.print_run === "" ||
@@ -11324,10 +11324,10 @@ async function saveCardFromForm(event) {
     }
 
     showToast(
-      usingMasterCatalogCard
-        ? "Card added to your collection."
-        : editingCardId
-          ? "Card saved successfully."
+      wasEditingExistingCard
+        ? "Card saved successfully."
+        : usingMasterCatalogCard
+          ? "Card added to your collection."
           : "Card added successfully.",
       "success"
     );
