@@ -10556,7 +10556,7 @@ function buildOwnershipData() {
 // Google Sheets card_id -> Supabase cards.id UUID
 // ============================================================
 
-async async function findOrCreateTeam(name, sportId = null) {
+async function findOrCreateTeam(name, sportId = null) {
   const teamName = clean(name);
   if (!teamName) return null;
   let query = supabaseClient.from("teams").select("*").ilike("name", teamName).limit(1);
@@ -10576,7 +10576,7 @@ async async function findOrCreateTeam(name, sportId = null) {
   throw inserted.error;
 }
 
-async async function findOrCreatePlayer(name, sportId = null, teamId = null, position = null, weightDivision = null) {
+async function findOrCreatePlayer(name, sportId = null, teamId = null, position = null, weightDivision = null) {
   const playerName = clean(name);
   if (!playerName) return null;
   let query = supabaseClient.from("players").select("*").ilike("name", playerName).limit(1);
