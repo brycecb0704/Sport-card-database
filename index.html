@@ -10691,6 +10691,15 @@ async function ensureSupabaseCard(catalogCard) {
     throw existing.error;
   }
 
+  // Resolve/create the Supabase set UUID once for both existing and new bridge rows.
+  const setMatch = await findOrCreateSet({
+    name: getSetName(catalogCard),
+    year: catalogCard.year_made,
+    sport: catalogCard.sport,
+    brand: catalogCard.card_brand,
+    series: catalogCard.card_series
+  });
+
   if (existing.data) {
     // Backfill missing relationships from the master catalog without replacing
     // any card facts that have already been curated in Supabase.
@@ -10723,15 +10732,7 @@ async function ensureSupabaseCard(catalogCard) {
     );
   const team = catalogCard.team ? await findOrCreateTeam(catalogCard.team, sport?.id || null) : null;
   const player = catalogCard.name ? await findOrCreatePlayer(catalogCard.name, sport?.id || null, team?.id || null, catalogCard.position || null, catalogCard.weight_division || null) : null;
-  // card_set_id from Google Sheets is not guaranteed to be a Supabase UUID.
-  // Resolve/create the real Supabase set record before writing the foreign key.
-  const setMatch = await findOrCreateSet({
-    name: getSetName(catalogCard),
-    year: catalogCard.year_made,
-    sport: catalogCard.sport,
-    brand: catalogCard.card_brand,
-    series: catalogCard.card_series
-  });
+  
   const identityKey =
     makeIdentityKey([
       catalogCard.card_id
