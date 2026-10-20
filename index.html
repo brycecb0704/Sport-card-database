@@ -9511,6 +9511,8 @@ function resetAddCardForm() {
     "addCardBrand",
     "addCardSetName",
     "addCardParallel",
+    "addCardVariant",
+    "addCardPersonalNotes",
     "addCardGrade",
     "addCardQuantity",
     "addCardPossession",
@@ -9554,7 +9556,11 @@ function resetAddCardForm() {
     "addCardNumbered",
     "addCardRookie",
     "addCardPatch",
-    "addCardAutographed"
+    "addCardAutographed",
+    "addCardRelic",
+    "addCardInsertCard",
+    "addCardShortPrint",
+    "addCardVariation"
   ].forEach(id => {
     const element = document.getElementById(id);
 
@@ -9910,6 +9916,8 @@ async function populateAddCardForm(card, ownership = null) {
     "addCardParallel"
   );
 
+  setFieldValue(card.variant_type, "cardVariant", "addCardVariant");
+
   setFieldValue(
     card.position,
     "cardPosition",
@@ -9963,6 +9971,11 @@ async function populateAddCardForm(card, ownership = null) {
     "cardPatch",
     "addCardPatch"
   );
+
+  setFieldChecked(card.relic, "cardRelic", "addCardRelic");
+  setFieldChecked(card.insert_card, "cardInsertCard", "addCardInsertCard");
+  setFieldChecked(card.short_print, "cardShortPrint", "addCardShortPrint");
+  setFieldChecked(card.variation, "cardVariation", "addCardVariation");
 
   setFieldChecked(
     card.autographed,
@@ -10042,6 +10055,8 @@ async function populateAddCardForm(card, ownership = null) {
       "cardTradeDate",
       "addCardTradeDate"
     );
+
+    setFieldValue(ownership.notes, "cardPersonalNotes", "addCardPersonalNotes");
   } else {
     setFieldValue(
       0,
