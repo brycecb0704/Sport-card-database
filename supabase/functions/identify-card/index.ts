@@ -217,7 +217,9 @@ Fields to return (use "" for anything you cannot determine, never guess):
       const value = values.find((item) => item !== undefined && item !== null && String(item).trim() !== "");
       return value === true || /^(yes|true|1|y)$/i.test(String(value ?? "").trim());
     };
-    const numberedText = textValue(card["Serial Numbering"], card.serial_numbering, card["Numbered"] === true ? "Yes" : "", card["Numbered"], card.numbered);
+    const serialNumbering = textValue(card["Serial Numbering"], card.serial_numbering, card.serialNumbering);
+    const numberedLabel = textValue(card["Numbered"], card.numbered);
+    const numberedText = serialNumbering || (/^(?:\d+\/\d+|\/\d+)$/i.test(numberedLabel) ? numberedLabel : "");
     const normalized = {
       name: textValue(card["Name"], card.name, card["Player Name"], card.player_name),
       sport: textValue(card["Sport"], card.sport),
