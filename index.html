@@ -4186,6 +4186,7 @@
             </div>
             <div class="simple-add-manual-grid">
               <div class="form-group"><label class="form-label">Condition / Grade</label><input id="addCardGrade" class="field" type="text" placeholder="Raw, PSA 10, SGC 9.5..."></div>
+              <div class="form-group"><label class="form-label">Grading Company</label><input id="addCardGradingCompany" class="field" type="text" placeholder="PSA, SGC, BGS, CGC..."></div>
               <div class="form-group"><label class="form-label">Quantity Owned</label><input id="addCardQuantity" class="field" type="number" min="0" step="1" value="1"></div>
               <div class="form-group"><label class="form-label">Possession Status</label><select id="addCardPossession" class="field"><option value="Collection">Collection</option><option value="For Sale">For Sale</option><option value="Sold">Sold</option><option value="Traded">Traded</option></select></div>
               <div class="form-group"><label class="form-label">Purchase Price</label><input id="addCardPurchasePrice" class="field" type="number" min="0" step="0.01" placeholder="0.00"></div>
@@ -9514,6 +9515,7 @@ function resetAddCardForm() {
     "addCardVariant",
     "addCardPersonalNotes",
     "addCardGrade",
+    "addCardGradingCompany",
     "addCardQuantity",
     "addCardPossession",
     "addCardValue",
@@ -9699,6 +9701,19 @@ function copyPhotoToOwnedField(file) {
   }
 }
 
+function copyPhotoToOwnedBackField(file) {
+  if (!file) return;
+  const input = document.getElementById("addOwnedBack");
+  if (!input) return;
+  try {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+  } catch (error) {
+    console.warn("Could not copy back photo to ownership field:", error);
+  }
+}
+
 async function identifyNewCardPhoto() {
   const input = document.getElementById("addCardPhoto");
   const file = input?.files?.[0];
@@ -9718,6 +9733,7 @@ async function identifyNewCardPhoto() {
   try {
     const data = await identifyCardFromImage(file, backFile);
     copyPhotoToOwnedField(file);
+    copyPhotoToOwnedBackField(backFile);
 
     if (data) {
       showAddCardMode("manual");
@@ -9984,6 +10000,7 @@ async function populateAddCardForm(card, ownership = null) {
   );
 
   if (ownership) {
+    setFieldValue(ownership.grading_company, "cardGradingCompany", "addCardGradingCompany");
     setFieldValue(
       ownership.quantity,
       "cardQuantity",
@@ -10541,6 +10558,8 @@ function buildOwnershipData() {
     )
   );
 
+  const gradingCompany = clean(getFieldValue("cardGradingCompany", "addCardGradingCompany"));
+
   const forSalePriceRaw =
     getFieldValue(
       "cardForSalePrice",
@@ -10617,6 +10636,7 @@ function buildOwnershipData() {
     possession,
     value,
     grade,
+    grading_company: gradingCompany || null,
     for_sale_price: forSalePrice,
     purchase_price: purchasePrice,
     purchase_date: purchaseDate,
