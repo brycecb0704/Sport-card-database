@@ -12314,22 +12314,26 @@ async function identifyCardFromImage(
     const imagePayload = await fileToBase64(file);
     const backImagePayload = backFile ? await fileToBase64(backFile) : null;
 
-    const result =
-      await supabaseClient
-        .functions
-        .invoke(
-          IDENTIFY_FUNCTION_NAME,
-          {
-            body: {
-              image: imagePayload.base64,
-              mime_type: imagePayload.mimeType,
-              back_image: backImagePayload?.base64 || "",
-              back_mime_type: backImagePayload?.mimeType || "",
-              file_name: file.name,
-              back_file_name: backFile?.name || ""
-            }
+    const request = supabaseClient
+      .functions
+      .invoke(
+        IDENTIFY_FUNCTION_NAME,
+        {
+          body: {
+            image: imagePayload.base64,
+            mime_type: imagePayload.mimeType,
+            back_image: backImagePayload?.base64 || "",
+            back_mime_type: backImagePayload?.mimeType || "",
+            file_name: file.name,
+            back_file_name: backFile?.name || ""
           }
-        );
+        }
+      );
+
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Card identification timed out. Please try again with a clear front photo.")), 40000);
+    });
+    const result = await Promise.race([request, timeout]);
 
     if (result.error) {
       throw result.error;
