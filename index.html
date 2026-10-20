@@ -12037,9 +12037,14 @@ function needsCardPriceRefresh(cardOrId) {
   if (!card) return false;
 
   const resolvedId = resolveSupabaseCardId(card.card_id || cardOrId);
+  // Only current supported pricing sources count as a successful attempt.
+  // Ignore any legacy sold-source rows left over from the removed integration.
   const records = allPrices.filter(price =>
-    String(price.card_id) === String(resolvedId) ||
-    String(price.card_id) === String(card.card_id || cardOrId)
+    ["cardpricer_reference", "ebay_active_asking"].includes(String(price.source || "")) &&
+    (
+      String(price.card_id) === String(resolvedId) ||
+      String(price.card_id) === String(card.card_id || cardOrId)
+    )
   );
   const latestAttempt = records
     .map(price => new Date(price.fetched_at || 0).getTime())
