@@ -10556,6 +10556,60 @@ function buildOwnershipData() {
 // Google Sheets card_id -> Supabase cards.id UUID
 // ============================================================
 
+async function findOrCreateTeam(name, sportId = null) {
+  const teamName = clean(name);
+  if (!teamName) return null;
+  let query = supabaseClient.from("teams").select("*").ilike("name", teamName).limit(1);
+  query = sportId ? query.eq("sport_id", sportId) : query.is("sport_id", null);
+  const found = await query.maybeSingle();
+  if (found.error) throw found.error;
+  if (found.data) return found.data;
+  const inserted = await supabaseClient.from("teams").insert({
+    name: teamName,
+    sport_id: sportId || null
+  }).select("*").single();
+  if (!inserted.error) return inserted.data;
+  let retry = supabaseClient.from("teams").select("*").ilike("name", teamName).limit(1);
+  retry = sportId ? retry.eq("sport_id", sportId) : retry.is("sport_id", null);
+  const raced = await retry.maybeSingle();
+  if (!raced.error && raced.data) return raced.data;
+  throw inserted.error;
+}
+
+async function findOrCreatePlayer(name, sportId = null, teamId = null, position = null, weightDivision = null) {
+  const playerName = clean(name);
+  if (!playerName) return null;
+  let query = supabaseClient.from("players").select("*").ilike("name", playerName).limit(1);
+  query = sportId ? query.eq("sport_id", sportId) : query.is("sport_id", null);
+  const found = await query.maybeSingle();
+  if (found.error) throw found.error;
+  if (found.data) {
+    const missing = {};
+    if (!found.data.team_id && teamId) missing.team_id = teamId;
+    if (!found.data.position && position) missing.position = position;
+    if (!found.data.weight_division && weightDivision) missing.weight_division = weightDivision;
+    if (Object.keys(missing).length) {
+      const updated = await supabaseClient.from("players").update(missing).eq("id", found.data.id).select("*").single();
+      if (updated.error) throw updated.error;
+      return updated.data;
+    }
+    return found.data;
+  }
+  const inserted = await supabaseClient.from("players").insert({
+    name: playerName,
+    sport_id: sportId || null,
+    team_id: teamId || null,
+    position: position || null,
+    weight_division: weightDivision || null
+  }).select("*").single();
+  if (!inserted.error) return inserted.data;
+  let retry = supabaseClient.from("players").select("*").ilike("name", playerName).limit(1);
+  retry = sportId ? retry.eq("sport_id", sportId) : retry.is("sport_id", null);
+  const raced = await retry.maybeSingle();
+  if (!raced.error && raced.data) return raced.data;
+  throw inserted.error;
+}
+
 async function ensureSupabaseCard(catalogCard) {
   if (!catalogCard || !catalogCard.card_id) {
     throw new Error("The selected catalog card is missing its card ID.");
@@ -10573,6 +10627,26 @@ async function ensureSupabaseCard(catalogCard) {
   }
 
   if (existing.data) {
+    // Backfill missing relationships from the master catalog without replacing
+    // any card facts that have already been curated in Supabase.
+    const sportMatch = allSports.find(item => clean(item.name).toLowerCase() === clean(catalogCard.sport).toLowerCase());
+    const team = catalogCard.team ? await findOrCreateTeam(catalogCard.team, sportMatch?.id || null) : null;
+    const player = catalogCard.name ? await findOrCreatePlayer(catalogCard.name, sportMatch?.id || null, team?.id || null, catalogCard.position || null, catalogCard.weight_division || null) : null;
+    const missing = {};
+    if (!existing.data.sport_id && sportMatch?.id) missing.sport_id = sportMatch.id;
+    if (!existing.data.team_id && team?.id) missing.team_id = team.id;
+    if (!existing.data.player_id && player?.id) missing.player_id = player.id;
+    if (!existing.data.card_number && catalogCard.card_number) missing.card_number = catalogCard.card_number;
+    if (!existing.data.year_made && catalogCard.year_made) missing.year_made = Number(catalogCard.year_made) || null;
+    if (!existing.data.card_brand && catalogCard.card_brand) missing.card_brand = catalogCard.card_brand;
+    if (!existing.data.card_series && catalogCard.card_series) missing.card_series = catalogCard.card_series;
+    if (!existing.data.parallel && catalogCard.parallel) missing.parallel = catalogCard.parallel;
+    if (!existing.data.card_set_id && catalogCard.card_set_id) missing.card_set_id = catalogCard.card_set_id;
+    if (Object.keys(missing).length) {
+      const updated = await supabaseClient.from("cards").update(missing).eq("id", existing.data.id).select("*").single();
+      if (updated.error) throw updated.error;
+      return updated.data;
+    }
     return existing.data;
   }
 
@@ -10582,7 +10656,11 @@ async function ensureSupabaseCard(catalogCard) {
         clean(item.name).toLowerCase() ===
         clean(catalogCard.sport).toLowerCase()
     );
-
+  const team = catalogCard.team ? await findOrCreateTeam(catalogCard.team, sport?.id || null) : null;
+  const player = catalogCard.name ? await findOrCreatePlayer(catalogCard.name, sport?.id || null, team?.id || null, catalogCard.position || null, catalogCard.weight_division || null) : null;
+  const setMatch = catalogCard.card_set_id
+    ? getSet(catalogCard.card_set_id)
+    : allSets.find(item => clean(item.name).toLowerCase() === clean(getSetName(catalogCard)).toLowerCase() && Number(item.year_made || item.year) === Number(catalogCard.year_made));
   const identityKey =
     makeIdentityKey([
       catalogCard.card_id
@@ -10593,6 +10671,11 @@ async function ensureSupabaseCard(catalogCard) {
     name: catalogCard.name || "Catalog Card",
     card_number: catalogCard.card_number || null,
     sport_id: sport?.id || null,
+    team_id: team?.id || null,
+    player_id: player?.id || null,
+    card_set_id: setMatch?.id || setMatch?.card_set_id || null,
+    position: catalogCard.position || player?.position || null,
+    weight_division: catalogCard.weight_division || player?.weight_division || null,
     year_made:
       catalogCard.year_made === "" ||
       catalogCard.year_made == null
@@ -10962,42 +11045,10 @@ async async function saveCardFromForm(event) {
             clean(cardData.sport).toLowerCase()
         );
 
-      let teamId = null;
-      if (cardData.team) {
-        const teamLookup = await supabaseClient.from("teams").select("id").ilike("name", cardData.team).limit(1).maybeSingle();
-        if (teamLookup.error) throw teamLookup.error;
-        if (teamLookup.data) teamId = teamLookup.data.id;
-        else {
-          const teamInsert = await supabaseClient.from("teams").insert({ name: cardData.team, sport_id: sport?.id || null }).select("id").single();
-          if (teamInsert.error) {
-            // A concurrent insert may have created the team between lookup and insert.
-            const retryTeam = await supabaseClient.from("teams").select("id").ilike("name", cardData.team).limit(1).maybeSingle();
-            if (retryTeam.error || !retryTeam.data) throw teamInsert.error;
-            teamId = retryTeam.data.id;
-          } else teamId = teamInsert.data.id;
-        }
-      }
-
-      let playerId = null;
-      if (cardData.name) {
-        const playerLookup = await supabaseClient.from("players").select("id").ilike("name", cardData.name).limit(1).maybeSingle();
-        if (playerLookup.error) throw playerLookup.error;
-        if (playerLookup.data) playerId = playerLookup.data.id;
-        else {
-          const playerInsert = await supabaseClient.from("players").insert({
-            name: cardData.name,
-            sport_id: sport?.id || null,
-            team_id: teamId,
-            position: cardData.position || null,
-            weight_division: cardData.weightDivision || null
-          }).select("id").single();
-          if (playerInsert.error) {
-            const retryPlayer = await supabaseClient.from("players").select("id").ilike("name", cardData.name).limit(1).maybeSingle();
-            if (retryPlayer.error || !retryPlayer.data) throw playerInsert.error;
-            playerId = retryPlayer.data.id;
-          } else playerId = playerInsert.data.id;
-        }
-      }
+      const teamRecord = cardData.team ? await findOrCreateTeam(cardData.team, sport?.id || null) : null;
+      const playerRecord = cardData.name ? await findOrCreatePlayer(cardData.name, sport?.id || null, teamRecord?.id || null, cardData.position || null, cardData.weightDivision || null) : null;
+      const teamId = teamRecord?.id || null;
+      const playerId = playerRecord?.id || null;
 
       const cardRecord = {
         name: cardData.name,
