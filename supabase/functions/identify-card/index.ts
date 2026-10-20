@@ -146,6 +146,7 @@ Fields to return (use "" for anything you cannot determine, never guess):
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
         {
           method: "POST",
+          signal: AbortSignal.timeout(30000),
           headers: {
             "Content-Type": "application/json",
             "x-goog-api-key": geminiApiKey,
@@ -259,6 +260,11 @@ Fields to return (use "" for anything you cannot determine, never guess):
     return jsonResponse({ card: normalized });
   } catch (error) {
     console.error("Unexpected card-identification error:", error);
-    return jsonResponse({ error: "Card identification hit an unexpected error. Please try again." }, 500);
+    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    return jsonResponse({
+      error: timedOut
+        ? "Gemini took too long to identify this card. Try again with a clear front photo and, if needed, a separate back photo."
+        : "Card identification hit an unexpected error. Please try again."
+    }, timedOut ? 504 : 500);
   }
 });
