@@ -10916,8 +10916,8 @@ async function refreshCollectionPrices() {
   let succeeded = 0;
   for (const card of batch) {
     try {
-      await refreshCardPrice(card.card_id);
-      succeeded++;
+      const refreshed = await refreshCardPrice(card.card_id);
+      if (refreshed === true) succeeded++;
     } catch (error) {
       console.warn("Collection price refresh failed for", card.card_id, error);
     }
@@ -11030,6 +11030,7 @@ async function refreshCardPrice(
       "Price information refreshed.",
       "success"
     );
+    return true;
 
   } catch (error) {
     console.error(
@@ -11070,6 +11071,7 @@ async function refreshCardPrice(
       priceErrorMessage,
       "error"
     );
+    return false;
   }
 }
 
