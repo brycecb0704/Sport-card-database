@@ -523,7 +523,8 @@
       align-items: start;
     }
 
-    .ai-identification-review{border:1px solid var(--border);padding:16px;border-radius:14px}
+    .ownership-photo-preview{display:block;width:100%;max-height:220px;object-fit:contain;border:1px solid var(--border);border-radius:10px;margin-top:9px;background:rgba(127,127,127,.04)}
+.ai-identification-review{border:1px solid var(--border);padding:16px;border-radius:14px}
 .ai-review-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .ai-review-heading p{margin:5px 0 0;font-size:13px}
 .ai-confidence{font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;border:1px solid var(--border);border-radius:99px;white-space:nowrap}
@@ -3011,6 +3012,21 @@
           <div class="ownership-form-intro panel" style="margin:0 0 18px;box-shadow:none;">
             <strong>Your copy of this card</strong>
             <p class="muted" style="margin:5px 0 0;">These settings apply only to your ownership record. They do not change the shared card catalog or other collectors' copies.</p>
+          </div>
+          <div class="ownership-section-title" style="grid-column:1/-1;margin:0 0 10px;padding-bottom:9px;border-bottom:1px solid var(--border);font-weight:800;">Photos of Your Copy</div>
+          <div class="form-grid ownership-photo-grid" style="margin-bottom:18px;">
+            <div class="form-group">
+              <label class="form-label" for="ownershipFrontPhoto">Front photo (private to your ownership record)</label>
+              <input id="ownershipFrontPhoto" class="field" type="file" accept="image/*" onchange="previewOwnershipPhoto(event,'front')">
+              <img id="ownershipFrontPhotoPreview" class="ownership-photo-preview hidden" alt="Your card front preview">
+              <div id="ownershipFrontPhotoStatus" class="muted" style="font-size:12px;margin-top:5px;"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="ownershipBackPhoto">Back photo (optional)</label>
+              <input id="ownershipBackPhoto" class="field" type="file" accept="image/*" onchange="previewOwnershipPhoto(event,'back')">
+              <img id="ownershipBackPhotoPreview" class="ownership-photo-preview hidden" alt="Your card back preview">
+              <div id="ownershipBackPhotoStatus" class="muted" style="font-size:12px;margin-top:5px;"></div>
+            </div>
           </div>
           <div class="ownership-section-title" style="grid-column:1/-1;margin:0 0 10px;padding-bottom:9px;border-bottom:1px solid var(--border);font-weight:800;">Collection &amp; Condition</div>
           <div class="form-grid">
@@ -7045,16 +7061,12 @@ function getCurrentUserOwnershipSummary() {
         : getOwnershipsForCard(card.card_id);
 
     const frontImage =
-      getCardImage(
-        card,
-        "front"
-      );
+      getOwnedPhoto(selectedOwnership, "front") ||
+      getCardImage(card, "front");
 
     const backImage =
-      getCardImage(
-        card,
-        "back"
-      );
+      getOwnedPhoto(selectedOwnership, "back") ||
+      getCardImage(card, "back");
 
     const body =
       document.getElementById(
@@ -10679,7 +10691,46 @@ async function saveCardFromForm(event) {
 // OWNERSHIP EDIT MODAL
 // ============================================================
 
-async function openOwnershipEditor(
+async function previewOwnershipPhoto(event, side) {
+  const file = event?.target?.files?.[0] || null;
+  const preview = document.getElementById(side === "back" ? "ownershipBackPhotoPreview" : "ownershipFrontPhotoPreview");
+  const status = document.getElementById(side === "back" ? "ownershipBackPhotoStatus" : "ownershipFrontPhotoStatus");
+  if (!preview || !status) return;
+  if (file) {
+    if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+    const objectUrl = URL.createObjectURL(file);
+    preview.dataset.objectUrl = objectUrl;
+    preview.src = objectUrl;
+    preview.classList.remove("hidden");
+    status.textContent = file.name;
+  } else {
+    if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+    delete preview.dataset.objectUrl;
+    preview.removeAttribute("src");
+    preview.classList.add("hidden");
+    status.textContent = "";
+  }
+}
+
+function setOwnershipPhotoPreview(side, path) {
+  const preview = document.getElementById(side === "back" ? "ownershipBackPhotoPreview" : "ownershipFrontPhotoPreview");
+  const status = document.getElementById(side === "back" ? "ownershipBackPhotoStatus" : "ownershipFrontPhotoStatus");
+  if (!preview || !status) return;
+  if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+  delete preview.dataset.objectUrl;
+  const url = path ? (String(path).startsWith("http") ? path : getOwnedPhoto({[side === "back" ? "back_photo_path" : "front_photo_path"]: path}, side)) : "";
+  if (url) {
+    preview.src = url;
+    preview.classList.remove("hidden");
+    status.textContent = "Saved photo";
+  } else {
+    preview.removeAttribute("src");
+    preview.classList.add("hidden");
+    status.textContent = "";
+  }
+}
+
+function openOwnershipEditor(
   cardId
 ) {
   const card =
@@ -10782,6 +10833,13 @@ async function openOwnershipEditor(
     ownership?.notes ?? "",
     "ownershipNotes"
   );
+
+  ["ownershipFrontPhoto", "ownershipBackPhoto"].forEach(id => {
+    const input = document.getElementById(id);
+    if (input) input.value = "";
+  });
+  setOwnershipPhotoPreview("front", ownership?.front_photo_path || "");
+  setOwnershipPhotoPreview("back", ownership?.back_photo_path || "");
 
   openModalSafe(
     "ownershipModal"
@@ -10938,9 +10996,21 @@ async function saveOwnershipFromModal(
   }
 
   try {
+    const existingOwnership = getOwnership(selectedCard.card_id, currentUser.id);
+    const frontPhotoFile = document.getElementById("ownershipFrontPhoto")?.files?.[0] || null;
+    const backPhotoFile = document.getElementById("ownershipBackPhoto")?.files?.[0] || null;
+    const frontPhotoPath = frontPhotoFile
+      ? await uploadCardImage(frontPhotoFile, "card-photos", "front")
+      : existingOwnership?.front_photo_path || null;
+    const backPhotoPath = backPhotoFile
+      ? await uploadCardImage(backPhotoFile, "card-photos", "back")
+      : existingOwnership?.back_photo_path || null;
+
     await saveOwnershipRecord(
       selectedCard.card_id,
-      data
+      data,
+      frontPhotoPath,
+      backPhotoPath
     );
 
     await loadDatabase();
