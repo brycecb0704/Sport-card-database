@@ -1,6 +1,6 @@
 # Sports Card Database — Living Project Reference
 
-**Last updated:** 2026-10-20  
+**Last updated:** 2026-10-21  
 **Purpose:** Persistent handoff for future ChatGPT conversations. Update this document whenever project decisions, code changes, bugs, fixes, pricing methods, or architecture change. At chat handoff, use this document plus the latest GitHub state to produce an updated downloadable PDF.
 
 ## 1. Product vision and standards
@@ -199,3 +199,13 @@ These are committed changes. Do not assume every UI interaction is fully browser
 Start by reading this living reference and fetching the latest repository state. Check the latest GitHub Actions runs and current source before making changes. Work in meaningful batches, commit changes, and update this document after each significant decision/fix. Keep a changelog of commits, tests actually performed, known failures, pricing/source decisions, and next actions. Do not claim browser/Supabase testing unless it was actually performed.
 
 At chat handoff, produce an updated PDF from the latest version of this reference, including all changes since the previous PDF, and give the user a download link. Keep this Markdown file in the repository as the durable source of truth.
+
+## 11. Product direction clarified 2026-10-21 (requested, not yet implemented)
+
+- User has ChatGPT Pro and asks whether ChatGPT can manage the site and identify cards. ChatGPT subscription does not include website OpenAI API usage; website needs a separate API account/billing and secure server-side integration. Existing Gemini identification may remain for free-first use. Connected GitHub assistant can manage source code when authorized, but does not autonomously operate the deployed app.
+- **Add Card should be web-first**: users upload a photo or type a short search; first de-duplicate against exact existing shared catalog identity, then query permitted external card sources and AI-assisted recognition. If truly absent, securely create one new shared master card through an authorized backend after identity/conflict checks, rather than requiring collectors to enter extensive fields. Unverified/ambiguous details should be flagged for review. This supersedes the prior product assumption that all new cards must await admin creation, but not the security rule that public clients cannot write shared tables directly.
+- **One shared master card image only**, not personal front/back photos per owner. Remove personal card-image upload/storage fields from the planned collector UI, while allowing an uploaded identification image to be used transiently or retained only with explicit consent. Image licensing/provenance must be respected.
+- Card activity should be action-led: Bought, Sold, Traded, For Sale, Graded, etc.; reveal only relevant details per action. Keep user-owned transaction and grade data separate from shared catalog identity.
+- Remove unnecessary subtitles, verbose instructional text, repeated page explanations and excess form fields. Prefer compact, polished UI.
+- **Pricing is currently not working satisfactorily.** Treat it as P0: inspect source availability, identity matching, caching, function deployment, UI refresh and collection totals. Never fabricate prices or display unknown as $0. Pricing source file was inspected on 2026-10-21; header says active eBay listing research, while reference earlier mentions CardPricer preference. Verify complete function code and actual deployed version before claiming source behavior.
+- These are new requirements/decisions, **not yet shipped changes**. Plan migrations/authorization carefully, protect API keys, limit abuse and deduplicate shared catalog entries.
