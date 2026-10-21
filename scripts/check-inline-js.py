@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Extract inline JavaScript from HTML and syntax-check it with Node.js.
 
-This deliberately checks syntax only; it does not claim to test browser behavior,
-Supabase access, external APIs, or the live deployed application.
+The app uses classic inline scripts, so temporary files use the .js extension
+rather than ES modules. This deliberately checks syntax only; it does not claim
+to test browser behavior, Supabase access, external APIs, or the live app.
 """
 from html.parser import HTMLParser
 from pathlib import Path
@@ -69,7 +70,7 @@ def main():
     failed = False
     for index, (script_type, source) in enumerate(parser.scripts, start=1):
         with tempfile.NamedTemporaryFile(
-            mode="w", encoding="utf-8", suffix=".mjs", delete=False
+            mode="w", encoding="utf-8", suffix=".js", delete=False
         ) as temp:
             temp.write(source)
             temp_path = Path(temp.name)
