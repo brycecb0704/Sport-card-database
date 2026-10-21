@@ -7002,28 +7002,10 @@ function getCurrentUserOwnershipSummary() {
 
     selectedCard = card;
 
-    // Automatically try pricing when this card has never been checked or
-    // its latest attempt is over 24 hours old. Use ALL provider records for
-    // cooldown detection; getPrice intentionally hides asking-only records.
-    // Without this, asking-only cards looked unpriced and burned Soldgraph
-    // credits every time the user opened the card.
-    const resolvedPriceId = resolveSupabaseCardId(card.card_id);
-    const cardPriceRecords = allPrices.filter(price =>
-      String(price.card_id) === String(resolvedPriceId) ||
-      String(price.card_id) === String(card.card_id)
-    );
-    const latestPriceAttempt = cardPriceRecords
-      .map(price => new Date(price.fetched_at || 0).getTime())
-      .filter(Number.isFinite)
-      .reduce((latest, time) => Math.max(latest, time), 0);
-    const priceAttemptAge = latestPriceAttempt
-      ? Date.now() - latestPriceAttempt
-      : Infinity;
-    const needsPriceRefresh = priceAttemptAge > 24 * 60 * 60 * 1000;
-    if (currentUser && needsPriceRefresh) {
-      Promise.resolve().then(() => refreshCardPrice(card.card_id));
-    }
-
+    // Pricing is checked once, after the detail modal is rendered, by
+    // needsCardPriceRefresh below. Keeping a single trigger avoids duplicate
+    // SoldGraph/reference lookups when opening a card.
+    
     // Verify ownership directly against Supabase so a stale browser
     // index cannot report a false unowned state.
     const resolvedOwnershipCardId =
