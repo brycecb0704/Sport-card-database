@@ -7149,7 +7149,7 @@ function getCurrentUserOwnershipSummary() {
 
               <strong>
                 ${
-                  price && Number.isFinite(Number(price.estimated_value))
+                  price && Number.isFinite(Number(price.estimated_value)) && Number(price.estimated_value) > 0
                     ? money(price.estimated_value)
                     : (
                         selectedOwnership && Number(selectedOwnership.value) > 0
@@ -10783,7 +10783,7 @@ function openOwnershipEditor(
   );
 
   setTextIfExists(
-    card.name,
+    ownership ? "Edit Your Copy" : "Add To My Collection",
     "ownershipModalTitle"
   );
 
