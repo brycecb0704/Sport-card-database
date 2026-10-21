@@ -9024,7 +9024,7 @@ function searchAddCardManual() {
     return;
   }
 
-  const terms = search.split(/\\s+/).filter(Boolean);
+  const terms = search.split(/\s+/).filter(Boolean);
   const scored = getAddCardLibraryCards().map(card => {
     const fields = [
       card.name, card.card_number, card.card_series, card.card_brand,
