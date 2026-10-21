@@ -535,17 +535,20 @@
 .ai-review-actions{display:flex;gap:8px;flex-wrap:wrap}
 .ai-review-footnote{font-size:12px;line-height:1.5;margin:12px 0 0}
 @media(max-width:520px){.ai-review-grid{grid-template-columns:1fr}}
-.collection-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 14px}
-.collection-summary-item{padding:13px 15px;border:1px solid var(--border);border-radius:12px;background:var(--panel,rgba(127,127,127,.04));min-width:0}
-.collection-summary-item span{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
-.collection-summary-item strong{font-size:19px;overflow-wrap:anywhere}
-.collection-bulk-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px;border:1px solid var(--border);border-radius:12px}
-.collection-select-all{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700}
-.collection-bulk-actions{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.collection-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 18px}
+.collection-summary-item{padding:14px 16px;border:1px solid var(--border);border-radius:14px;background:var(--surface);min-width:0;box-shadow:0 2px 8px rgba(0,0,0,.025)}
+.collection-summary-item span{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:700;letter-spacing:.02em}
+.collection-summary-item strong{font-size:clamp(17px,2vw,22px);font-weight:800;letter-spacing:-.03em;overflow-wrap:anywhere}
+.collection-bulk-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:0;margin-bottom:12px;border:0}
+.collection-toolbar-main{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}
+.collection-select-all{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--muted)}
+.collection-bulk-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
 .collection-bulk-actions .btn{font-size:12px;padding:8px 11px}
-.collection-selection-check{position:absolute;z-index:30;top:10px;left:10px;width:21px;height:21px;accent-color:var(--primary);cursor:pointer}
+.collection-selection-check{display:none;position:absolute;z-index:30;top:10px;left:10px;width:22px;height:22px;accent-color:var(--primary);cursor:pointer;filter:drop-shadow(0 1px 3px rgba(0,0,0,.2))}
+.collection-selection-mode .collection-selection-check{display:block}
 .card-tile.collection-selected{outline:2px solid var(--primary);outline-offset:1px}
-@media(max-width:640px){.collection-summary{grid-template-columns:1fr 1fr}.collection-summary-item:last-child{grid-column:1/-1}.collection-bulk-actions{width:100%;margin-left:0}.collection-bulk-actions .btn{flex:1}}
+.collection-selection-mode .card-tile-button{pointer-events:none}
+@media(max-width:640px){.collection-summary{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.collection-summary-item{padding:11px 9px}.collection-summary-item strong{font-size:16px}.collection-bulk-actions{gap:6px}.collection-bulk-actions .btn{flex:1}.collection-toolbar-main{align-items:center}}
 .card-tile {
       position: relative;
       background: var(--surface);
@@ -1830,23 +1833,26 @@
   
 .catalog-lock-note{color:var(--muted);font-size:12px;margin-top:4px}
 .catalog-field-locked{background:var(--surface-2)!important;color:var(--muted)!important;cursor:not-allowed;opacity:.82}
-.account-modal{width:min(760px,94vw)}
+.account-modal{width:min(780px,94vw);border-radius:24px;overflow:hidden}
+.account-modal .modal-header{padding:20px 24px;border-bottom:1px solid var(--border)}
 .account-modal-body{padding:24px}
-.account-profile-hero{display:flex;align-items:center;gap:16px;padding:4px 0 22px}
-.account-large-avatar{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;font-size:25px;font-weight:900;flex-shrink:0}
-.account-profile-heading h2{margin:0;font-size:24px}
-.account-profile-handle{margin-top:3px;color:var(--muted);font-size:13px}
-.account-profile-role{display:inline-block;margin-top:8px;padding:4px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase}
-.account-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:24px}
-.account-stat-card{padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
-.account-stat-card span{display:block;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase}
-.account-stat-card strong{display:block;margin-top:4px;font-size:21px}
-.account-section{border-top:1px solid var(--border);padding-top:20px}
-.account-section h4{margin:0 0 14px;font-size:16px}
-.account-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.account-profile-hero{display:flex;align-items:center;gap:17px;padding:20px;margin:-2px 0 20px;border:1px solid var(--border);border-radius:18px;background:linear-gradient(135deg,var(--surface-2),var(--surface))}
+.account-large-avatar{width:76px;height:76px;border-radius:22px;display:flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;font-size:25px;font-weight:900;flex-shrink:0;box-shadow:0 8px 20px rgba(0,0,0,.12)}
+.account-profile-heading h2{margin:0;font-size:26px;letter-spacing:-.04em}
+.account-profile-handle{margin-top:5px;color:var(--muted);font-size:13px}
+.account-profile-role{display:inline-flex;margin-top:9px;padding:5px 9px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.account-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:26px}
+.account-stat-card{padding:16px;border:1px solid var(--border);border-radius:15px;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.025)}
+.account-stat-card span{display:block;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.account-stat-card strong{display:block;margin-top:7px;font-size:23px;letter-spacing:-.035em}
+.account-section{border-top:1px solid var(--border);padding-top:22px}
+.account-section h4{margin:0 0 16px;font-size:16px;letter-spacing:-.02em}
+.account-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .account-form-grid .full{grid-column:1/-1}
-.account-footer{justify-content:space-between}
-@media(max-width:600px){.account-stat-grid{grid-template-columns:1fr 1fr}.account-form-grid{grid-template-columns:1fr}.account-form-grid .full{grid-column:auto}.account-footer{flex-direction:column;align-items:stretch}}
+.account-form-grid .form-label{font-size:12px;font-weight:750}
+.account-form-grid .field{border-radius:11px;min-height:44px}
+.account-footer{justify-content:space-between;padding:18px 24px;border-top:1px solid var(--border)}
+@media(max-width:600px){.account-modal-body{padding:16px}.account-profile-hero{padding:16px;gap:12px}.account-large-avatar{width:60px;height:60px;border-radius:18px}.account-profile-heading h2{font-size:21px}.account-stat-grid{grid-template-columns:1fr 1fr;gap:8px}.account-stat-card{padding:12px}.account-stat-card strong{font-size:20px}.account-form-grid{grid-template-columns:1fr}.account-form-grid .full{grid-column:auto}.account-footer{flex-direction:column;align-items:stretch;padding:16px}}
 /* SIMPLE ADD CARD */
 .simple-add-choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .simple-add-option{min-height:180px;border:2px solid var(--border);border-radius:16px;background:var(--panel);padding:24px 18px;text-align:center;transition:.15s}
@@ -2655,11 +2661,15 @@
 
           <div id="collectionSummary" class="collection-summary" aria-live="polite"></div>
           <div id="collectionBulkToolbar" class="collection-bulk-toolbar">
-            <label class="collection-select-all"><input id="collectionSelectAll" type="checkbox" onchange="toggleAllVisibleCollectionCards(this.checked)"> Select all filtered cards</label>
-            <span id="collectionSelectionCount" class="muted">0 selected</span>
-            <div class="collection-bulk-actions">
-              <button type="button" class="btn btn-secondary" onclick="refreshSelectedCollectionPrices()">Refresh selected prices</button>
-              <button type="button" class="btn btn-danger" onclick="removeSelectedCollectionCards()">Remove selected</button>
+            <div class="collection-toolbar-main">
+              <span id="collectionSelectionCount" class="muted">Collection tools</span>
+              <button id="collectionSelectionModeButton" type="button" class="btn btn-secondary" onclick="toggleCollectionSelectionMode()">Select cards</button>
+            </div>
+            <div id="collectionBulkActions" class="collection-bulk-actions hidden">
+              <label class="collection-select-all"><input id="collectionSelectAll" type="checkbox" onchange="toggleAllVisibleCollectionCards(this.checked)"> Select all</label>
+              <button type="button" class="btn btn-secondary" onclick="refreshSelectedCollectionPrices()">Refresh prices</button>
+              <button type="button" class="btn btn-danger" onclick="removeSelectedCollectionCards()">Remove</button>
+              <button type="button" class="btn btn-secondary" onclick="toggleCollectionSelectionMode(false)">Cancel</button>
             </div>
           </div>
           <div
@@ -5753,6 +5763,19 @@ function getCurrentUserOwnershipSummary() {
   // ============================================================
 
   const selectedCollectionCardIds = new Set();
+  let collectionSelectionMode = false;
+
+  function toggleCollectionSelectionMode(forceValue) {
+    collectionSelectionMode = typeof forceValue === "boolean" ? forceValue : !collectionSelectionMode;
+    if (!collectionSelectionMode) selectedCollectionCardIds.clear();
+    const container = document.getElementById("collectionResults");
+    if (container) container.classList.toggle("collection-selection-mode", collectionSelectionMode);
+    const actions = document.getElementById("collectionBulkActions");
+    if (actions) actions.classList.toggle("hidden", !collectionSelectionMode);
+    const button = document.getElementById("collectionSelectionModeButton");
+    if (button) button.textContent = collectionSelectionMode ? "Done selecting" : "Select cards";
+    renderCollection();
+  }
 
   function cardTile(card, options = {}) {
 
@@ -5813,7 +5836,7 @@ function getCurrentUserOwnershipSummary() {
         data-card-tile-key="${tileKey}"
       >
 
-        ${options.selectable ? `<input class="collection-selection-check" type="checkbox" aria-label="Select ${escapeHtml(card.name || "card")}" ${selectedCollectionCardIds.has(String(card.card_id)) ? "checked" : ""} onchange="toggleCollectionCardSelection(this)" onclick="event.stopPropagation()">` : ""}
+        ${options.selectable && collectionSelectionMode ? `<input class="collection-selection-check" type="checkbox" aria-label="Select ${escapeHtml(card.name || "card")}" ${selectedCollectionCardIds.has(String(card.card_id)) ? "checked" : ""} onchange="toggleCollectionCardSelection(this)" onclick="event.stopPropagation()">` : ""}
 
         <button
           type="button"
@@ -6260,6 +6283,10 @@ function getCurrentUserOwnershipSummary() {
       <div class="collection-summary-item"><span>Total copies</span><strong>${quantityTotal.toLocaleString()}</strong></div>
       <div class="collection-summary-item"><span>Estimated collection value</span><strong>${money(valueTotal)}</strong></div>`;
     if (toolbar) toolbar.classList.toggle("hidden", !currentUser || cards.length === 0);
+    const actions = document.getElementById("collectionBulkActions");
+    if (actions) actions.classList.toggle("hidden", !collectionSelectionMode);
+    const selectButton = document.getElementById("collectionSelectionModeButton");
+    if (selectButton) selectButton.textContent = collectionSelectionMode ? "Done selecting" : "Select cards";
     const selectAll = document.getElementById("collectionSelectAll");
     if (selectAll) {
       selectAll.checked = cards.length > 0 && cards.every(card => selectedCollectionCardIds.has(String(card.card_id)));
@@ -6287,6 +6314,7 @@ function getCurrentUserOwnershipSummary() {
       return;
     }
 
+    container.classList.toggle("collection-selection-mode", collectionSelectionMode);
     container.innerHTML =
       cards.length
         ? cards
@@ -9959,16 +9987,10 @@ async function findOrCreateTeam(name, sportId = null) {
   const found = await query.maybeSingle();
   if (found.error) throw found.error;
   if (found.data) return found.data;
-  const inserted = await supabaseClient.from("teams").insert({
-    name: teamName,
-    sport_id: sportId || null
-  }).select("*").single();
-  if (!inserted.error) return inserted.data;
-  let retry = supabaseClient.from("teams").select("*").ilike("name", teamName).limit(1);
-  retry = sportId ? retry.eq("sport_id", sportId) : retry.is("sport_id", null);
-  const raced = await retry.maybeSingle();
-  if (!raced.error && raced.data) return raced.data;
-  throw inserted.error;
+  // Teams are shared reference data, not user-owned data. Collectors cannot
+  // create shared teams under RLS. Reuse an existing match, otherwise leave
+  // team_id null and retain the readable team name on the card metadata.
+  return null;
 }
 
 async function findOrCreatePlayer(name, sportId = null, teamId = null, position = null, weightDivision = null) {
@@ -9990,19 +10012,9 @@ async function findOrCreatePlayer(name, sportId = null, teamId = null, position 
     }
     return found.data;
   }
-  const inserted = await supabaseClient.from("players").insert({
-    name: playerName,
-    sport_id: sportId || null,
-    team_id: teamId || null,
-    position: position || null,
-    weight_division: weightDivision || null
-  }).select("*").single();
-  if (!inserted.error) return inserted.data;
-  let retry = supabaseClient.from("players").select("*").ilike("name", playerName).limit(1);
-  retry = sportId ? retry.eq("sport_id", sportId) : retry.is("sport_id", null);
-  const raced = await retry.maybeSingle();
-  if (!raced.error && raced.data) return raced.data;
-  throw inserted.error;
+  // Players are shared reference data too. Do not create/update them during a
+  // collector's ownership action; that action should never mutate shared data.
+  return null;
 }
 
 async function ensureSupabaseCard(catalogCard) {
