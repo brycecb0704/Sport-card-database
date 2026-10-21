@@ -8826,7 +8826,10 @@ function showAddCardMode(mode) {
   else if (choice) choice.classList.remove("hidden");
 
   if (saveButton) {
-    saveButton.classList.toggle("hidden", mode !== "manual");
+    // Manual mode is catalog search-only. Never expose the legacy
+    // catalog-creation submit button for a new card; catalog identity
+    // must come from the shared catalog/admin workflow.
+    saveButton.classList.toggle("hidden", !editingCardId);
   }
 
   setCatalogFieldsLocked(mode === "library");
