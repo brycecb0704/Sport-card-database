@@ -5769,7 +5769,9 @@ function getCurrentUserOwnershipSummary() {
       getPrice(card.card_id);
 
     const image =
-      getCardImage(card, "front");
+      options.selectable
+        ? (getOwnedPhoto(ownership, "front") || getCardImage(card, "front"))
+        : getCardImage(card, "front");
 
     const value =
       options.value ??
@@ -9112,8 +9114,30 @@ async function chooseCardFromLibrary(cardId) {
   editingCardId = null;
   selectedCard = card;
 
+  // If this catalog card was selected after photo identification, carry
+  // those files into the ownership editor so the photos are saved privately
+  // with this user's copy rather than being lost when the first modal closes.
+  const identifiedFrontFile = document.getElementById("addCardPhoto")?.files?.[0] || null;
+  const identifiedBackFile = document.getElementById("addCardBackPhoto")?.files?.[0] || null;
+
   closeModal("addCardModal");
   await openOwnershipEditor(card.card_id);
+
+  const transferPhoto = (file, inputId, side) => {
+    if (!file) return;
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    try {
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+      previewOwnershipPhoto({target: input}, side);
+    } catch (error) {
+      console.warn("Could not transfer identified card photo into ownership editor:", error);
+    }
+  };
+  transferPhoto(identifiedFrontFile, "ownershipFrontPhoto", "front");
+  transferPhoto(identifiedBackFile, "ownershipBackPhoto", "back");
 }
 
 
