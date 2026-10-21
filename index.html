@@ -3383,7 +3383,7 @@
         <div class="account-stat-grid">
           <div class="account-stat-card"><span>Cards</span><strong id="accountCardCount">0</strong></div>
           <div class="account-stat-card"><span>Copies</span><strong id="accountQuantityCount">0</strong></div>
-          <div class="account-stat-card"><span>XP</span><strong id="accountXP">0</strong></div>
+          <div class="account-stat-card"><span>Collection Value</span><strong id="accountXP">$0</strong></div>
           <div class="account-stat-card"><span>Level</span><strong id="accountLevel">1</strong></div>
         </div>
 
@@ -5331,8 +5331,8 @@ function getCurrentUserOwnershipSummary() {
       document.getElementById("accountXP");
 
     if (accountXP) {
-      accountXP.textContent =
-        numberValue(currentProfile?.xp);
+      const value = getCurrentUserOwnershipSummary().collectionValue;
+      accountXP.textContent = money(value);
     }
 
     const accountLevel =
@@ -9025,17 +9025,31 @@ function searchAddCardManual() {
   }
 
   const terms = search.split(/\\s+/).filter(Boolean);
-  const matches = getAddCardLibraryCards().filter(card => {
-    const text = [
+  const scored = getAddCardLibraryCards().map(card => {
+    const fields = [
       card.name, card.card_number, card.card_series, card.card_brand,
       card.sport, card.team, card.parallel, card.year_made,
       getSetName(card), card.barcode
-    ].map(clean).join(" ").toLowerCase();
-    return terms.every(term => text.includes(term));
-  }).slice(0, 50);
+    ].map(value => clean(value).toLowerCase());
+    const text = fields.join(" ");
+    const matchedTerms = terms.filter(term => text.includes(term)).length;
+    if (!matchedTerms) return null;
+    const name = fields[0] || "";
+    const number = clean(card.card_number).toLowerCase();
+    const year = clean(card.year_made).toLowerCase();
+    const exactName = name === search ? 100 : name.startsWith(search) ? 40 : 0;
+    const exactNumber = number && terms.includes(number) ? 45 : 0;
+    const exactYear = year && terms.includes(year) ? 10 : 0;
+    const score = (matchedTerms / terms.length) * 50 + exactName + exactNumber + exactYear;
+    return {card, score, matchedTerms};
+  }).filter(Boolean)
+    .filter(item => item.matchedTerms === terms.length || terms.length === 1)
+    .sort((a,b) => b.score-a.score)
+    .slice(0, 50)
+    .map(item => item.card);
 
-  container.innerHTML = matches.length
-    ? matches.map(card => {
+  container.innerHTML = scored.length
+    ? scored.map(card => {
         const image = getCardImage(card, "front") || "";
         const meta = [
           card.year_made, card.card_brand, card.card_series,
@@ -9048,7 +9062,12 @@ function searchAddCardManual() {
             <div class="simple-add-library-meta">${escapeHtml(meta || card.sport || "Catalog Card")}</div></div>
           </button>`;
       }).join("")
-    : '<div class="empty-state">No matching cards found. Try a shorter search or use Identify With AI to recognize a new card.</div>';
+    : `<div class="empty-state">
+        <div class="empty-icon">🔎</div>
+        <h3>No catalog match yet</h3>
+        <p>Try the player name, card number, year, set, brand, or parallel. If it still isn't listed, identify the card from photos so we can check the details before it is added to the shared catalog.</p>
+        <button type="button" class="btn btn-primary" onclick="showAddCardMode('photo')">Identify with a photo</button>
+      </div>`;
 }
 
 function searchAddCardLibrary() {
@@ -10001,15 +10020,7 @@ async function findOrCreatePlayer(name, sportId = null, teamId = null, position 
   const found = await query.maybeSingle();
   if (found.error) throw found.error;
   if (found.data) {
-    const missing = {};
-    if (!found.data.team_id && teamId) missing.team_id = teamId;
-    if (!found.data.position && position) missing.position = position;
-    if (!found.data.weight_division && weightDivision) missing.weight_division = weightDivision;
-    if (Object.keys(missing).length) {
-      const updated = await supabaseClient.from("players").update(missing).eq("id", found.data.id).select("*").single();
-      if (updated.error) throw updated.error;
-      return updated.data;
-    }
+    // Existing shared player record is read-only from collector workflows.
     return found.data;
   }
   // Players are shared reference data too. Do not create/update them during a
