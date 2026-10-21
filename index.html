@@ -6233,6 +6233,7 @@ function getCurrentUserOwnershipSummary() {
     const quantityTotal = cards.reduce((sum, card) => sum + numberValue(getOwnership(card.card_id)?.quantity), 0);
     const valueTotal = cards.reduce((sum, card) => {
       const ownership = getOwnership(card.card_id);
+      if (["Sold", "Traded"].includes(clean(ownership?.possession))) return sum;
       const unitValue = numberValue(ownership?.value) > 0 ? numberValue(ownership.value) : numberValue(getDisplayValue(card));
       return sum + unitValue * numberValue(ownership?.quantity);
     }, 0);
@@ -6318,8 +6319,12 @@ function getCurrentUserOwnershipSummary() {
     if (ids.length > batch.length) showToast("Refreshing 5 selected cards to protect free-tier limits. Select the remaining cards for another batch.", "info");
     let completed = 0;
     for (const id of batch) {
-      try { await refreshCardPrice(id); completed++; }
-      catch (error) { console.warn("Selected card price refresh failed:", id, error); }
+      try {
+        const succeeded = await refreshCardPrice(id);
+        if (succeeded === true) completed++;
+      } catch (error) {
+        console.warn("Selected card price refresh failed:", id, error);
+      }
     }
     await loadDatabase();
     updateUserInterface();
