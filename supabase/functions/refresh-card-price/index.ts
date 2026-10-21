@@ -55,7 +55,7 @@ function numberInTitle(title: string, cardNumber: string): boolean {
   const digits = number.match(/[a-z]*\d+[a-z]*/i)?.[0];
   if (!digits) return false;
   const escaped = digits.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp("(^|[^a-z0-9])#?\s*" + escaped + "($|[^a-z0-9])", "i").test(title);
+  return new RegExp("(^|[^a-z0-9])#?\\s*" + escaped + "($|[^a-z0-9])", "i").test(title);
 }
 
 function parseMoney(value: unknown): number | null {
