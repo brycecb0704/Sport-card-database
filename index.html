@@ -8984,39 +8984,75 @@ async function priceIdentifiedCatalogMatch(data) {
   const number = field("card_number", "Card Number", "cardNumber", "number", "card_no");
   const set = field("set_name", "Set Name", "setName", "product_name", "set", "card_series", "series");
   const parallel = field("parallel", "Parallel", "variant_type", "variant", "Variant");
-  if (!subject || !year || !number || !set) return;
-
-  const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-  const normalizedSet = normalize(set);
-  const matches = getAddCardLibraryCards().filter(card => {
-    const cardSet = [getSetName(card), card.card_series].map(normalize);
-    return normalize(card.name) === normalize(subject) &&
-      normalize(card.year_made) === normalize(year) &&
-      normalize(card.card_number) === normalize(number) &&
-      cardSet.includes(normalizedSet) &&
-      normalize(card.parallel) === normalize(parallel);
-  });
-  if (matches.length !== 1) return;
-  const card = matches[0];
-  const uuid = resolveSupabaseCardId(card.card_id);
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(uuid || ""))) return;
+  const brand = field("card_brand", "Card Brand", "cardBrand", "brand", "manufacturer");
   const panel = document.getElementById("addCardAIReview");
-  if (!panel || !needsCardPriceRefresh(card) || identificationPriceRequests.has(uuid)) return;
-  identificationPriceRequests.add(uuid);
+  if (!panel) return;
   const status = document.createElement("p");
   status.className = "muted";
-  status.textContent = "Exact catalog match found. Checking estimated value…";
+  status.id = "identifiedCardPriceStatus";
+  panel.querySelector("#identifiedCardPriceStatus")?.remove();
   panel.appendChild(status);
+  const say = message => {
+    if (latestAIIdentification !== data) return;
+    // Re-rendering the review can replace the status element; recover it.
+    const current = document.getElementById("addCardAIReview");
+    if (!current || current.classList.contains("hidden")) return;
+    let target = current.querySelector("#identifiedCardPriceStatus");
+    if (!target) {
+      target = document.createElement("p");
+      target.id = "identifiedCardPriceStatus";
+      target.className = "muted";
+      current.appendChild(target);
+    }
+    target.textContent = message;
+  };
+  const norm = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (!subject || !year || !number || !set) {
+    say("Check the card details to find an exact match and price.");
+    return;
+  }
+  const matches = getAddCardLibraryCards().filter(card => {
+    const names = [card.name, card.player_name].map(norm);
+    const sets = [getSetName(card), card.card_series].map(norm);
+    return names.includes(norm(subject)) &&
+      norm(card.year_made) === norm(year) &&
+      norm(card.card_number) === norm(number) &&
+      sets.includes(norm(set)) &&
+      (!brand || norm(card.card_brand) === norm(brand)) &&
+      norm(card.parallel) === norm(parallel);
+  });
+  if (matches.length !== 1) {
+    say(matches.length ? "Multiple possible cards found. Select the exact variation to see its price." : "Not in the shared catalog yet. You can review the identification; pricing requires a verified card.");
+    return;
+  }
+  const card = matches[0];
+  const cached = getPrice(card.card_id);
+  if (Number(cached?.estimated_value) > 0) {
+    say("Estimated value: $" + Number(cached.estimated_value).toFixed(2) + " (" + String(cached.source || "reference").replace(/_/g, " ") + ")");
+  }
+  if (!needsCardPriceRefresh(card)) {
+    if (!(Number(cached?.estimated_value) > 0)) say("Price unavailable. You can still add this card.");
+    return;
+  }
+  const uuid = resolveSupabaseCardId(card.card_id);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(uuid || ""))) {
+    if (!(Number(cached?.estimated_value) > 0)) say("Price pending until this catalog card is linked to the database.");
+    return;
+  }
+  if (identificationPriceRequests.has(uuid)) return;
+  identificationPriceRequests.add(uuid);
+  if (!(Number(cached?.estimated_value) > 0)) say("Checking estimated value…");
   try {
     const ok = await refreshCardPrice(card.card_id);
     const price = getPrice(card.card_id);
-    if (latestAIIdentification !== data || !panel.contains(status)) return;
-    status.textContent = ok && Number(price?.estimated_value) > 0
+    say(ok && Number(price?.estimated_value) > 0
       ? "Estimated value: $" + Number(price.estimated_value).toFixed(2) + " (" + String(price.source || "reference").replace(/_/g, " ") + ")"
-      : "Price unavailable. You can still add this card.";
+      : Number(cached?.estimated_value) > 0
+        ? "Estimated value: $" + Number(cached.estimated_value).toFixed(2) + " (" + String(cached.source || "reference").replace(/_/g, " ") + ")"
+        : "Price unavailable. You can still add this card.");
   } catch (error) {
     console.warn("Identification price lookup failed:", error);
-    if (panel.contains(status)) status.textContent = "Price unavailable. You can still add this card.";
+    say("Price unavailable. You can still add this card.");
   } finally {
     identificationPriceRequests.delete(uuid);
   }
