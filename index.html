@@ -8973,6 +8973,55 @@ function clearAIIdentificationReview() {
   if (panel) { panel.classList.add("hidden"); panel.innerHTML = ""; }
 }
 
+// A guarded, free-tier-friendly price lookup following photo identification.
+// Exact year, card number, subject, set/series and parallel must agree.
+const identificationPriceRequests = new Set();
+async function priceIdentifiedCatalogMatch(data) {
+  if (!data || !currentUser) return;
+  const field = (...names) => clean(firstCardValue(data, ...names)).toLowerCase().trim();
+  const subject = field("name", "Name", "player", "Player", "player_name", "playerName");
+  const year = field("year_made", "Year Made", "yearMade", "year", "Year", "release_year");
+  const number = field("card_number", "Card Number", "cardNumber", "number", "card_no");
+  const set = field("set_name", "Set Name", "setName", "product_name", "set", "card_series", "series");
+  const parallel = field("parallel", "Parallel", "variant_type", "variant", "Variant");
+  if (!subject || !year || !number || !set) return;
+
+  const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const normalizedSet = normalize(set);
+  const matches = getAddCardLibraryCards().filter(card => {
+    const cardSet = [getSetName(card), card.card_series].map(normalize);
+    return normalize(card.name) === normalize(subject) &&
+      normalize(card.year_made) === normalize(year) &&
+      normalize(card.card_number) === normalize(number) &&
+      cardSet.includes(normalizedSet) &&
+      normalize(card.parallel) === normalize(parallel);
+  });
+  if (matches.length !== 1) return;
+  const card = matches[0];
+  const uuid = resolveSupabaseCardId(card.card_id);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(uuid || ""))) return;
+  const panel = document.getElementById("addCardAIReview");
+  if (!panel || !needsCardPriceRefresh(card) || identificationPriceRequests.has(uuid)) return;
+  identificationPriceRequests.add(uuid);
+  const status = document.createElement("p");
+  status.className = "muted";
+  status.textContent = "Exact catalog match found. Checking estimated value…";
+  panel.appendChild(status);
+  try {
+    const ok = await refreshCardPrice(card.card_id);
+    const price = getPrice(card.card_id);
+    if (latestAIIdentification !== data || !panel.contains(status)) return;
+    status.textContent = ok && Number(price?.estimated_value) > 0
+      ? "Estimated value: $" + Number(price.estimated_value).toFixed(2) + " (" + String(price.source || "reference").replace(/_/g, " ") + ")"
+      : "Price unavailable. You can still add this card.";
+  } catch (error) {
+    console.warn("Identification price lookup failed:", error);
+    if (panel.contains(status)) status.textContent = "Price unavailable. You can still add this card.";
+  } finally {
+    identificationPriceRequests.delete(uuid);
+  }
+}
+
 async function identifyNewCardPhoto() {
   const input = document.getElementById("addCardPhoto");
   const file = input?.files?.[0];
@@ -8998,6 +9047,9 @@ async function identifyNewCardPhoto() {
       showAddCardMode("manual");
       renderAIIdentificationReview(data);
       searchCatalogFromAI();
+      // Price only when AI details uniquely identify an existing catalog card.
+      // Never price a speculative match or send a Sheets slug to the Edge Function.
+      void priceIdentifiedCatalogMatch(data);
     }
   } finally {
     if (button) {
