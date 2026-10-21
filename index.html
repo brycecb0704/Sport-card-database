@@ -523,7 +523,29 @@
       align-items: start;
     }
 
-    .card-tile {
+    .ai-identification-review{border:1px solid var(--border);padding:16px;border-radius:14px}
+.ai-review-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.ai-review-heading p{margin:5px 0 0;font-size:13px}
+.ai-confidence{font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;border:1px solid var(--border);border-radius:99px;white-space:nowrap}
+.ai-review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;margin:14px 0}
+.ai-review-grid div{min-width:0;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.ai-review-grid dt{font-size:11px;color:var(--muted);margin-bottom:3px}
+.ai-review-grid dd{margin:0;font-size:13px;font-weight:650;overflow-wrap:anywhere}
+.ai-review-actions{display:flex;gap:8px;flex-wrap:wrap}
+.ai-review-footnote{font-size:12px;line-height:1.5;margin:12px 0 0}
+@media(max-width:520px){.ai-review-grid{grid-template-columns:1fr}}
+.collection-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 14px}
+.collection-summary-item{padding:13px 15px;border:1px solid var(--border);border-radius:12px;background:var(--panel,rgba(127,127,127,.04));min-width:0}
+.collection-summary-item span{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.collection-summary-item strong{font-size:19px;overflow-wrap:anywhere}
+.collection-bulk-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px;border:1px solid var(--border);border-radius:12px}
+.collection-select-all{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700}
+.collection-bulk-actions{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.collection-bulk-actions .btn{font-size:12px;padding:8px 11px}
+.collection-selection-check{position:absolute;z-index:3;top:10px;left:10px;width:21px;height:21px;accent-color:var(--primary);cursor:pointer}
+.card-tile.collection-selected{outline:2px solid var(--primary);outline-offset:1px}
+@media(max-width:640px){.collection-summary{grid-template-columns:1fr 1fr}.collection-summary-item:last-child{grid-column:1/-1}.collection-bulk-actions{width:100%;margin-left:0}.collection-bulk-actions .btn{flex:1}}
+.card-tile {
       position: relative;
       background: var(--surface);
       border: 1px solid var(--border);
@@ -2630,6 +2652,15 @@
           </div>
 
 
+          <div id="collectionSummary" class="collection-summary" aria-live="polite"></div>
+          <div id="collectionBulkToolbar" class="collection-bulk-toolbar">
+            <label class="collection-select-all"><input id="collectionSelectAll" type="checkbox" onchange="toggleAllVisibleCollectionCards(this.checked)"> Select all filtered cards</label>
+            <span id="collectionSelectionCount" class="muted">0 selected</span>
+            <div class="collection-bulk-actions">
+              <button type="button" class="btn btn-secondary" onclick="refreshSelectedCollectionPrices()">Refresh selected prices</button>
+              <button type="button" class="btn btn-danger" onclick="removeSelectedCollectionCards()">Remove selected</button>
+            </div>
+          </div>
           <div
             id="collectionResults"
             class="card-grid">
@@ -3203,6 +3234,7 @@
               ← Back
             </button>
 
+            <div id="addCardAIReview" class="panel ai-identification-review hidden" style="box-shadow:none;margin:14px 0 15px;"></div>
             <div class="panel" style="box-shadow:none;margin:14px 0 15px;">
               <strong>Search for your card</strong>
               <p class="muted" style="margin:5px 0 0;">Search by player or card name, year, card number, brand, set, or team. Shared card information is managed by the catalog and AI—not edited here.</p>
@@ -5704,6 +5736,8 @@ function getCurrentUserOwnershipSummary() {
   // CARD TILE
   // ============================================================
 
+  const selectedCollectionCardIds = new Set();
+
   function cardTile(card, options = {}) {
 
     const tileKey = String(nextCardTileKey++);
@@ -5757,9 +5791,11 @@ function getCurrentUserOwnershipSummary() {
 
     return `
       <article
-        class="card-tile"
+        class="card-tile ${options.selectable && selectedCollectionCardIds.has(String(card.card_id)) ? "collection-selected" : ""}"
         data-card-tile-key="${tileKey}"
       >
+
+        ${options.selectable ? `<input class="collection-selection-check" type="checkbox" aria-label="Select ${escapeHtml(card.name || "card")}" ${selectedCollectionCardIds.has(String(card.card_id)) ? "checked" : ""} onchange="toggleCollectionCardSelection(this)" onclick="event.stopPropagation()">` : ""}
 
         <button
           type="button"
@@ -6188,6 +6224,31 @@ function getCurrentUserOwnershipSummary() {
     const cards =
       getCollectionFilteredCards();
 
+    const summary = document.getElementById("collectionSummary");
+    const toolbar = document.getElementById("collectionBulkToolbar");
+    const visibleIds = new Set(cards.map(card => String(card.card_id)));
+    for (const id of Array.from(selectedCollectionCardIds)) {
+      if (!visibleIds.has(id)) selectedCollectionCardIds.delete(id);
+    }
+    const quantityTotal = cards.reduce((sum, card) => sum + numberValue(getOwnership(card.card_id)?.quantity), 0);
+    const valueTotal = cards.reduce((sum, card) => {
+      const ownership = getOwnership(card.card_id);
+      const unitValue = numberValue(ownership?.value) > 0 ? numberValue(ownership.value) : numberValue(getDisplayValue(card));
+      return sum + unitValue * numberValue(ownership?.quantity);
+    }, 0);
+    if (summary) summary.innerHTML = `
+      <div class="collection-summary-item"><span>Unique cards</span><strong>${cards.length.toLocaleString()}</strong></div>
+      <div class="collection-summary-item"><span>Total copies</span><strong>${quantityTotal.toLocaleString()}</strong></div>
+      <div class="collection-summary-item"><span>Estimated collection value</span><strong>${money(valueTotal)}</strong></div>`;
+    if (toolbar) toolbar.classList.toggle("hidden", !currentUser || cards.length === 0);
+    const selectAll = document.getElementById("collectionSelectAll");
+    if (selectAll) {
+      selectAll.checked = cards.length > 0 && cards.every(card => selectedCollectionCardIds.has(String(card.card_id)));
+      selectAll.indeterminate = cards.some(card => selectedCollectionCardIds.has(String(card.card_id))) && !selectAll.checked;
+    }
+    const selectionCount = document.getElementById("collectionSelectionCount");
+    if (selectionCount) selectionCount.textContent = selectedCollectionCardIds.size + " selected";
+
     const count =
       document.getElementById(
         "collectionResultCount"
@@ -6210,7 +6271,7 @@ function getCurrentUserOwnershipSummary() {
     container.innerHTML =
       cards.length
         ? cards
-            .map(card => cardTile(card))
+            .map(card => cardTile(card, {selectable:true}))
             .join("")
         : `
             <div class="empty-state">
@@ -6229,6 +6290,68 @@ function getCurrentUserOwnershipSummary() {
   // ============================================================
   // STATUS LISTS
   // ============================================================
+
+  function toggleCollectionCardSelection(input) {
+    const tile = input?.closest?.(".card-tile");
+    const card = tile ? cardTileRegistry.get(tile.dataset.cardTileKey) : null;
+    if (!card) return;
+    const id = String(card.card_id);
+    if (input.checked) selectedCollectionCardIds.add(id);
+    else selectedCollectionCardIds.delete(id);
+    renderCollection();
+  }
+
+  function toggleAllVisibleCollectionCards(checked) {
+    getCollectionFilteredCards().forEach(card => {
+      const id = String(card.card_id);
+      if (checked) selectedCollectionCardIds.add(id);
+      else selectedCollectionCardIds.delete(id);
+    });
+    renderCollection();
+  }
+
+  async function refreshSelectedCollectionPrices() {
+    if (!currentUser) { showToast("Please log in first.", "error"); return; }
+    const ids = Array.from(selectedCollectionCardIds);
+    if (!ids.length) { showToast("Select one or more cards first.", "info"); return; }
+    const batch = ids.slice(0, 5);
+    if (ids.length > batch.length) showToast("Refreshing 5 selected cards to protect free-tier limits. Select the remaining cards for another batch.", "info");
+    let completed = 0;
+    for (const id of batch) {
+      try { await refreshCardPrice(id); completed++; }
+      catch (error) { console.warn("Selected card price refresh failed:", id, error); }
+    }
+    await loadDatabase();
+    updateUserInterface();
+    renderAllScreens();
+    showToast("Price refresh attempted for " + completed + " of " + batch.length + " selected cards.", completed ? "success" : "error");
+  }
+
+  async function removeSelectedCollectionCards() {
+    if (!currentUser) { showToast("Please log in first.", "error"); return; }
+    const ids = Array.from(selectedCollectionCardIds);
+    if (!ids.length) { showToast("Select one or more cards first.", "info"); return; }
+    if (!confirm("Remove " + ids.length + " selected card(s) from your collection? This will not delete shared catalog cards.")) return;
+    let removed = 0;
+    const failures = [];
+    for (const id of ids) {
+      try {
+        const resolvedId = await resolveOwnershipCardId(id);
+        if (!resolvedId) throw new Error("Could not resolve ownership record.");
+        const result = await supabaseClient.from("card_ownership").delete().eq("user_id", currentUser.id).eq("card_id", resolvedId);
+        if (result.error) throw result.error;
+        removed++;
+        selectedCollectionCardIds.delete(id);
+      } catch (error) {
+        failures.push(id);
+        console.warn("Bulk ownership removal failed:", id, error);
+      }
+    }
+    await loadDatabase();
+    updateUserInterface();
+    renderAllScreens();
+    showToast(removed + " card(s) removed." + (failures.length ? " " + failures.length + " could not be removed." : ""), failures.length ? "info" : "success");
+  }
 
   function renderOwnershipStatus(
     screenName,
@@ -8511,6 +8634,11 @@ function closeOwnershipModal() {
 // ============================================================
 
 function resetAddCardForm() {
+  clearAIIdentificationReview();
+  const manualSearch = document.getElementById("addCardManualSearch");
+  if (manualSearch) manualSearch.value = "";
+  const manualResults = document.getElementById("addCardManualResults");
+  if (manualResults) manualResults.innerHTML = '<div class="empty-state">Enter a few details to find a card in the shared catalog.</div>';
   setCatalogFieldsLocked(false);
 
   // A fresh Add Card starts without a previously selected
@@ -8764,6 +8892,55 @@ function copyPhotoToOwnedBackField(file) {
   }
 }
 
+let latestAIIdentification = null;
+
+function renderAIIdentificationReview(data) {
+  latestAIIdentification = data || null;
+  const panel = document.getElementById("addCardAIReview");
+  const search = document.getElementById("addCardManualSearch");
+  if (!panel) return;
+  if (!data) { panel.classList.add("hidden"); return; }
+
+  const value = (...keys) => clean(firstCardValue(data, ...keys));
+  const fields = [
+    ["Player / Card", value("name","Name","player","Player","player_name","playerName")],
+    ["Sport", value("sport","Sport","sport_name")],
+    ["Year", value("year_made","Year Made","yearMade","year","Year","release_year")],
+    ["Brand", value("card_brand","Card Brand","cardBrand","brand","manufacturer")],
+    ["Set / Series", value("set_name","Set Name","setName","product_name","set","card_series","series")],
+    ["Card number", value("card_number","Card Number","cardNumber","number","card_no")],
+    ["Team", value("team","Team","team_name")],
+    ["Parallel / Variant", value("parallel","Parallel","variant_type","variant","Variant")],
+    ["Serial numbering", value("serial_numbering","Serial Numbering","serialNumbering","print_run","printRun")],
+    ["AI notes", value("notes","Notes","description","Description")]
+  ].filter(row => row[1]);
+
+  const confidence = value("confidence") || "unconfirmed";
+  panel.innerHTML = `
+    <div class="ai-review-heading"><div><strong>AI identification results</strong><p class="muted">Read-only suggestions from the photo. Confirm the correct shared catalog card below before adding it to your collection.</p></div><span class="ai-confidence">${escapeHtml(confidence)}</span></div>
+    <dl class="ai-review-grid">${fields.map(([label,val]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(val)}</dd></div>`).join("")}</dl>
+    <div class="ai-review-actions"><button type="button" class="btn btn-primary" onclick="searchCatalogFromAI()">Find matching catalog cards</button><button type="button" class="btn btn-secondary" onclick="clearAIIdentificationReview()">Clear results</button></div>
+    <p class="muted ai-review-footnote">AI results do not automatically create a new shared catalog record. If no match exists, an authorized catalog update is needed so everyone uses the same card identity.</p>`;
+  panel.classList.remove("hidden");
+  if (search) search.value = value("name","Name","player","Player","player_name","playerName");
+}
+
+function searchCatalogFromAI() {
+  const search = document.getElementById("addCardManualSearch");
+  if (search && latestAIIdentification) {
+    const name = clean(firstCardValue(latestAIIdentification,"name","Name","player","Player","player_name","playerName"));
+    search.value = name;
+  }
+  searchAddCardManual();
+  document.getElementById("addCardManualResults")?.scrollIntoView?.({behavior:"smooth",block:"nearest"});
+}
+
+function clearAIIdentificationReview() {
+  latestAIIdentification = null;
+  const panel = document.getElementById("addCardAIReview");
+  if (panel) { panel.classList.add("hidden"); panel.innerHTML = ""; }
+}
+
 async function identifyNewCardPhoto() {
   const input = document.getElementById("addCardPhoto");
   const file = input?.files?.[0];
@@ -8787,6 +8964,8 @@ async function identifyNewCardPhoto() {
 
     if (data) {
       showAddCardMode("manual");
+      renderAIIdentificationReview(data);
+      searchCatalogFromAI();
     }
   } finally {
     if (button) {
