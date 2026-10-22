@@ -10171,46 +10171,57 @@ async function findOrCreatePlayer(name, sportId = null, teamId = null, position 
   return null;
 }
 
+const pendingCatalogBridges = new Map();
+
 async function ensureSupabaseCard(catalogCard) {
   if (!catalogCard?.card_id) throw new Error("Selected card has no catalog ID.");
-  const existing = await supabaseClient.from("cards").select("*")
-    .eq("card_id", catalogCard.card_id).maybeSingle();
-  if (existing.error) throw existing.error;
-  if (existing.data) return existing.data;
+  const key = String(catalogCard.card_id);
+  const indexed = getSupabaseCard(key);
+  if (indexed?.id) return indexed;
+  if (pendingCatalogBridges.has(key)) return pendingCatalogBridges.get(key);
 
-  // Shared catalog writes belong to the authenticated server-side function.
-  // Ownership remains a separate per-user operation.
-  const result = await supabaseClient.functions.invoke("create-identified-card", {
-    body: {
-      mode: "bridge",
-      card: {
-        card_id: catalogCard.card_id,
-        name: catalogCard.name,
-        year_made: catalogCard.year_made,
-        card_number: catalogCard.card_number,
-        card_brand: catalogCard.card_brand,
-        sport: catalogCard.sport,
-        set_name: getSetName(catalogCard),
-        card_series: catalogCard.card_series,
-        parallel: catalogCard.parallel
+  const task = (async () => {
+    const existing = await supabaseClient.from("cards").select("*")
+      .eq("card_id", key).maybeSingle();
+    if (existing.error) throw existing.error;
+    let linked = existing.data;
+    if (!linked) {
+      // The backend creates/reuses a shared record and resolves its set/sport.
+      const result = await supabaseClient.functions.invoke("create-identified-card", {
+        body: {
+          mode: "bridge",
+          card: {
+            card_id: key,
+            name: catalogCard.name,
+            year_made: catalogCard.year_made,
+            card_number: catalogCard.card_number,
+            card_brand: catalogCard.card_brand,
+            sport: catalogCard.sport,
+            set_name: getSetName(catalogCard),
+            card_series: catalogCard.card_series,
+            parallel: catalogCard.parallel
+          }
+        }
+      });
+      if (result.error) {
+        let message = result.error.message || "Could not link catalog card.";
+        try { message = (await result.error.context?.clone()?.json())?.error || message; } catch {}
+        throw new Error(message);
       }
+      linked = result.data?.card;
     }
-  });
-  if (result.error) {
-    let message = result.error.message || "Could not link catalog card.";
-    try { message = (await result.error.context?.clone()?.json())?.error || message; } catch {}
-    throw new Error(message);
-  }
-  if (!result.data?.card?.id) throw new Error("Catalog linking returned no card ID.");
-  const linked = result.data.card;
-  // Immediately index the new bridge, otherwise a freshly priced Sheets card
-  // has a UUID price row but its UI still looks up the old text slug.
-  supabaseCardById.set(String(linked.id), linked);
-  supabaseCardByCatalogId.set(String(linked.card_id), linked);
-  if (!allSupabaseCards.some(item => String(item.id) === String(linked.id))) {
-    allSupabaseCards.push(linked);
-  }
-  return linked;
+    if (!linked?.id) throw new Error("Catalog linking returned no card ID.");
+    supabaseCardById.set(String(linked.id), linked);
+    supabaseCardByCatalogId.set(String(linked.card_id), linked);
+    if (!allSupabaseCards.some(item => String(item.id) === String(linked.id))) {
+      allSupabaseCards.push(linked);
+    }
+    return linked;
+  })();
+
+  pendingCatalogBridges.set(key, task);
+  try { return await task; }
+  finally { pendingCatalogBridges.delete(key); }
 }
 
 // ============================================================
