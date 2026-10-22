@@ -11559,12 +11559,18 @@ function generateBarcode(
 // Use all provider records for cooldown detection, including failed/no-value
 // attempts. This prevents opening the same card repeatedly from consuming API
 // calls or Soldgraph's limited credits.
+const automaticPricingFailures = new Map();
+
 function needsCardPriceRefresh(cardOrId) {
   if (!cardOrId) return false;
   const card = typeof cardOrId === "object" ? cardOrId : getCard(cardOrId);
   if (!card) return false;
 
   const resolvedId = resolveSupabaseCardId(card.card_id || cardOrId);
+  // Suppress repeated auto-retries for cards that the backend could not price.
+  // A manual refresh still bypasses this short local cooldown.
+  const failedAt = automaticPricingFailures.get(String(card.card_id || cardOrId)) || 0;
+  if (failedAt && Date.now() - failedAt < 30 * 60 * 1000) return false;
   // Only current supported pricing sources count as a successful attempt.
   // Ignore any legacy sold-source rows left over from the removed integration.
   const records = allPrices.filter(price =>
@@ -11778,6 +11784,7 @@ async function refreshCardPrice(
       }
     }
 
+    if (silent) automaticPricingFailures.set(String(cardId), Date.now());
     if (!silent) showToast(priceErrorMessage, "error");
     return false;
   }
