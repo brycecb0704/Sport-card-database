@@ -9227,8 +9227,9 @@ function searchAddCardManual() {
     : `<div class="empty-state">
         <div class="empty-icon">🔎</div>
         <h3>No catalog match yet</h3>
-        <p>Try the player name, card number, year, set, brand, or parallel. If it still isn't listed, identify the card from photos so we can check the details before it is added to the shared catalog.</p>
+        <p>Scan the card or check outside sources.</p>
         <button type="button" class="btn btn-primary" onclick="showAddCardMode('photo')">Identify with a photo</button>
+        <a class="btn btn-secondary" target="_blank" rel="noopener noreferrer" href="https://www.google.com/search?q=${encodeURIComponent(search + " sports trading card")}">Search the web ↗</a>
       </div>`;
 }
 
