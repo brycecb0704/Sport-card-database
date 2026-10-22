@@ -2034,6 +2034,31 @@
       .card-tile-image {padding:6px}
     }
 
+
+    .mobile-collector-nav {display:none}
+    @media(max-width:750px) {
+      .mobile-collector-nav {
+        display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+        position:fixed;bottom:0;left:0;right:0;z-index:110;
+        padding:7px max(5px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(5px,env(safe-area-inset-left));
+        background:var(--surface);border-top:1px solid var(--border);
+        box-shadow:0 -5px 20px rgba(10,30,60,.08);
+      }
+      .mobile-collector-nav button {
+        border:0;background:transparent;color:var(--muted);display:flex;
+        align-items:center;justify-content:center;flex-direction:column;
+        gap:3px;min-height:51px;padding:3px 1px;font-size:10px;font-weight:750;
+      }
+      .mobile-collector-nav button span {font-size:23px;line-height:1.1}
+      .mobile-collector-nav button.active {color:var(--accent)}
+      .mobile-collector-nav .mobile-collector-add span {
+        width:40px;height:40px;border-radius:13px;background:var(--accent);
+        color:white;display:flex;align-items:center;justify-content:center;
+        font-size:29px;box-shadow:0 4px 10px rgba(0,100,220,.2);
+      }
+      .main {padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+    }
+
 </style>
 </head>
 
@@ -2237,6 +2262,14 @@
 
     </header>
 
+
+    <nav class="mobile-collector-nav" aria-label="Mobile navigation">
+      <button type="button" data-screen="home" onclick="showScreen('home')"><span aria-hidden="true">⌂</span>Home</button>
+      <button type="button" data-screen="catalog" onclick="showScreen('catalog')"><span aria-hidden="true">⌕</span>Catalog</button>
+      <button type="button" class="mobile-collector-add" onclick="openAddCardModal()" aria-label="Add a card"><span aria-hidden="true">+</span>Add</button>
+      <button type="button" data-screen="collection" onclick="showScreen('collection')"><span aria-hidden="true">▦</span>Collection</button>
+      <button type="button" data-screen="community" onclick="showScreen('community')"><span aria-hidden="true">♧</span>Community</button>
+    </nav>
 
     <!-- APPLICATION BODY -->
 
