@@ -4442,38 +4442,26 @@
     const matchesCard = price =>
       String(price.card_id) === String(resolvedCardId) ||
       String(price.card_id) === String(cardId);
-    const isRecent = price =>
-      Date.now() - new Date(price.fetched_at || 0).getTime() <= 30 * 24 * 60 * 60 * 1000;
-    const usable = allPrices.filter(price =>
+    const supported = ["cardpricer_reference", "ebay_active_asking"];
+    const recent = allPrices.filter(price =>
       matchesCard(price) &&
-      Number(price.estimated_value) > 0 &&
-      isRecent(price)
+      supported.includes(String(price.source || "")) &&
+      Number.isFinite(Date.parse(String(price.fetched_at || ""))) &&
+      Date.now() - Date.parse(String(price.fetched_at)) <= 30 * 24 * 60 * 60 * 1000
     );
-    // Evidence priority is intentional: verified sold comps first, then the
-    // free CardPricer reference, and active asking prices only as a fallback.
-    // All candidates have already passed the 30-day freshness and positive-value
-    // checks, so a weaker source cannot replace a stronger one just because it
-    // refreshed a few minutes later.
     const newestFirst = (a, b) =>
       new Date(b.fetched_at || 0) - new Date(a.fetched_at || 0);
-    // Historical SoldGraph rows are no longer maintained. Never treat them
-    // as live sold-comps evidence or prefer them over current sources.
-    const referencePrice = usable
-      .filter(price => price.source === "cardpricer_reference")
+    const reference = recent
+      .filter(price => price.source === "cardpricer_reference" && Number(price.estimated_value) > 0)
       .sort(newestFirst)[0];
-    const activePrice = usable
-      .filter(price => price.source === "ebay_active_asking")
+    if (reference) return reference;
+
+    // A fresh unsuccessful search supersedes an older asking-price proxy.
+    // Otherwise the UI could show a value the latest evidence rejected.
+    const latestActive = recent.filter(price => price.source === "ebay_active_asking")
       .sort(newestFirst)[0];
-
-    if (referencePrice) return referencePrice;
-    if (activePrice) return activePrice;
-
-    // Preserve the latest failed/insufficient pricing attempt for the profile.
-    // This lets users see why no value was published instead of a misleading
-    // generic "no price recorded" message. Unpriced attempts never count as value.
-    return allPrices
-      .filter(price => matchesCard(price) && isRecent(price))
-      .sort(newestFirst)[0] || null;
+    if (latestActive) return latestActive;
+    return recent.sort(newestFirst)[0] || null;
   }
 
   function isWeightDivisionSport(sport) {
