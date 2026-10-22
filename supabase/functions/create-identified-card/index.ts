@@ -31,19 +31,48 @@ Deno.serve(async request=>{
       const found=await get("cards?card_id=eq."+encodeURIComponent(catalogId)+"&select=*&limit=1");
       if(found[0])return json({success:true,created:false,card:found[0]});
       const name=clean(card.name,120),number=clean(card.card_number,36),brand=clean(card.card_brand,80);
-      const year=Number(card.year_made);
-      // Sheets is a partially populated master catalog. Missing card number
-      // or brand must not prevent an existing catalog entry being owned.
+      const year=Number(card.year_made),sport=clean(card.sport,50);
+      const set=clean(card.set_name,120),series=clean(card.card_series,120)||set;
       if(!name||!Number.isInteger(year)||year<1880||year>new Date().getUTCFullYear()+2)
         return json({error:"Catalog card needs a name and valid year"},422);
+      let sportId:string|null=null;
+      if(sport){
+        const sports=await get("sports?name=ilike."+encodeURIComponent(sport)+"&select=id,name&limit=30");
+        sportId=sports.find((item:Record<string,unknown>)=>norm(item.name)===norm(sport))?.id??null;
+      }
+      // Resolve an exact shared set before creating a new one. The identity
+      // key prevents concurrent requests from creating duplicate set rows.
+      let setId:string|null=null;
+      if(set){
+        const setKey=key(set,year,sport,brand,series);
+        let sets=await get("card_sets?identity_key=eq."+encodeURIComponent(setKey)+"&select=id&limit=1");
+        setId=sets[0]?.id??null;
+        if(!setId){
+          const existingSets=await get("card_sets?name=ilike."+encodeURIComponent(set)+"&year=eq."+year+"&select=id,name,brand,series,sport_id&limit=100");
+          setId=existingSets.find((item:Record<string,unknown>)=>
+            norm(item.name)===norm(set)&&norm(item.brand)===norm(brand)&&
+            norm(item.series)===norm(series)&&String(item.sport_id??"")===String(sportId??""))?.id??null;
+        }
+        if(!setId){
+          const made=await post("card_sets",{name:set,year,brand:brand||null,series:series||null,
+            sport_id:sportId,identity_key:setKey,source:"Google Sheets bridge",verified:false,created_by:user.id});
+          if(made.ok)setId=made.rows[0]?.id??null;
+          else {
+            sets=await get("card_sets?identity_key=eq."+encodeURIComponent(setKey)+"&select=id&limit=1");
+            setId=sets[0]?.id??null;
+          }
+        }
+      }
       const identity=key("sheets-bridge",catalogId);
-      const row={card_id:catalogId,name,card_number:number,year_made:year,card_brand:brand,
-        card_series:clean(card.card_series,120)||null,parallel:clean(card.parallel,80)||null,
+      const row={card_id:catalogId,name,card_number:number||null,year_made:year,card_brand:brand||null,
+        sport_id:sportId,card_set_id:setId,card_series:series||null,
+        parallel:clean(card.parallel,80)||null,
         identity_key:identity,source:"Google Sheets bridge",verified:false,created_by:user.id};
       const created=await post("cards",row);
       if(created.ok)return json({success:true,created:true,card:created.rows[0]});
       const retry=await get("cards?card_id=eq."+encodeURIComponent(catalogId)+"&select=*&limit=1");
       if(retry[0])return json({success:true,created:false,card:retry[0]});
+      console.error("Bridge create failed",created.status,created.detail.slice(0,300));
       return json({error:"Unable to link catalog card"},502);
     }
     const name=clean(card.name??card.player??card.player_name,120);
