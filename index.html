@@ -4450,9 +4450,9 @@
     // refreshed a few minutes later.
     const newestFirst = (a, b) =>
       new Date(b.fetched_at || 0) - new Date(a.fetched_at || 0);
-    const soldPrice = usable
-      .filter(price => price.source === "ebay_sold_comps")
-      .sort(newestFirst)[0];
+    // Historical sold rows from the exhausted integration are not live
+    // evidence and must not silently override the current pricing sources.
+    const soldPrice = null;
     const referencePrice = usable
       .filter(price => price.source === "cardpricer_reference")
       .sort(newestFirst)[0];
