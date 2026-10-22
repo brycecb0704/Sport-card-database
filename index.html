@@ -4327,7 +4327,7 @@
 
     const result = await supabaseClient
       .from("cards")
-      .select("id")
+      .select("*")
       .eq("card_id", inputId)
       .maybeSingle();
 
@@ -4336,6 +4336,8 @@
     }
 
     if (result.data?.id) {
+      supabaseCardById.set(String(result.data.id), result.data);
+      supabaseCardByCatalogId.set(String(result.data.card_id), result.data);
       return result.data.id;
     }
 
