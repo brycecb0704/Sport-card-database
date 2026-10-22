@@ -311,3 +311,13 @@ User requests implementing as much as possible before a single comprehensive tes
 - `baa46a04`, `ecc96eed`: CI regression checks cover relationship bridging, request coalescing and click-handler encoding.
 
 **Important outstanding issues:** The Sheets bridge still trusts the browser's provided catalog data rather than verifying it against a trusted server-side catalog; the unverified AI card create flow has no authoritative photo source; sold comps are unavailable; RLS migration 007 remains staged due to migration drift. CI checks are not live signed-in acceptance tests. Keep manual test session until backend integration is ready.
+
+## 24. 2026-10-21 collection-first UI redesign
+
+User supplied screenshots of SetScribe, CollX, Market Movers, and Wayne Collection as visual references. Redesign is original styling, not a copy of their copyrighted UI or card images. The main requested patterns were: mobile two-column card gallery, image-forward tiles, short player/set labels, clear valuation and quantity, quick grid/list selection, mobile bottom navigation, and prominent Add action.
+
+- `b68aa235`: updated light/dark palette, typography, card image aspect ratio, dense two-column mobile card grids, search/filter controls, card metadata, price hierarchy, and accessible grid/list toggle for My Collection. CSS is appended at end of existing stylesheet to override earlier rules without changing application data logic.
+- `69fdb1e6`: added mobile-only bottom navigation (Home, Catalog, Add, Collection, Community) that uses existing `showScreen` and `openAddCardModal` actions, including selected tab styling and mobile safe-area padding.
+- `8d17f64f`: CI structural checks for new navigation and grid/list controls.
+
+**Visual testing is still required** on actual mobile/desktop browsers. Check sticky navigation does not obscure content, two-column tile overflow, list-view selection, image fallbacks, modal stacking, and dark theme. No third-party reference screenshot or third-party card image is embedded in the site. Desktop remains sidebar-driven.
