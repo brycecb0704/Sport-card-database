@@ -344,3 +344,11 @@ Branch: `improve/reliability-batch-oct22` (based on main). Changes in this batch
 - GitHub Actions validation workflow now runs the pricing-cache regression test.
 
 **Not yet done or verified:** This is a development branch, not a claim of a live deployment. No production Supabase migrations have been applied. The Google Sheets bridge still accepts browser-supplied card facts, so authoritative server-side verification remains an important security/data-integrity follow-up. Full signed-in end-to-end tests, live provider accuracy checks, mobile UX redesign, and bulk collection tests remain outstanding. Do not label these as complete until implemented and tested.
+
+### October 22 follow-up: AI catalog duplicate matching
+
+- Shared-card creation now rejects a successful auth response without a valid user ID.
+- AI duplicate reconciliation now restricts set lookup by year and checks the exact normalized set name, brand, series, and sport reference before reusing a set-linked card.
+- Candidate duplicates with a known, conflicting sport reference are excluded rather than blocking an unrelated card in a different sport. Rows without a sport reference remain conservative possible matches.
+- Extended structural regression checks for these invariants.
+- Still outstanding: Google Sheets bridge authority verification, full integration tests, catalog data cleanup, collection UI overhaul, and live pricing checks. Changes remain on a PR branch until merged and deployed.
