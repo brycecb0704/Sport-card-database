@@ -32,8 +32,10 @@ Deno.serve(async request=>{
       if(found[0])return json({success:true,created:false,card:found[0]});
       const name=clean(card.name,120),number=clean(card.card_number,36),brand=clean(card.card_brand,80);
       const year=Number(card.year_made);
-      if(!name||!Number.isInteger(year)||year<1880||year>new Date().getUTCFullYear()+2||!number||!brand)
-        return json({error:"Catalog card needs a name, year, number and brand"},422);
+      // Sheets is a partially populated master catalog. Missing card number
+      // or brand must not prevent an existing catalog entry being owned.
+      if(!name||!Number.isInteger(year)||year<1880||year>new Date().getUTCFullYear()+2)
+        return json({error:"Catalog card needs a name and valid year"},422);
       const identity=key("sheets-bridge",catalogId);
       const row={card_id:catalogId,name,card_number:number,year_made:year,card_brand:brand,
         card_series:clean(card.card_series,120)||null,parallel:clean(card.parallel,80)||null,
@@ -54,7 +56,7 @@ Deno.serve(async request=>{
     const sport=clean(card.sport,50);
     if(!name||!Number.isInteger(year)||year<1880||year>new Date().getUTCFullYear()+2||!number||!brand||!set||!sport)
       return json({error:"Identification needs player, sport, year, brand, set and card number before a shared card can be created."},422);
-    // Rate limit new shared records per account to protect the free database.
+    // Rate limit unverified new shared records per account to protect the free database.
     const since=new Date(Date.now()-86400000).toISOString();
     const recent=await get("cards?created_by=eq."+encodeURIComponent(user.id)+"&created_at=gte."+encodeURIComponent(since)+"&select=id&limit=21");
     if(recent.length>=20)return json({error:"Daily new-card limit reached. Try again tomorrow."},429);
@@ -63,8 +65,15 @@ Deno.serve(async request=>{
     const existing=await get("cards?year_made=eq."+year+"&card_number=eq."+encodeURIComponent(number)+"&select=*&limit=200");
     const matchingSets=await get("card_sets?name=ilike."+encodeURIComponent(set)+"&select=id,name&limit=100");
     const matchingSetIds=new Set(matchingSets.filter((row:Record<string,unknown>)=>norm(row.name)===norm(set)).map((row:Record<string,unknown>)=>String(row.id)));
-    const exact=existing.find((c:Record<string,unknown>)=>norm(c.name)===norm(name)&&norm(c.card_brand)===norm(brand)&&norm(c.card_series)===norm(series)&&norm(c.parallel)===norm(parallel)&&Boolean(c.card_set_id&&matchingSetIds.has(String(c.card_set_id))));
+    const candidates=existing.filter((c:Record<string,unknown>)=>
+      norm(c.name)===norm(name)&&norm(c.card_brand)===norm(brand)&&
+      norm(c.card_series)===norm(series)&&norm(c.parallel)===norm(parallel));
+    const exact=candidates.find((c:Record<string,unknown>)=>
+      Boolean(c.card_set_id&&matchingSetIds.has(String(c.card_set_id))));
     if(exact)return json({success:true,created:false,card:exact});
+    // Older Sheets bridge rows may not have a set UUID. Never silently
+    // create a near-identical AI record when an existing card is plausible.
+    if(candidates.length)return json({error:"A similar card already exists in the catalog. Review its set and parallel before adding a new shared card.",possible_duplicates:candidates.slice(0,5).map((c:Record<string,unknown>)=>({card_id:c.card_id,name:c.name,year_made:c.year_made,card_number:c.card_number}))},409);
     // Create or reuse shared set. Concurrent requests resolve via unique identity_key.
     const setKey=key(set,year,sport,brand,series);
     let sets=await get("card_sets?identity_key=eq."+encodeURIComponent(setKey)+"&select=id&limit=1");
