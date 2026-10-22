@@ -23,6 +23,27 @@ Deno.serve(async request=>{
     const payload=await request.json();
     const card=payload?.card;
     if(!card||typeof card!=="object")return json({error:"Card details required"},400);
+    // Bridge existing Google Sheets catalog IDs without permitting clients
+    // to write arbitrary shared card rows directly.
+    if(payload?.mode==="bridge"){
+      const catalogId=clean(card.card_id,180);
+      if(!catalogId||!/^[-a-zA-Z0-9_:.]+$/.test(catalogId))return json({error:"Invalid catalog ID"},422);
+      const found=await get("cards?card_id=eq."+encodeURIComponent(catalogId)+"&select=*&limit=1");
+      if(found[0])return json({success:true,created:false,card:found[0]});
+      const name=clean(card.name,120),number=clean(card.card_number,36),brand=clean(card.card_brand,80);
+      const year=Number(card.year_made);
+      if(!name||!Number.isInteger(year)||year<1880||year>new Date().getUTCFullYear()+2||!number||!brand)
+        return json({error:"Catalog card needs a name, year, number and brand"},422);
+      const identity=key("sheets-bridge",catalogId);
+      const row={card_id:catalogId,name,card_number:number,year_made:year,card_brand:brand,
+        card_series:clean(card.card_series,120)||null,parallel:clean(card.parallel,80)||null,
+        identity_key:identity,source:"Google Sheets bridge",verified:false,created_by:user.id};
+      const created=await post("cards",row);
+      if(created.ok)return json({success:true,created:true,card:created.rows[0]});
+      const retry=await get("cards?card_id=eq."+encodeURIComponent(catalogId)+"&select=*&limit=1");
+      if(retry[0])return json({success:true,created:false,card:retry[0]});
+      return json({error:"Unable to link catalog card"},502);
+    }
     const name=clean(card.name??card.player??card.player_name,120);
     const year=Number(card.year_made??card.year);
     const number=clean(card.card_number??card.number,36);
