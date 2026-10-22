@@ -27,7 +27,7 @@ jobs:
         run: python scripts/check-workflows.py
       - name: Test automatic AI catalog reconciliation
         run: node scripts/test-ai-catalog-match.js
-      - name: Set up Deno for Edge Function checks
+      - name: Test pricing cache eligibility\n        run: node scripts/test-pricing-cache.js\n      - name: Set up Deno for Edge Function checks
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
