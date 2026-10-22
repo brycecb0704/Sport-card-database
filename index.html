@@ -8974,7 +8974,7 @@ function renderAIIdentificationReview(data) {
   panel.innerHTML = `
     <div class="ai-review-heading"><div><strong>AI identification results</strong></div><span class="ai-confidence">${escapeHtml(confidence)}</span></div>
     <dl class="ai-review-grid">${fields.map(([label,val]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(val)}</dd></div>`).join("")}</dl>
-    <div class="ai-review-actions"><button type="button" class="btn btn-primary" onclick="searchCatalogFromAI()">Find matching catalog cards</button><button type="button" class="btn btn-secondary" onclick="clearAIIdentificationReview()">Clear results</button></div>
+    <div class="ai-review-actions"><button type="button" class="btn btn-primary" onclick="searchCatalogFromAI()">Find matches</button><button type="button" class="btn btn-secondary" onclick="clearAIIdentificationReview()">Clear</button><button type="button" id="createIdentifiedCardButton" class="btn btn-secondary" onclick="createIdentifiedCard()">Add as new card</button></div>
     `;
   panel.classList.remove("hidden");
   if (search) search.value = value("name","Name","player","Player","player_name","playerName");
@@ -8988,6 +8988,58 @@ function searchCatalogFromAI() {
   }
   searchAddCardManual();
   document.getElementById("addCardManualResults")?.scrollIntoView?.({behavior:"smooth",block:"nearest"});
+}
+
+// Create a shared unverified card only after explicit confirmation.
+async function createIdentifiedCard() {
+  const data = latestAIIdentification;
+  if (!data || !currentUser) { showToast("Identify a card and sign in first.", "error"); return; }
+  const value = (...keys) => clean(firstCardValue(data, ...keys));
+  const name = value("name","Name","player","Player","player_name","playerName");
+  const year = value("year_made","Year Made","yearMade","year","Year","release_year");
+  const number = value("card_number","Card Number","cardNumber","number","card_no");
+  const brand = value("card_brand","Card Brand","cardBrand","brand","manufacturer");
+  const set = value("set_name","Set Name","setName","product_name","set","card_series","series");
+  const sport = value("sport","Sport","sport_name");
+  if (!name || !year || !number || !brand || !set || !sport) {
+    showToast("The identification needs player, sport, year, brand, set and card number.", "error");
+    return;
+  }
+  const confirmed = confirm("Create a shared, unverified catalog card for " + name + " #" + number + "? Check the identified year, set and parallel first. Everyone will use this catalog entry.");
+  if (!confirmed) return;
+  const button = document.getElementById("createIdentifiedCardButton");
+  if (button) { button.disabled = true; button.textContent = "Saving…"; }
+  try {
+    const result = await supabaseClient.functions.invoke("create-identified-card", {
+      body: {card: {
+        name, sport, year_made:year, card_number:number, card_brand:brand,
+        set_name:set, card_series:value("card_series","series") || set,
+        parallel:value("parallel","Parallel","variant_type","variant","Variant")
+      }}
+    });
+    if (result.error) {
+      let message = result.error.message || "Could not create card.";
+      try { message = (await result.error.context?.clone()?.json())?.error || message; } catch {}
+      throw new Error(message);
+    }
+    if (!result.data?.card?.id) throw new Error("No card was returned.");
+    const created = result.data.card;
+    await loadDatabase();
+    const card = getCard(created.card_id) || getCard(created.id);
+    if (!card) throw new Error("Card created, but it has not loaded yet. Refresh the page and search again.");
+    clearAIIdentificationReview();
+    closeModal("addCardModal");
+    await openOwnershipEditor(card.card_id);
+    showToast(result.data.created ? "Shared card created. Add your copy." : "Existing card found. Add your copy.", "success");
+    if (needsCardPriceRefresh(card)) {
+      void refreshCardPrice(card.card_id);
+    }
+  } catch (error) {
+    console.error("Create identified card:", error);
+    showToast(error.message || "Unable to create shared card.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = "Add as new card"; }
+  }
 }
 
 function clearAIIdentificationReview() {
@@ -9099,9 +9151,6 @@ async function identifyNewCardPhoto() {
 
   try {
     const data = await identifyCardFromImage(file, backFile);
-    copyPhotoToOwnedField(file);
-    copyPhotoToOwnedBackField(backFile);
-
     if (data) {
       showAddCardMode("manual");
       renderAIIdentificationReview(data);
@@ -9254,30 +9303,8 @@ async function chooseCardFromLibrary(cardId) {
   editingCardId = null;
   selectedCard = card;
 
-  // If this catalog card was selected after photo identification, carry
-  // those files into the ownership editor so the photos are saved privately
-  // with this user's copy rather than being lost when the first modal closes.
-  const identifiedFrontFile = document.getElementById("addCardPhoto")?.files?.[0] || null;
-  const identifiedBackFile = document.getElementById("addCardBackPhoto")?.files?.[0] || null;
-
   closeModal("addCardModal");
   await openOwnershipEditor(card.card_id);
-
-  const transferPhoto = (file, inputId, side) => {
-    if (!file) return;
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    try {
-      const transfer = new DataTransfer();
-      transfer.items.add(file);
-      input.files = transfer.files;
-      previewOwnershipPhoto({target: input}, side);
-    } catch (error) {
-      console.warn("Could not transfer identified card photo into ownership editor:", error);
-    }
-  };
-  transferPhoto(identifiedFrontFile, "ownershipFrontPhoto", "front");
-  transferPhoto(identifiedBackFile, "ownershipBackPhoto", "back");
 }
 
 
