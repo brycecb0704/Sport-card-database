@@ -301,3 +301,13 @@ User requests implementing as much as possible before a single comprehensive tes
 - `6e9af4d7`, `b4e41c2c`: structural CI checks cover pagination, latest evidence precedence, and new bridge indexing.
 
 **Release/testing gate:** All CI jobs and latest Pages deployment must complete successfully. Database RLS migration 007 remains unapplied pending live bridge validation. No real signed-in browser integration test has been performed, and free sold-comps and shared image acquisition are not solved. Do not claim final completion until those limits are acknowledged and an acceptance test is scheduled.
+
+## 23. 2026-10-21 catalog relationship and handler safety fixes
+
+- `b64fc409`: authenticated Sheets bridge resolves sport and exact card set on the server, creating a shared unverified set when necessary. This gives new bridge cards a `sport_id` and `card_set_id` instead of dropping crucial set metadata needed for pricing and navigation. Edge Function deploy passed. **Existing bridge rows are not automatically backfilled**, so legacy rows may still lack these relationships.
+- `b84d4ff3`: browser passes Sheets sport and set name to the bridge.
+- `96afde37`: simultaneous bridge requests for the same Sheets card share one promise and new/existing rows are indexed without a full catalog reload.
+- `fd217e64`, `aab4e561`: inline click handlers now JSON-encode card/set IDs before HTML attribute escaping, preventing apostrophes in IDs from breaking JavaScript string literals and reducing injection risk.
+- `baa46a04`, `ecc96eed`: CI regression checks cover relationship bridging, request coalescing and click-handler encoding.
+
+**Important outstanding issues:** The Sheets bridge still trusts the browser's provided catalog data rather than verifying it against a trusted server-side catalog; the unverified AI card create flow has no authoritative photo source; sold comps are unavailable; RLS migration 007 remains staged due to migration drift. CI checks are not live signed-in acceptance tests. Keep manual test session until backend integration is ready.
