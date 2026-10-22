@@ -333,3 +333,14 @@ User explicitly requires the AI, not the user, to determine whether a scanned ca
 **Known limitations / completion blockers:** Matcher currently reconciles against the loaded local catalog, not a server-side verified authoritative Sheets snapshot. Gemini can misidentify cards, so only unique high-confidence matches auto-advance; lower confidence and multiple candidates still require review. No reliable free sold-comps API has been integrated, and active eBay asking prices are labeled as estimates, not sales. Shared catalog images need a rights-cleared upload/source and backend curation, not arbitrary scraped images. Migration 007 still needs to be applied to live Supabase after resolving migration history drift, and authenticated real-browser integration testing has not occurred. Do not mark these finished just because CI passes.
 
 - `fcf84b09`: unique high-confidence AI scan now triggers a silent shared price refresh after opening ownership editor, if pricing is missing/stale. The pricing result is still only as reliable as its source.
+
+## 26. October 22 reliability development branch (not yet production deployed)
+
+Branch: `improve/reliability-batch-oct22` (based on main). Changes in this batch:
+
+- Pricing Edge Function now excludes null, nonnumeric, zero, and negative estimated values from the successful 24-hour pricing cache. This avoids returning a failed valuation as if it were a usable cached price. A failed lookup can still be recorded for diagnostics; the fix only changes cache eligibility.
+- Added `scripts/test-pricing-cache.js`, which extracts and executes the actual cache-filter logic from the Edge Function and tests stale, unsupported, null, zero, nonnumeric, and positive values without paid API calls.
+- Added structural checks for price cache rules, source priority, caller authentication, UUID validation, and unverified Google Sheets bridge rows.
+- GitHub Actions validation workflow now runs the pricing-cache regression test.
+
+**Not yet done or verified:** This is a development branch, not a claim of a live deployment. No production Supabase migrations have been applied. The Google Sheets bridge still accepts browser-supplied card facts, so authoritative server-side verification remains an important security/data-integrity follow-up. Full signed-in end-to-end tests, live provider accuracy checks, mobile UX redesign, and bulk collection tests remain outstanding. Do not label these as complete until implemented and tested.
