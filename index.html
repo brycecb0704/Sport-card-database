@@ -1954,6 +1954,12 @@
       .card-tile,.btn,.field,.search-field,.nav-btn,#addCardModal .simple-add-option {transition:none!important}
       .card-tile:hover,#addCardModal .simple-add-option:hover {transform:none}
     }
+
+    .manual-new-card {margin:18px auto 0;max-width:660px;text-align:left}
+    .manual-new-card summary {cursor:pointer;font-weight:700;padding:10px}
+    .manual-new-card-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+    .manual-new-card-grid button {grid-column:1/-1}
+    @media(max-width:600px){.manual-new-card-grid{grid-template-columns:1fr}}
 </style>
 </head>
 
@@ -9279,7 +9285,43 @@ function searchAddCardManual() {
         <p>Scan the card or check outside sources.</p>
         <button type="button" class="btn btn-primary" onclick="showAddCardMode('photo')">Identify with a photo</button>
         <a class="btn btn-secondary" target="_blank" rel="noopener noreferrer" href="https://www.google.com/search?q=${encodeURIComponent(search + " sports trading card")}">Search the web ↗</a>
+        <details class="manual-new-card">
+          <summary>Add a missing card manually</summary>
+          <form onsubmit="createManualMissingCard(event)" class="manual-new-card-grid">
+            <input name="name" class="field" placeholder="Player / card name" required maxlength="120">
+            <input name="year" class="field" type="number" min="1880" max="2030" placeholder="Year" required>
+            <input name="sport" class="field" placeholder="Sport" required maxlength="50">
+            <input name="brand" class="field" placeholder="Brand" required maxlength="80">
+            <input name="set" class="field" placeholder="Set / product" required maxlength="120">
+            <input name="number" class="field" placeholder="Card #" required maxlength="36">
+            <input name="parallel" class="field" placeholder="Parallel (optional)" maxlength="80">
+            <button type="submit" class="btn btn-primary">Review and add</button>
+          </form>
+        </details>
       </div>`;
+}
+
+function createManualMissingCard(event) {
+  event.preventDefault();
+  const form = event.target;
+  const values = Object.fromEntries(new FormData(form).entries());
+  const required = ["name","year","sport","brand","set","number"];
+  if (required.some(key => !clean(values[key]))) {
+    showToast("Enter the required card details.", "error");
+    return;
+  }
+  const data = {
+    name:clean(values.name), year_made:clean(values.year),
+    sport:clean(values.sport), card_brand:clean(values.brand),
+    set_name:clean(values.set), card_series:clean(values.set),
+    card_number:clean(values.number), parallel:clean(values.parallel),
+    confidence:"Manual — unverified"
+  };
+  latestAIIdentification = data;
+  renderAIIdentificationReview(data);
+  // Require explicit review and confirmation before writing shared data.
+  document.getElementById("addCardAIReview")?.scrollIntoView({behavior:"smooth",block:"nearest"});
+  void priceIdentifiedCatalogMatch(data);
 }
 
 function searchAddCardLibrary() {
