@@ -28,6 +28,8 @@ checks = {
     "Sheets bridge passes sport and set": "set_name: getSetName(catalogCard)" in html and "sport: catalogCard.sport" in html,
     "Sheets bridge persists shared relationships": "sport_id:sportId,card_set_id:setId" in creation,
     "concurrent bridge requests coalesced": "pendingCatalogBridges.has(key)" in html,
+    "responsive mobile navigation": 'class="mobile-collector-nav"' in html and 'data-screen="collection"' in html,
+    "collection grid/list controls": 'id="collectionGridView"' in html and 'id="collectionListView"' in html and 'function setCollectionView(view)' in html,
     "paginated Supabase reads": ".range(page * pageSize, (page + 1) * pageSize - 1)" in html,
     "recent failed asking evidence takes precedence": "if (latestActive) return latestActive;" in html,
     "pricing bridges catalog slug to UUID": "resolvedPriceCardId = await resolveOwnershipCardId(cardId)" in html,
