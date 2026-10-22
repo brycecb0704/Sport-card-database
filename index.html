@@ -10189,6 +10189,8 @@ async function ensureSupabaseCard(catalogCard) {
         year_made: catalogCard.year_made,
         card_number: catalogCard.card_number,
         card_brand: catalogCard.card_brand,
+        sport: catalogCard.sport,
+        set_name: getSetName(catalogCard),
         card_series: catalogCard.card_series,
         parallel: catalogCard.parallel
       }
