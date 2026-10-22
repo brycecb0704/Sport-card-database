@@ -252,3 +252,13 @@ User explicitly reported that pricing mostly fails, appearance needs substantial
 - `5323948e`: global visual refresh in `index.html`: cleaner typography, calmer colors, refined card tiles/nav/buttons/inputs, accessible focus, responsive and reduced-motion handling. CSS committed; visual browser review not yet performed.
 - `8a29bc02` + `3627daba`: AI identification-to-catalog price matching accepts equivalent set wording (e.g. names with extra year/sport terms) while still requiring unique match on subject, year, card number, brand when provided, and parallel. Corrected regex year-token exclusion. This may help previously missed prices but needs live verification.
 - Important: user still reports that most pricing is bad/unavailable. No verified sold-comps source has been implemented; eBay active asking fallback and CardPricer references remain imperfect. Do not claim pricing accuracy solved. Compare actual function logs and a set of known cards with source prices before further tuning. Confirm new-card backend creation with signed-in test account and shared-catalog permissions. No new paid OpenAI API.
+
+## 17. 2026-10-21 batch-build phase: defer manual testing
+
+User requests implementing as much as possible before a single comprehensive test session. Do not repeatedly ask for individual card tests; complete changes and check automated CI first.
+
+- `11caf7e5`: tightened AI new-card action availability to complete identities and corrected a library selection declaration; introduced an accidental duplicate `async` keyword detected by GitHub Actions.
+- `df1c0448`: removed duplicate `async` and restored syntax. Verify new CI pass before release.
+- `50e50ba8`: newly created shared cards and sets now link to existing `sports` lookup rows, improving sport display and filtering. The function deployment is automatic; verify GitHub Action.
+
+**Before user acceptance testing:** finish external discovery/in-app workflow, backend-only catalog insert RLS with an audited migration, single shared image provenance, pricing provider diagnostics and source accuracy, UI form cleanup, and verify deployed workflows. Automated JS syntax checks are necessary but insufficient.
