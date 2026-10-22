@@ -285,3 +285,10 @@ User requests implementing as much as possible before a single comprehensive tes
 - `8ced59e1`: CI workflow now performs `deno check` for both Supabase Edge Functions, in addition to inline JavaScript syntax and structural regression checks. Inspect first Deno run; no live API tests.
 - `78d4bd8f`: active eBay asking-price fallback now suppresses an estimate when the range is more than twice the median (or fewer than three matches). This improves truthfulness, but can reduce the number of cards with a displayed price. This does not replace confirmed sold comps.
 - Existing SQL migration `007_restrict_catalog_client_writes.sql` is still **staged, not applied**. No user acceptance testing requested until a larger batch is ready.
+
+## 21. 2026-10-21 pricing UUID bridge and auto-retry protections
+
+- `87974199`: price refresh now calls `resolveOwnershipCardId` if a Sheets catalog slug has not been mapped to a Supabase UUID. This calls the authenticated server bridge, avoiding the Edge Function rejecting a slug with HTTP 400. Also removed dead `soldPrice` variable.
+- `ff38b538`: automatic price errors are locally cooled down for 30 minutes to avoid repeatedly hitting limited free pricing APIs; manual refresh remains possible.
+- `4a7f2176`: regression checks cover the new UUID bridge, retry cooldown and backend duplicate conflict behavior.
+- No signed-in browser testing yet. RLS hardening migration remains staged/unapplied, and a free verified sold-comps source and licensed shared images remain unresolved.
