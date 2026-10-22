@@ -745,14 +745,19 @@ Deno.serve(async (request: Request) => {
     // the displayed fallback estimate. Do not publish an estimate from fewer
     // than three comparable listings; a tiny sample is too easy to skew.
     const askingBasedEstimate = askingMedian === null ? null : Math.round(askingMedian * 0.75 * 100) / 100;
-    const estimatedValue = filtered.length >= 3 ? askingBasedEstimate : null;
+    // Reject highly scattered active asks rather than publishing an
+    // authoritative-looking value from unrelated variants or conditions.
+    const spreadRatio = askingMedian && lowPrice !== null && highPrice !== null
+      ? (highPrice - lowPrice) / askingMedian : Infinity;
+    const enoughConsistentListings = filtered.length >= 3 && spreadRatio <= 2.0;
+    const estimatedValue = enoughConsistentListings ? askingBasedEstimate : null;
     const priceNote = filtered.length === 0
       ? "No sufficiently close active eBay listings matched this card. No value was estimated. This search covers active asking prices, not completed sales."
       : "Active asking prices only—not confirmed sales. " + filtered.length + " matching listing(s); asking median $" +
         (askingMedian === null ? "unknown" : askingMedian.toFixed(2)) + ". " +
-        (filtered.length >= 3
+        (enoughConsistentListings
           ? "Fallback estimate is 25% below the asking median to account for seller pricing above market; this is only a rough proxy until sold comps are available."
-          : "Too few matching listings to estimate market value. Asking median is shown for reference only; no estimated value was published.") +
+          : "Listings were too few or too widely spread to estimate market value. Asking median is shown for reference only; no estimated value was published.") +
         (filtered.length < 5 || confidence < 70
           ? " Low confidence: verify the exact set, card number, parallel, and condition."
           : "") +
