@@ -9064,7 +9064,7 @@ async function createIdentifiedCard() {
     await openOwnershipEditor(card.card_id);
     showToast(result.data.created ? "Shared card created. Add your copy." : "Existing card found. Add your copy.", "success");
     if (needsCardPriceRefresh(card)) {
-      void refreshCardPrice(card.card_id);
+      void refreshCardPrice(card.card_id, false, true);
     }
   } catch (error) {
     console.error("Create identified card:", error);
@@ -9169,7 +9169,7 @@ async function priceIdentifiedCatalogMatch(data) {
   identificationPriceRequests.add(uuid);
   if (!(Number(cached?.estimated_value) > 0)) say("Checking estimated value…");
   try {
-    const ok = await refreshCardPrice(card.card_id);
+    const ok = await refreshCardPrice(card.card_id, false, true);
     const price = getPrice(card.card_id);
     say(ok && Number(price?.estimated_value) > 0
       ? "Estimated value: $" + Number(price.estimated_value).toFixed(2) + " (" + String(price.source || "reference").replace(/_/g, " ") + ")"
@@ -10760,7 +10760,7 @@ async function saveCardFromForm(event) {
     if (!wasEditingExistingCard && savedCard?.id) {
       const cardForPricing = getCard(savedCard.card_id) || savedCard;
       if (needsCardPriceRefresh(cardForPricing)) {
-        refreshCardPrice(cardForPricing.card_id).catch(error =>
+        refreshCardPrice(cardForPricing.card_id, false, true).catch(error =>
           console.warn("Automatic price lookup after adding card failed:", error)
         );
       }
@@ -11702,7 +11702,8 @@ async function refreshCollectionPrices() {
 
 async function refreshCardPrice(
   cardId,
-  forceRefresh = false
+  forceRefresh = false,
+  silent = false
 ) {
   if (!cardId) {
     cardId =
@@ -11728,10 +11729,7 @@ async function refreshCardPrice(
   const resolvedPriceCardId =
     resolveSupabaseCardId(cardId);
 
-  showToast(
-    "Refreshing price...",
-    "info"
-  );
+  if (!silent) showToast("Refreshing price...", "info");
 
   try {
     const result =
@@ -11756,8 +11754,8 @@ async function refreshCardPrice(
     // the card_prices table refresh is delayed or its SELECT policy prevents
     // the normal reload from returning the new row.
     const refreshedPrice = result.data;
-    await loadDatabase();
-
+    // Pricing responses already contain the shared price record. Avoid
+    // re-downloading the entire 50k+ catalog after each auto lookup.
     if (
       refreshedPrice &&
       refreshedPrice.card_id &&
@@ -11799,10 +11797,10 @@ async function refreshCardPrice(
 
     const usableEstimate = Number(refreshedPrice?.estimated_value);
     if (!Number.isFinite(usableEstimate) || usableEstimate <= 0) {
-      showToast("No reliable price found for this exact card yet.", "info");
+      if (!silent) showToast("No reliable price found for this exact card yet.", "info");
       return false;
     }
-    showToast("Price estimate updated (" + String(refreshedPrice.source || "reference").replace(/_/g, " ") + ").", "success");
+    if (!silent) showToast("Price estimate updated (" + String(refreshedPrice.source || "reference").replace(/_/g, " ") + ").", "success");
     return true;
 
   } catch (error) {
@@ -11840,10 +11838,7 @@ async function refreshCardPrice(
       }
     }
 
-    showToast(
-      priceErrorMessage,
-      "error"
-    );
+    if (!silent) showToast(priceErrorMessage, "error");
     return false;
   }
 }
