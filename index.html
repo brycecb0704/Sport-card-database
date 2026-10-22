@@ -2059,6 +2059,11 @@
       .main {padding-bottom:calc(100px + env(safe-area-inset-bottom))}
     }
 
+
+    .automatic-catalog-match {margin-top:16px;padding:16px;border:1px solid color-mix(in srgb,var(--accent) 38%,var(--border));border-radius:15px;background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+    .automatic-catalog-match strong {display:block;font-size:14px}
+    .automatic-catalog-match p {font-size:13px;color:var(--muted);margin:8px 0 12px}
+    .automatic-catalog-match .ai-candidate {display:block;width:100%;text-align:left;margin-top:7px;white-space:normal}
 </style>
 </head>
 
@@ -9153,6 +9158,12 @@ async function createIdentifiedCard() {
     showToast("The identification needs player, sport, year, brand, set and card number.", "error");
     return;
   }
+  const candidates = findAIInCatalog(data);
+  if (candidates.exact.length || candidates.possible.length) {
+    showAutomaticCatalogMatch(data);
+    showToast("A matching or similar catalog entry already exists. Review it before creating another card.", "error");
+    return;
+  }
   const confirmed = confirm("Create a shared, unverified catalog card for " + name + " #" + number + "? Check the identified year, set and parallel first. Everyone will use this catalog entry.");
   if (!confirmed) return;
   const button = document.getElementById("createIdentifiedCardButton");
@@ -9198,6 +9209,78 @@ function clearAIIdentificationReview() {
 
 // A guarded, free-tier-friendly price lookup following photo identification.
 // Exact year, card number, subject, set/series and parallel must agree.
+// Automatic, conservative catalog reconciliation. Never infer a parallel from
+// a similar base card: exact identity is required before auto-selection.
+function findAIInCatalog(data) {
+  const field = (...keys) => clean(firstCardValue(data, ...keys));
+  const norm = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const name = norm(field("name","Name","player","Player","player_name","playerName"));
+  const year = norm(field("year_made","Year Made","yearMade","year","Year","release_year"));
+  const number = norm(field("card_number","Card Number","cardNumber","number","card_no"));
+  const brand = norm(field("card_brand","Card Brand","cardBrand","brand","manufacturer"));
+  const set = norm(field("set_name","Set Name","setName","product_name","set","card_series","series"));
+  const parallel = norm(field("parallel","Parallel","variant_type","variant","Variant"));
+  const sport = norm(field("sport","Sport","sport_name"));
+  if (!name || !year || !number) return {exact:[],possible:[],complete:false};
+  const base = getAddCardLibraryCards().filter(card =>
+    [card.name,card.player_name].some(n => norm(n) === name) &&
+    norm(card.year_made) === year && norm(card.card_number) === number &&
+    (!sport || !card.sport || norm(card.sport) === sport)
+  );
+  const setMatches = candidate => {
+    const actual = norm(candidate);
+    if (!set || !actual) return false;
+    if (set === actual) return true;
+    const tokens = str => str.split(" ").filter(word => word.length > 1 && !/^\d{4}$/.test(word));
+    const a=tokens(set),b=tokens(actual);
+    return a.length >= 2 && b.length >= 2 &&
+      (a.every(word => b.includes(word)) || b.every(word => a.includes(word)));
+  };
+  const complete = Boolean(brand && set && sport);
+  const exact = complete ? base.filter(card =>
+    norm(card.card_brand) === brand &&
+    [getSetName(card),card.card_series].some(setMatches) &&
+    norm(card.parallel) === parallel
+  ) : [];
+  // Similar cards are never treated as confirmed matches. They block
+  // speculative shared-record creation and prompt a closer review.
+  const possible = base.filter(card => !exact.some(match => match.card_id === card.card_id))
+    .slice(0,8);
+  return {exact,possible,complete};
+}
+
+function showAutomaticCatalogMatch(data) {
+  const panel = document.getElementById("addCardAIReview");
+  if (!panel || latestAIIdentification !== data) return;
+  panel.querySelector("#automaticCatalogMatch")?.remove();
+  const result = findAIInCatalog(data);
+  const section = document.createElement("section");
+  section.id = "automaticCatalogMatch";
+  section.className = "automatic-catalog-match";
+  const info = card => [card.year_made,getSetName(card),card.card_number ? "#"+card.card_number : "",card.parallel].filter(Boolean).join(" · ");
+  if (result.exact.length === 1) {
+    const card = result.exact[0];
+    section.innerHTML = '<strong>✓ Exact catalog match found automatically</strong><p>'+escapeHtml(card.name || "")+' — '+escapeHtml(info(card))+'</p><button type="button" class="btn btn-primary" id="aiAddMatchedCard">Add this card to my collection</button>';
+    panel.appendChild(section);
+    section.querySelector("#aiAddMatchedCard").addEventListener("click",()=>chooseCardFromLibrary(card.card_id));
+  } else if (result.exact.length > 1 || result.possible.length) {
+    const candidates = [...result.exact,...result.possible].slice(0,6);
+    section.innerHTML = '<strong>Possible catalog entries — exact variant not confirmed</strong><p>The AI found similar cards, but cannot safely choose one. No duplicate will be created automatically.</p>'+
+      candidates.map((card,i)=>'<button type="button" class="ai-candidate btn btn-secondary" data-candidate="'+i+'">'+escapeHtml(card.name || "")+' — '+escapeHtml(info(card))+'</button>').join("");
+    panel.appendChild(section);
+    section.querySelectorAll("[data-candidate]").forEach(button=>button.addEventListener("click",()=>{
+      const card = candidates[Number(button.dataset.candidate)];
+      if(card) chooseCardFromLibrary(card.card_id);
+    }));
+  } else {
+    section.innerHTML = '<strong>No exact catalog entry identified</strong><p>The card may be missing, or the photo may not show enough details. Check the AI results before creating a new shared entry.</p>';
+    panel.appendChild(section);
+  }
+  const createButton = document.getElementById("createIdentifiedCardButton");
+  if (createButton) createButton.classList.toggle("hidden",!result.complete || result.exact.length>0 || result.possible.length>0);
+  return result;
+}
+
 const identificationPriceRequests = new Set();
 async function priceIdentifiedCatalogMatch(data) {
   if (!data || !currentUser) return;
@@ -9247,24 +9330,14 @@ async function priceIdentifiedCatalogMatch(data) {
     return a.length >= 2 && b.length >= 2 &&
       (a.every(word => b.includes(word)) || b.every(word => a.includes(word)));
   };
-  const matches = getAddCardLibraryCards().filter(card => {
-    const names = [card.name, card.player_name].map(norm);
-    const sets = [getSetName(card), card.card_series];
-    return names.includes(norm(subject)) &&
-      norm(card.year_made) === norm(year) &&
-      norm(card.card_number) === norm(number) &&
-      sets.some(setMatches) &&
-      (!brand || norm(card.card_brand) === norm(brand)) &&
-      norm(card.parallel) === norm(parallel);
-  });
+  const catalogResult = findAIInCatalog(data);
+  const matches = catalogResult.exact;
   const createButton = document.getElementById("createIdentifiedCardButton");
-  if (createButton) {
-    const completeIdentity = Boolean(subject && year && number && set && brand &&
-      field("sport", "Sport", "sport_name"));
-    createButton.classList.toggle("hidden", matches.length !== 0 || !completeIdentity);
-  }
+  if (createButton) createButton.classList.toggle("hidden",!catalogResult.complete || matches.length || catalogResult.possible.length);
   if (matches.length !== 1) {
-    say(matches.length ? "Multiple possible cards found. Select the exact variation to see its price." : "No exact catalog match. Review the details, then add this as a new shared card.");
+    say(matches.length > 1 || catalogResult.possible.length
+      ? "Similar catalog cards exist. The exact variant is not confirmed, so no automatic match or new card was selected."
+      : "No exact catalog match. A new shared entry requires confirmation.");
     return;
   }
   const card = matches[0];
@@ -9321,7 +9394,13 @@ async function identifyNewCardPhoto() {
     if (data) {
       showAddCardMode("manual");
       renderAIIdentificationReview(data);
-      searchCatalogFromAI();
+      const catalogResult = showAutomaticCatalogMatch(data);
+      // High-confidence, unambiguous matches proceed straight to the
+      // ownership editor; the user never has to search the catalog.
+      if (catalogResult?.exact.length === 1 && String(data.confidence).toLowerCase() === "high") {
+        await chooseCardFromLibrary(catalogResult.exact[0].card_id);
+        return;
+      }
       // Price only when AI details uniquely identify an existing catalog card.
       // Never price a speculative match or send a Sheets slug to the Edge Function.
       void priceIdentifiedCatalogMatch(data);
