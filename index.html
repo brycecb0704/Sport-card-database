@@ -4456,9 +4456,8 @@
     // refreshed a few minutes later.
     const newestFirst = (a, b) =>
       new Date(b.fetched_at || 0) - new Date(a.fetched_at || 0);
-    // Historical sold rows from the exhausted integration are not live
-    // evidence and must not silently override the current pricing sources.
-    const soldPrice = null;
+    // Historical SoldGraph rows are no longer maintained. Never treat them
+    // as live sold-comps evidence or prefer them over current sources.
     const referencePrice = usable
       .filter(price => price.source === "cardpricer_reference")
       .sort(newestFirst)[0];
@@ -4466,7 +4465,6 @@
       .filter(price => price.source === "ebay_active_asking")
       .sort(newestFirst)[0];
 
-    if (soldPrice) return soldPrice;
     if (referencePrice) return referencePrice;
     if (activePrice) return activePrice;
 
@@ -11659,8 +11657,17 @@ async function refreshCardPrice(
     return;
   }
 
-  const resolvedPriceCardId =
-    resolveSupabaseCardId(cardId);
+  let resolvedPriceCardId = resolveSupabaseCardId(cardId);
+  // Pricing expects a Supabase UUID, while a Sheets catalog card may
+  // still only have a text slug. Bridge it before invoking the Edge Function.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(resolvedPriceCardId))) {
+    try {
+      resolvedPriceCardId = await resolveOwnershipCardId(cardId);
+    } catch (error) {
+      if (!silent) showToast(error.message || "Unable to link card for pricing.", "error");
+      return false;
+    }
+  }
 
   if (!silent) showToast("Refreshing price...", "info");
 
