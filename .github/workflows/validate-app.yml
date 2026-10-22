@@ -23,3 +23,5 @@ jobs:
           python-version: "3.12"
       - name: Check inline JavaScript syntax
         run: python scripts/check-inline-js.py index.html
+      - name: Check critical workflow invariants
+        run: python scripts/check-workflows.py
