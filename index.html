@@ -1899,6 +1899,29 @@
       .card-detail-layout { padding:16px; gap:18px; }
       .detail-image-box { min-height:240px; }
     }
+
+    /* 2026 streamlined product styling */
+    #addCardModal .simple-add-choice-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:8px 0 14px; }
+    #addCardModal .simple-add-option { border:1px solid var(--border);border-radius:18px;padding:24px 14px;background:var(--surface);transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease; }
+    #addCardModal .simple-add-option:hover { transform:translateY(-2px);border-color:var(--accent);box-shadow:0 10px 25px rgba(0,0,0,.08); }
+    #addCardModal .simple-add-option-icon { font-size:30px;margin-bottom:10px; }
+    #addCardModal .simple-add-option-title { font-size:14px;font-weight:750;letter-spacing:-.02em; }
+    #addCardModal .ai-review-heading p:empty,#addCardModal .ai-review-footnote:empty {display:none}
+    #ownershipModal .ownership-photo-grid,#ownershipModal .ownership-section-title:has(+ .ownership-photo-grid) {display:none!important}
+    #ownershipModal .ownership-action-bar {display:flex;flex-wrap:wrap;gap:8px;margin:0 0 20px}
+    #ownershipModal .ownership-action-bar .btn {border-radius:999px;padding:9px 14px;min-height:40px;font-weight:700}
+    #ownershipModal .form-group.hidden {display:none!important}
+    #ownershipModal .form-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
+    #ownershipModal .modal {width:min(720px,96vw)}
+    #ownershipModal .modal-body {padding:20px 24px}
+    #ownershipModal .ownership-section-title {font-size:13px}
+    @media(max-width:600px) {
+      #addCardModal .simple-add-choice-grid {grid-template-columns:1fr}
+      #addCardModal .simple-add-option {display:flex;align-items:center;text-align:left;gap:14px;padding:16px}
+      #addCardModal .simple-add-option-icon {margin:0;font-size:24px}
+      #ownershipModal .form-grid {grid-template-columns:1fr}
+      #ownershipModal .modal-body {padding:16px}
+    }
 </style>
 </head>
 
@@ -3019,9 +3042,13 @@
 
       <form id="ownershipForm">
         <div class="modal-body">
-          <div class="ownership-form-intro panel" style="margin:0 0 18px;box-shadow:none;">
-            <strong>Your copy of this card</strong>
-            <p class="muted" style="margin:5px 0 0;">These settings apply only to your ownership record. They do not change the shared card catalog or other collectors' copies.</p>
+          <div class="ownership-action-bar" role="group" aria-label="Card activity">
+            <button type="button" class="btn" onclick="setOwnershipAction('Collection')">In Collection</button>
+            <button type="button" class="btn" onclick="setOwnershipAction('Bought')">Bought</button>
+            <button type="button" class="btn" onclick="setOwnershipAction('For Sale')">For Sale</button>
+            <button type="button" class="btn" onclick="setOwnershipAction('Sold')">Sold</button>
+            <button type="button" class="btn" onclick="setOwnershipAction('Traded')">Traded</button>
+            <button type="button" class="btn" onclick="setOwnershipAction('Graded')">Graded</button>
           </div>
           <div class="ownership-section-title" style="grid-column:1/-1;margin:0 0 10px;padding-bottom:9px;border-bottom:1px solid var(--border);font-weight:800;">Photos of Your Copy</div>
           <div class="form-grid ownership-photo-grid" style="margin-bottom:18px;">
@@ -3118,9 +3145,7 @@
 
           </div>
 
-          <div class="panel" style="margin-top:18px;box-shadow:none;">
-            <strong>One card, multiple copies</strong>
-          </div>
+          
         </div>
 
         <div class="modal-footer">
@@ -3156,26 +3181,24 @@
           <!-- CHOICE SCREEN -->
           <div id="addCardChoiceMode">
 
-            <div class="panel" style="box-shadow:none;margin:0 0 18px;">
-              <strong>How would you like to add this card?</strong>
-            </div>
+            
 
             <div class="simple-add-choice-grid">
 
               <button type="button" class="simple-add-option" onclick="showAddCardMode('photo')">
                 <div class="simple-add-option-icon">📷</div>
                 <div class="simple-add-option-title">Identify With AI</div>
-                <div class="simple-add-library-meta">Use a photo to recognize the card</div>
+                
               </button>
 
               <button type="button" class="simple-add-option" onclick="showAddCardMode('library')">
                 <div class="simple-add-option-icon">📚</div>
-                <div class="simple-add-option-title">Search Card Library</div><div class="simple-add-library-meta">Find an existing catalog card</div>
+                <div class="simple-add-option-title">Search Card Library</div>
               </button>
 
               <button type="button" class="simple-add-option" onclick="showAddCardMode('manual')">
                 <div class="simple-add-option-icon">✏️</div>
-                <div class="simple-add-option-title">Search Manually</div><div class="simple-add-library-meta">Search by name, year, number, or set</div>
+                <div class="simple-add-option-title">Search Cards</div>
               </button>
 
             </div>
@@ -3263,14 +3286,14 @@
             <div id="addCardAIReview" class="panel ai-identification-review hidden" style="box-shadow:none;margin:14px 0 15px;"></div>
             <div class="panel" style="box-shadow:none;margin:14px 0 15px;">
               <strong>Search for your card</strong>
-              <p class="muted" style="margin:5px 0 0;">Search by player or card name, year, card number, brand, set, or team. Shared card information is managed by the catalog and AI—not edited here.</p>
+              
             </div>
             <div class="form-group">
               <label class="form-label" for="addCardManualSearch">Card search</label>
               <input id="addCardManualSearch" class="field" type="search" autocomplete="off" placeholder="e.g. Jarren Duran, 2026, #560, Topps Series 2" oninput="searchAddCardManual()">
             </div>
             <div id="addCardManualResults" class="simple-add-library-results">
-              <div class="empty-state">Enter a few details to find a card in the shared catalog.</div>
+              <div class="empty-state">Search by player, set or card number.</div>
             </div>
 
             <!-- AI compatibility/review fields are retained for the existing identification/save path.
@@ -8949,10 +8972,10 @@ function renderAIIdentificationReview(data) {
 
   const confidence = value("confidence") || "unconfirmed";
   panel.innerHTML = `
-    <div class="ai-review-heading"><div><strong>AI identification results</strong><p class="muted">Read-only suggestions from the photo. Confirm the correct shared catalog card below before adding it to your collection.</p></div><span class="ai-confidence">${escapeHtml(confidence)}</span></div>
+    <div class="ai-review-heading"><div><strong>AI identification results</strong></div><span class="ai-confidence">${escapeHtml(confidence)}</span></div>
     <dl class="ai-review-grid">${fields.map(([label,val]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(val)}</dd></div>`).join("")}</dl>
     <div class="ai-review-actions"><button type="button" class="btn btn-primary" onclick="searchCatalogFromAI()">Find matching catalog cards</button><button type="button" class="btn btn-secondary" onclick="clearAIIdentificationReview()">Clear results</button></div>
-    <p class="muted ai-review-footnote">AI results do not automatically create a new shared catalog record. If no match exists, an authorized catalog update is needed so everyone uses the same card identity.</p>`;
+    `;
   panel.classList.remove("hidden");
   if (search) search.value = value("name","Name","player","Player","player_name","playerName");
 }
@@ -10879,11 +10902,55 @@ function openOwnershipEditor(
   setOwnershipPhotoPreview("front", ownership?.front_photo_path || "");
   setOwnershipPhotoPreview("back", ownership?.back_photo_path || "");
 
+  const ownershipModal = document.getElementById("ownershipModal");
+  if (ownershipModal) ownershipModal.dataset.activity = ownership?.possession || "Collection";
+  updateOwnershipActionFields();
   openModalSafe(
     "ownershipModal"
   );
 }
 
+
+// Keep the collector editor focused on the activity they selected.
+function updateOwnershipActionFields() {
+  const possession = document.getElementById("ownershipPossession")?.value || "Collection";
+  const activity = document.getElementById("ownershipModal")?.dataset.activity || possession;
+  const relevant = {
+    ownershipForSalePrice: possession === "For Sale",
+    ownershipPurchasePrice: activity === "Bought",
+    ownershipPurchaseDate: activity === "Bought",
+    ownershipPurchaseSeller: activity === "Bought",
+    ownershipSoldPrice: possession === "Sold",
+    ownershipSoldDate: possession === "Sold",
+    ownershipTradedWith: possession === "Traded",
+    ownershipTradeDate: possession === "Traded",
+    ownershipGrade: activity === "Graded",
+    ownershipGradingCompany: activity === "Graded"
+  };
+  for (const [id, show] of Object.entries(relevant)) {
+    const el = document.getElementById(id)?.closest(".form-group");
+    if (el) el.classList.toggle("hidden", !show);
+  }
+  document.querySelectorAll(".ownership-action-bar button").forEach(button => {
+    const label = button.textContent.trim();
+    const selected = label === activity || (activity === "Collection" && label === "In Collection");
+    button.classList.toggle("btn-primary", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+}
+function setOwnershipAction(action) {
+  const modal = document.getElementById("ownershipModal");
+  if (modal) modal.dataset.activity = action;
+  const select = document.getElementById("ownershipPossession");
+  if (select && ["Collection", "For Sale", "Sold", "Traded"].includes(action)) select.value = action;
+  if (select && action === "Bought") select.value = "Collection";
+  updateOwnershipActionFields();
+}
+document.getElementById("ownershipPossession")?.addEventListener("change", event => {
+  const modal = document.getElementById("ownershipModal");
+  if (modal) modal.dataset.activity = event.target.value;
+  updateOwnershipActionFields();
+});
 
 // ============================================================
 // SAVE OWNERSHIP MODAL
