@@ -9398,7 +9398,12 @@ async function identifyNewCardPhoto() {
       // High-confidence, unambiguous matches proceed straight to the
       // ownership editor; the user never has to search the catalog.
       if (catalogResult?.exact.length === 1 && String(data.confidence).toLowerCase() === "high") {
-        await chooseCardFromLibrary(catalogResult.exact[0].card_id);
+        const matchedCard = catalogResult.exact[0];
+        await chooseCardFromLibrary(matchedCard.card_id);
+        // Shared cached pricing runs independently of the ownership editor.
+        if (needsCardPriceRefresh(matchedCard)) {
+          void refreshCardPrice(matchedCard.card_id, false, true);
+        }
         return;
       }
       // Price only when AI details uniquely identify an existing catalog card.
