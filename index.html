@@ -9263,7 +9263,7 @@ function searchAddCardManual() {
           getSetName(card), card.card_number ? "#" + card.card_number : ""
         ].filter(Boolean).join(" • ");
         return `
-          <button type="button" class="simple-add-library-result" onclick="chooseCardFromLibrary('${escapeHtml(card.card_id)}')">
+          <button type="button" class="simple-add-library-result" onclick="chooseCardFromLibrary(${escapeHtml(JSON.stringify(String(card.card_id)))})">
             ${image ? `<img class="simple-add-library-image" src="${escapeHtml(image)}" alt="">` : '<div class="simple-add-library-image"></div>'}
             <div><div class="simple-add-library-name">${escapeHtml(card.name || "Unnamed Card")}</div>
             <div class="simple-add-library-meta">${escapeHtml(meta || card.sport || "Catalog Card")}</div></div>
@@ -9356,7 +9356,7 @@ function searchAddCardLibrary() {
         ].filter(Boolean).join(" • ");
 
         return `
-          <button type="button" class="simple-add-library-result" onclick="chooseCardFromLibrary('${escapeHtml(card.card_id)}')">
+          <button type="button" class="simple-add-library-result" onclick="chooseCardFromLibrary(${escapeHtml(JSON.stringify(String(card.card_id)))})">
             ${image ? `<img class="simple-add-library-image" src="${escapeHtml(image)}" alt="">` : '<div class="simple-add-library-image"></div>'}
             <div>
               <div class="simple-add-library-name">${escapeHtml(card.name || "Unnamed Card")}</div>
