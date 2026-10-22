@@ -38,7 +38,9 @@ Deno.serve(async request=>{
     const recent=await get("cards?created_by=eq."+encodeURIComponent(user.id)+"&created_at=gte."+encodeURIComponent(since)+"&select=id&limit=21");
     if(recent.length>=20)return json({error:"Daily new-card limit reached. Try again tomorrow."},429);
     const existing=await get("cards?year_made=eq."+year+"&card_number=eq."+encodeURIComponent(number)+"&select=*&limit=200");
-    const exact=existing.find((c:Record<string,unknown>)=>norm(c.name)===norm(name)&&norm(c.card_brand)===norm(brand)&&norm(c.card_series)===norm(series)&&norm(c.parallel)===norm(parallel));
+    const matchingSets=await get("card_sets?name=ilike."+encodeURIComponent(set)+"&select=id,name&limit=100");
+    const matchingSetIds=new Set(matchingSets.filter((row:Record<string,unknown>)=>norm(row.name)===norm(set)).map((row:Record<string,unknown>)=>String(row.id)));
+    const exact=existing.find((c:Record<string,unknown>)=>norm(c.name)===norm(name)&&norm(c.card_brand)===norm(brand)&&norm(c.card_series)===norm(series)&&norm(c.parallel)===norm(parallel)&&Boolean(c.card_set_id&&matchingSetIds.has(String(c.card_set_id))));
     if(exact)return json({success:true,created:false,card:exact});
     // Create or reuse shared set. Concurrent requests resolve via unique identity_key.
     const setKey=key(set,year,sport,brand,series);
