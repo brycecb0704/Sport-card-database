@@ -37,6 +37,8 @@ Deno.serve(async request=>{
     const since=new Date(Date.now()-86400000).toISOString();
     const recent=await get("cards?created_by=eq."+encodeURIComponent(user.id)+"&created_at=gte."+encodeURIComponent(since)+"&select=id&limit=21");
     if(recent.length>=20)return json({error:"Daily new-card limit reached. Try again tomorrow."},429);
+    const sports=await get("sports?name=ilike."+encodeURIComponent(sport)+"&select=id,name&limit=30");
+    const sportId=sports.find((row:Record<string,unknown>)=>norm(row.name)===norm(sport))?.id??null;
     const existing=await get("cards?year_made=eq."+year+"&card_number=eq."+encodeURIComponent(number)+"&select=*&limit=200");
     const matchingSets=await get("card_sets?name=ilike."+encodeURIComponent(set)+"&select=id,name&limit=100");
     const matchingSetIds=new Set(matchingSets.filter((row:Record<string,unknown>)=>norm(row.name)===norm(set)).map((row:Record<string,unknown>)=>String(row.id)));
@@ -47,7 +49,7 @@ Deno.serve(async request=>{
     let sets=await get("card_sets?identity_key=eq."+encodeURIComponent(setKey)+"&select=id&limit=1");
     let setId=sets[0]?.id??null;
     if(!setId){
-      const result=await post("card_sets",{name:set,year,brand,series,identity_key:setKey,source:"AI identified (unverified)",verified:false,created_by:user.id});
+      const result=await post("card_sets",{name:set,year,brand,series,sport_id:sportId,identity_key:setKey,source:"AI identified (unverified)",verified:false,created_by:user.id});
       if(result.ok)setId=result.rows[0]?.id;
       else {
         sets=await get("card_sets?identity_key=eq."+encodeURIComponent(setKey)+"&select=id&limit=1");
@@ -56,7 +58,7 @@ Deno.serve(async request=>{
     }
     const identity=key("ai-card",name,year,brand,set,series,number,parallel,sport);
     const slug="ai-"+identity.replace(/[^a-z0-9]+/g,"-").slice(0,110)+"-"+uuid().slice(0,8);
-    const record={card_id:slug,name,card_number:number,card_set_id:setId,year_made:year,card_brand:brand,card_series:series,parallel:parallel||null,identity_key:identity,source:"AI identified (unverified)",verified:false,created_by:user.id};
+    const record={card_id:slug,name,card_number:number,card_set_id:setId,sport_id:sportId,year_made:year,card_brand:brand,card_series:series,parallel:parallel||null,identity_key:identity,source:"AI identified (unverified)",verified:false,created_by:user.id};
     const inserted=await post("cards",record);
     if(inserted.ok)return json({success:true,created:true,card:inserted.rows[0]});
     // Identity-key uniqueness is the final concurrency guard.
