@@ -331,3 +331,5 @@ User explicitly requires the AI, not the user, to determine whether a scanned ca
 - `95137aab`: added executable AI matching suite to GitHub Actions.
 
 **Known limitations / completion blockers:** Matcher currently reconciles against the loaded local catalog, not a server-side verified authoritative Sheets snapshot. Gemini can misidentify cards, so only unique high-confidence matches auto-advance; lower confidence and multiple candidates still require review. No reliable free sold-comps API has been integrated, and active eBay asking prices are labeled as estimates, not sales. Shared catalog images need a rights-cleared upload/source and backend curation, not arbitrary scraped images. Migration 007 still needs to be applied to live Supabase after resolving migration history drift, and authenticated real-browser integration testing has not occurred. Do not mark these finished just because CI passes.
+
+- `fcf84b09`: unique high-confidence AI scan now triggers a silent shared price refresh after opening ownership editor, if pricing is missing/stale. The pricing result is still only as reliable as its source.
