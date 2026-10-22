@@ -9118,13 +9118,25 @@ async function priceIdentifiedCatalogMatch(data) {
     say("Check the card details to find an exact match and price.");
     return;
   }
+  const setMatches = candidate => {
+    const wanted = norm(set);
+    const actual = norm(candidate);
+    if (!wanted || !actual) return false;
+    if (wanted === actual) return true;
+    // Catalog names often add the year or "Baseball" to a series title.
+    // Allow equivalent word sets, but never match on "Topps" alone.
+    const tokens = value => value.split(" ").filter(word => word.length > 1 && !/^\\d{4}$/.test(word));
+    const a = tokens(wanted), b = tokens(actual);
+    return a.length >= 2 && b.length >= 2 &&
+      (a.every(word => b.includes(word)) || b.every(word => a.includes(word)));
+  };
   const matches = getAddCardLibraryCards().filter(card => {
     const names = [card.name, card.player_name].map(norm);
-    const sets = [getSetName(card), card.card_series].map(norm);
+    const sets = [getSetName(card), card.card_series];
     return names.includes(norm(subject)) &&
       norm(card.year_made) === norm(year) &&
       norm(card.card_number) === norm(number) &&
-      sets.includes(norm(set)) &&
+      sets.some(setMatches) &&
       (!brand || norm(card.card_brand) === norm(brand)) &&
       norm(card.parallel) === norm(parallel);
   });
