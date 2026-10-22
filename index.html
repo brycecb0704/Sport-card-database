@@ -9589,96 +9589,17 @@ async function openEditCard(cardId) {
 // SET HELPERS
 // ============================================================
 
-async function findOrCreateSet({
-  name,
-  year,
-  sport,
-  brand,
-  series
-}) {
+async function findOrCreateSet({ name, year, sport, brand, series }) {
   const cleanName = clean(name);
-
-  if (!cleanName) {
-    return null;
-  }
-
-  const normalizedYear =
-    year === "" || year == null
-      ? null
-      : Number(year);
-
-  const sportRecord =
-    allSports.find(
-      item =>
-        clean(item.name).toLowerCase() ===
-        clean(sport).toLowerCase()
-    );
-
-  const identityKey = makeIdentityKey([
-    cleanName,
-    normalizedYear || "",
-    sport || "",
-    brand || "",
-    series || ""
-  ]);
-
-  const query =
-    await supabaseClient
-      .from("card_sets")
-      .select("*")
-      .eq("identity_key", identityKey)
-      .limit(1);
-
-  if (!query.error && query.data?.length) {
-    return query.data[0];
-  }
-
-  const insertData = {
-    name: cleanName,
-    year: normalizedYear,
-    sport_id: sportRecord?.id || null,
-    brand: clean(brand) || null,
-    series: clean(series) || null,
-    identity_key: identityKey,
-    created_by: currentUser?.id || null,
-    verified: false,
-    source: "User Added"
-  };
-
-  const inserted =
-    await supabaseClient
-      .from("card_sets")
-      .insert(insertData)
-      .select("*")
-      .single();
-
-  if (!inserted.error) {
-    allSets.push({
-      card_set_id: inserted.data.id,
-      id: inserted.data.id,
-      name: inserted.data.name,
-      year_made: inserted.data.year,
-      card_brand: inserted.data.brand,
-      card_series: inserted.data.series
-    });
-
-    return inserted.data;
-  }
-
-  const retry =
-    await supabaseClient
-      .from("card_sets")
-      .select("*")
-      .eq("identity_key", identityKey)
-      .limit(1);
-
-  if (!retry.error && retry.data?.length) {
-    return retry.data[0];
-  }
-
-  throw inserted.error;
+  if (!cleanName) return null;
+  const normalizedYear = year === "" || year == null ? null : Number(year);
+  const identityKey = makeIdentityKey([cleanName, normalizedYear || "", sport || "", brand || "", series || ""]);
+  const query = await supabaseClient.from("card_sets").select("*").eq("identity_key", identityKey).limit(1);
+  if (query.error) throw query.error;
+  // Shared reference tables are not writable by normal collectors.
+  // A missing set is optional: retain the card's original set/series text.
+  return query.data?.[0] || null;
 }
-
 
 // ============================================================
 // IMAGE UPLOAD
