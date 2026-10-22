@@ -441,7 +441,9 @@ Deno.serve(async (request: Request) => {
       const freshRows = cacheRows.filter((row: Record<string, any>) => {
         const timestamp = Date.parse(String(row.fetched_at ?? ""));
         const supportedSource = ["cardpricer_reference", "ebay_active_asking"].includes(String(row.source ?? ""));
-        return supportedSource && Number.isFinite(timestamp) && timestamp >= freshCutoff;
+        return supportedSource && Number.isFinite(timestamp) && timestamp >= freshCutoff &&
+          row.estimated_value !== null && row.estimated_value !== undefined &&
+          Number.isFinite(Number(row.estimated_value)) && Number(row.estimated_value) > 0;
       });
       // Prefer stronger evidence over a newer active-asking fallback.
       const sourcePriority = (source: unknown) => {
