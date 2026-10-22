@@ -537,7 +537,7 @@ Deno.serve(async (request: Request) => {
             // reference marks (PSA/BGS/SGC 9/10 etc.) into raw values.
             const rowGrade = normalize(row.grade ?? row.condition_grade ?? row.grading ?? "");
             const isRaw = !rowGrade || ["raw", "ungraded", "none", "not graded"].includes(rowGrade);
-            const titleIsGraded = /\\b(?:psa|bgs|sgc|cgc|graded|gem mint|pristine)\\b/i.test(rowTitle);
+            const titleIsGraded = /\b(?:psa|bgs|sgc|cgc|graded|gem mint|pristine)\b/i.test(rowTitle);
             return price !== null &&
               isRaw && !titleIsGraded &&
               playerMatches &&
