@@ -4615,30 +4615,32 @@
   let databaseLoadErrors = [];
 
   async function safeTableLoad(client, source, table, select = "*") {
-    const result =
-      await client
-        .from(table)
-        .select(select);
-
-    if (result.error) {
-      console.error(
-        "Supabase error loading " + source + "." + table,
-        result.error
-      );
-
-      databaseLoadErrors.push({
-        table: source + "." + table,
-        message:
-          result.error.message ||
-          String(result.error)
-      });
-
-      return [];
+    // PostgREST normally caps an unpaginated SELECT at 1,000 rows.
+    // Without pagination, older ownership/pricing records silently vanish.
+    const pageSize = 1000;
+    const maxPages = 30;
+    const rows = [];
+    for (let page = 0; page < maxPages; page++) {
+      const { data, error } = await client.from(table)
+        .select(select)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      if (error) {
+        console.error("Supabase error loading " + source + "." + table, error);
+        databaseLoadErrors.push({
+          table: source + "." + table,
+          message: error.message || String(error)
+        });
+        return rows;
+      }
+      rows.push(...(data || []));
+      if (!data || data.length < pageSize) return rows;
     }
-
-    return result.data || [];
+    databaseLoadErrors.push({
+      table: source + "." + table,
+      message: "Results exceeded 30,000 rows; showing the first 30,000."
+    });
+    return rows;
   }
-
 
   // ============================================================
   // GOOGLE SHEETS CATALOG
