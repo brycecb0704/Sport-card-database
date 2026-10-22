@@ -10198,7 +10198,15 @@ async function ensureSupabaseCard(catalogCard) {
     throw new Error(message);
   }
   if (!result.data?.card?.id) throw new Error("Catalog linking returned no card ID.");
-  return result.data.card;
+  const linked = result.data.card;
+  // Immediately index the new bridge, otherwise a freshly priced Sheets card
+  // has a UUID price row but its UI still looks up the old text slug.
+  supabaseCardById.set(String(linked.id), linked);
+  supabaseCardByCatalogId.set(String(linked.card_id), linked);
+  if (!allSupabaseCards.some(item => String(item.id) === String(linked.id))) {
+    allSupabaseCards.push(linked);
+  }
+  return linked;
 }
 
 // ============================================================
