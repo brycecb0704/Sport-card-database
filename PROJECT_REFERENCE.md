@@ -292,3 +292,12 @@ User requests implementing as much as possible before a single comprehensive tes
 - `ff38b538`: automatic price errors are locally cooled down for 30 minutes to avoid repeatedly hitting limited free pricing APIs; manual refresh remains possible.
 - `4a7f2176`: regression checks cover the new UUID bridge, retry cooldown and backend duplicate conflict behavior.
 - No signed-in browser testing yet. RLS hardening migration remains staged/unapplied, and a free verified sold-comps source and licensed shared images remain unresolved.
+
+## 22. 2026-10-21 data completeness and UI consistency
+
+- `7f6b8d03`: card detail pricing no longer hides the latest insufficient active-asking evidence behind an older positive estimate; current CardPricer reference marks still take precedence.
+- `52665591`: `safeTableLoad` pages PostgREST SELECT results in 1,000-row chunks (up to 30,000) to avoid silently truncating user ownership and price data at default 1,000 rows. This is an interim approach; long-term use filtered server-side reads for scaling.
+- `c11dde56`, `902aa797`: newly created and previously existing Supabase bridge rows are immediately indexed by both UUID and Sheets catalog slug. This should let fresh pricing appear without requiring full page reload.
+- `6e9af4d7`, `b4e41c2c`: structural CI checks cover pagination, latest evidence precedence, and new bridge indexing.
+
+**Release/testing gate:** All CI jobs and latest Pages deployment must complete successfully. Database RLS migration 007 remains unapplied pending live bridge validation. No real signed-in browser integration test has been performed, and free sold-comps and shared image acquisition are not solved. Do not claim final completion until those limits are acknowledged and an acceptance test is scheduled.
