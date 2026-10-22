@@ -9115,6 +9115,7 @@ async function priceIdentifiedCatalogMatch(data) {
   };
   const norm = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   if (!subject || !year || !number || !set) {
+    document.getElementById("createIdentifiedCardButton")?.classList.add("hidden");
     say("Check the card details to find an exact match and price.");
     return;
   }
@@ -9141,7 +9142,11 @@ async function priceIdentifiedCatalogMatch(data) {
       norm(card.parallel) === norm(parallel);
   });
   const createButton = document.getElementById("createIdentifiedCardButton");
-  if (createButton) createButton.classList.toggle("hidden", matches.length !== 0);
+  if (createButton) {
+    const completeIdentity = Boolean(subject && year && number && set && brand &&
+      field("sport", "Sport", "sport_name"));
+    createButton.classList.toggle("hidden", matches.length !== 0 || !completeIdentity);
+  }
   if (matches.length !== 1) {
     say(matches.length ? "Multiple possible cards found. Select the exact variation to see its price." : "No exact catalog match. Review the details, then add this as a new shared card.");
     return;
@@ -9331,7 +9336,7 @@ function searchAddCardLibrary() {
     : '<div class="empty-state">No matching cards found.</div>';
 }
 
-async function chooseCardFromLibrary(cardId) {
+async async function chooseCardFromLibrary(cardId) {
   const card = getCard(cardId);
 
   if (!card) {
