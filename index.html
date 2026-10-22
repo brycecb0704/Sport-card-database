@@ -11747,10 +11747,12 @@ async function refreshCardPrice(
       await openCardDetail(selectedCard);
     }
 
-    showToast(
-      "Price information refreshed.",
-      "success"
-    );
+    const usableEstimate = Number(refreshedPrice?.estimated_value);
+    if (!Number.isFinite(usableEstimate) || usableEstimate <= 0) {
+      showToast("No reliable price found for this exact card yet.", "info");
+      return false;
+    }
+    showToast("Price estimate updated (" + String(refreshedPrice.source || "reference").replace(/_/g, " ") + ").", "success");
     return true;
 
   } catch (error) {
