@@ -25,3 +25,11 @@ jobs:
         run: python scripts/check-inline-js.py index.html
       - name: Check critical workflow invariants
         run: python scripts/check-workflows.py
+      - name: Set up Deno for Edge Function checks
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check Supabase Edge Function TypeScript
+        run: |
+          deno check supabase/functions/create-identified-card/index.ts
+          deno check supabase/functions/refresh-card-price/index.ts
