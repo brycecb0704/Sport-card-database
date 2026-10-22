@@ -10182,145 +10182,36 @@ async function findOrCreatePlayer(name, sportId = null, teamId = null, position 
 }
 
 async function ensureSupabaseCard(catalogCard) {
-  if (!catalogCard || !catalogCard.card_id) {
-    throw new Error("The selected catalog card is missing its card ID.");
-  }
+  if (!catalogCard?.card_id) throw new Error("Selected card has no catalog ID.");
+  const existing = await supabaseClient.from("cards").select("*")
+    .eq("card_id", catalogCard.card_id).maybeSingle();
+  if (existing.error) throw existing.error;
+  if (existing.data) return existing.data;
 
-  const existing =
-    await supabaseClient
-      .from("cards")
-      .select("*")
-      .eq("card_id", catalogCard.card_id)
-      .maybeSingle();
-
-  if (existing.error) {
-    throw existing.error;
-  }
-
-  // Resolve/create the Supabase set UUID once for both existing and new bridge rows.
-  const setMatch = await findOrCreateSet({
-    name: getSetName(catalogCard),
-    year: catalogCard.year_made,
-    sport: catalogCard.sport,
-    brand: catalogCard.card_brand,
-    series: catalogCard.card_series
+  // Shared catalog writes belong to the authenticated server-side function.
+  // Ownership remains a separate per-user operation.
+  const result = await supabaseClient.functions.invoke("create-identified-card", {
+    body: {
+      mode: "bridge",
+      card: {
+        card_id: catalogCard.card_id,
+        name: catalogCard.name,
+        year_made: catalogCard.year_made,
+        card_number: catalogCard.card_number,
+        card_brand: catalogCard.card_brand,
+        card_series: catalogCard.card_series,
+        parallel: catalogCard.parallel
+      }
+    }
   });
-
-  if (existing.data) {
-    // Backfill missing relationships from the master catalog without replacing
-    // any card facts that have already been curated in Supabase.
-    const sportMatch = allSports.find(item => clean(item.name).toLowerCase() === clean(catalogCard.sport).toLowerCase());
-    const team = catalogCard.team ? await findOrCreateTeam(catalogCard.team, sportMatch?.id || null) : null;
-    const player = catalogCard.name ? await findOrCreatePlayer(catalogCard.name, sportMatch?.id || null, team?.id || null, catalogCard.position || null, catalogCard.weight_division || null) : null;
-    const missing = {};
-    if (!existing.data.sport_id && sportMatch?.id) missing.sport_id = sportMatch.id;
-    if (!existing.data.team_id && team?.id) missing.team_id = team.id;
-    if (!existing.data.player_id && player?.id) missing.player_id = player.id;
-    if (!existing.data.card_number && catalogCard.card_number) missing.card_number = catalogCard.card_number;
-    if (!existing.data.year_made && catalogCard.year_made) missing.year_made = Number(catalogCard.year_made) || null;
-    if (!existing.data.card_brand && catalogCard.card_brand) missing.card_brand = catalogCard.card_brand;
-    if (!existing.data.card_series && catalogCard.card_series) missing.card_series = catalogCard.card_series;
-    if (!existing.data.parallel && catalogCard.parallel) missing.parallel = catalogCard.parallel;
-    if (!existing.data.card_set_id && setMatch?.id) missing.card_set_id = setMatch.id;
-    if (Object.keys(missing).length) {
-      const updated = await supabaseClient.from("cards").update(missing).eq("id", existing.data.id).select("*").single();
-      if (updated.error) throw updated.error;
-      return updated.data;
-    }
-    return existing.data;
+  if (result.error) {
+    let message = result.error.message || "Could not link catalog card.";
+    try { message = (await result.error.context?.clone()?.json())?.error || message; } catch {}
+    throw new Error(message);
   }
-
-  const sport =
-    allSports.find(
-      item =>
-        clean(item.name).toLowerCase() ===
-        clean(catalogCard.sport).toLowerCase()
-    );
-  const team = catalogCard.team ? await findOrCreateTeam(catalogCard.team, sport?.id || null) : null;
-  const player = catalogCard.name ? await findOrCreatePlayer(catalogCard.name, sport?.id || null, team?.id || null, catalogCard.position || null, catalogCard.weight_division || null) : null;
-  
-  const identityKey =
-    makeIdentityKey([
-      catalogCard.card_id
-    ]);
-
-  const cardRecord = {
-    card_id: catalogCard.card_id,
-    name: catalogCard.name || "Catalog Card",
-    card_number: catalogCard.card_number || null,
-    sport_id: sport?.id || null,
-    team_id: team?.id || null,
-    player_id: player?.id || null,
-    card_set_id: setMatch?.id || null,
-    position: catalogCard.position || player?.position || null,
-    weight_division: catalogCard.weight_division || player?.weight_division || null,
-    year_made:
-      catalogCard.year_made === "" ||
-      catalogCard.year_made == null
-        ? null
-        : Number(catalogCard.year_made),
-    card_series: catalogCard.card_series || null,
-    card_brand: catalogCard.card_brand || null,
-    parallel: catalogCard.parallel || null,
-    variant_type: catalogCard.variant_type || catalogCard.variant || null,
-    numbered: !!catalogCard.numbered,
-    print_run:
-      catalogCard.print_run === "" ||
-      catalogCard.print_run == null
-        ? null
-        : Number(catalogCard.print_run),
-    rookie: !!catalogCard.rookie,
-    patch: !!catalogCard.patch,
-    relic: !!catalogCard.relic,
-    autographed: !!catalogCard.autographed,
-    insert_card: !!catalogCard.insert_card,
-    short_print: !!catalogCard.short_print,
-    variation: !!catalogCard.variation,
-    barcode: catalogCard.barcode || null,
-    description: catalogCard.notes || null,
-    source: catalogCard.source || "Google Sheets",
-    source_url: catalogCard.source_url || null,
-    verified: !!catalogCard.verified,
-    identity_key: identityKey
-  };
-
-  const inserted =
-    await supabaseClient
-      .from("cards")
-      .insert(cardRecord)
-      .select("*")
-      .single();
-
-  if (!inserted.error) {
-    return inserted.data;
-  }
-
-  // Another request/tab may have created the bridge between our
-  // SELECT and INSERT. The card_id unique constraint is intentional:
-  // there must be exactly one catalog bridge row per master card.
-  if (
-    String(inserted.error.code || "") === "23505" &&
-    String(inserted.error.message || "").includes("cards_card_id_key")
-  ) {
-    const retry =
-      await supabaseClient
-        .from("cards")
-        .select("*")
-        .eq("card_id", catalogCard.card_id)
-        .maybeSingle();
-
-    if (retry.error) {
-      throw retry.error;
-    }
-
-    if (retry.data) {
-      return retry.data;
-    }
-  }
-
-  throw inserted.error;
+  if (!result.data?.card?.id) throw new Error("Catalog linking returned no card ID.");
+  return result.data.card;
 }
-
 
 // ============================================================
 // SAVE / UPDATE OWNERSHIP
