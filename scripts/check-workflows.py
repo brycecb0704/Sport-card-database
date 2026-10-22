@@ -24,6 +24,7 @@ checks = {
     "collection actions available": all('setOwnershipAction(\''+x+'\')' in html for x in ("Bought","Sold","Traded","Graded","For Sale")),
     "no duplicate async keyword": "async async function" not in html,
     "freshly bridged cards update lookup indexes": "supabaseCardByCatalogId.set(String(linked.card_id), linked)" in html,
+    "dynamic card IDs encoded safely in click handlers": "onclick=\"openEditCard('\u0024{escapeHtml(card.card_id)}')\"" not in html and 'escapeHtml(JSON.stringify(String(card.card_id)))' in html,
     "Sheets bridge passes sport and set": "set_name: getSetName(catalogCard)" in html and "sport: catalogCard.sport" in html,
     "Sheets bridge persists shared relationships": "sport_id:sportId,card_set_id:setId" in creation,
     "concurrent bridge requests coalesced": "pendingCatalogBridges.has(key)" in html,
