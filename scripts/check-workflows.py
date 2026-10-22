@@ -23,6 +23,9 @@ checks = {
     "raw pricing filters graded references": "titleIsGraded" in pricing and "isRaw" in pricing,
     "collection actions available": all('setOwnershipAction(\''+x+'\')' in html for x in ("Bought","Sold","Traded","Graded","For Sale")),
     "no duplicate async keyword": "async async function" not in html,
+    "pricing bridges catalog slug to UUID": "resolvedPriceCardId = await resolveOwnershipCardId(cardId)" in html,
+    "automatic pricing failure cooldown": "automaticPricingFailures" in html,
+    "backend duplicate guard returns conflict": "possible_duplicates" in creation and "409" in creation,
 }
 failed = [label for label, ok in checks.items() if not ok]
 for label, ok in checks.items():
