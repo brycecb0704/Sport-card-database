@@ -278,3 +278,10 @@ User requests implementing as much as possible before a single comprehensive tes
 - `e6d0232a`: `ensureSupabaseCard` now delegates missing Sheets bridge creation to the Edge Function. Existing bridge rows are read-only from client. Do not assume user ownership or pricing are live-tested.
 - `25ba3e68`: added `007_restrict_catalog_client_writes.sql` to drop permissive authenticated insert/update policies. **Migration not applied** because the project has a known remote migration version mismatch and applying blindly risks disruption. Admin policy remains. Deploy the function and verify all relevant flows before manually applying the migration.
 - No live card image source/license or sold-comps feed has been integrated. Pricing quality remains unresolved. Do not ask the user to test until broader batch is ready.
+
+## 20. 2026-10-21 further hardening / automated checks
+
+- `5e1289b2`: server-side AI creation now refuses near-duplicate cards already present as Sheets bridge rows without set UUID, returning HTTP 409 and candidate IDs for review. Sheets bridge accepts incomplete legacy card number/brand fields instead of breaking ownership on older catalog rows. **Caveat:** the bridge still trusts client-supplied identity; requires authoritative Google Sheets validation to be a fully trusted import path.
+- `8ced59e1`: CI workflow now performs `deno check` for both Supabase Edge Functions, in addition to inline JavaScript syntax and structural regression checks. Inspect first Deno run; no live API tests.
+- `78d4bd8f`: active eBay asking-price fallback now suppresses an estimate when the range is more than twice the median (or fewer than three matches). This improves truthfulness, but can reduce the number of cards with a displayed price. This does not replace confirmed sold comps.
+- Existing SQL migration `007_restrict_catalog_client_writes.sql` is still **staged, not applied**. No user acceptance testing requested until a larger batch is ready.
