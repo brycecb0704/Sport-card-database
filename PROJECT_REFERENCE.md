@@ -321,3 +321,13 @@ User supplied screenshots of SetScribe, CollX, Market Movers, and Wayne Collecti
 - `8d17f64f`: CI structural checks for new navigation and grid/list controls.
 
 **Visual testing is still required** on actual mobile/desktop browsers. Check sticky navigation does not obscure content, two-column tile overflow, list-view selection, image fallbacks, modal stacking, and dark theme. No third-party reference screenshot or third-party card image is embedded in the site. Desktop remains sidebar-driven.
+
+## 25. 2026-10-21 AI automatically reconciles scans with catalog
+
+User explicitly requires the AI, not the user, to determine whether a scanned card already exists in the shared catalog. User permits a full original visual redesign based on supplied SetScribe/CollX/Market Movers/Wayne Collection screenshots and requests pricing, shared images, database security, and end-to-end testing to be finished.
+
+- `48b6ca9b`: added `findAIInCatalog(data)`, matching across all loaded catalog cards, requiring exact player, year, card number, brand, sport (when supplied), set identity, and parallel. It reports exact vs similar entries separately. For one exact high-confidence AI match, the photo flow automatically opens the ownership editor for that card, without making the user search or pick the catalog result. Medium/low-confidence and ambiguous results show catalog candidates for confirmation instead of making a potentially wrong match. A missing-card create action is hidden when similar cards exist, and creation rechecks duplicates before writing. No shared record is automatically created based only on AI speculation.
+- `cadc3b8e`: added executable Node regression suite with raw/base, gold parallel, Chrome set, missing brand, wrong year/number and ambiguous variants.
+- `95137aab`: added executable AI matching suite to GitHub Actions.
+
+**Known limitations / completion blockers:** Matcher currently reconciles against the loaded local catalog, not a server-side verified authoritative Sheets snapshot. Gemini can misidentify cards, so only unique high-confidence matches auto-advance; lower confidence and multiple candidates still require review. No reliable free sold-comps API has been integrated, and active eBay asking prices are labeled as estimates, not sales. Shared catalog images need a rights-cleared upload/source and backend curation, not arbitrary scraped images. Migration 007 still needs to be applied to live Supabase after resolving migration history drift, and authenticated real-browser integration testing has not occurred. Do not mark these finished just because CI passes.
