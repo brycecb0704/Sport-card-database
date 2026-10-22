@@ -6594,7 +6594,7 @@ function getCurrentUserOwnershipSummary() {
               return `
                 <article
                   class="set-card"
-                  onclick="openSetDetail('${escapeHtml(set.card_set_id)}')"
+                  onclick="openSetDetail(${escapeHtml(JSON.stringify(String(set.card_set_id)))})"
                 >
 
                   <div class="set-card-image">
@@ -7474,7 +7474,7 @@ function getCurrentUserOwnershipSummary() {
 
             <button
               class="btn"
-              onclick="openCardDataViewer('${escapeHtml(card.card_id)}')"
+              onclick="openCardDataViewer(${escapeHtml(JSON.stringify(String(card.card_id)))})"
             >
               View Card Data
             </button>
@@ -7484,7 +7484,7 @@ function getCurrentUserOwnershipSummary() {
                 ? `
                   <button
                     class="btn btn-warning"
-                    onclick="openEditCard('${escapeHtml(card.card_id)}')"
+                    onclick="openEditCard(${escapeHtml(JSON.stringify(String(card.card_id)))})"
                   >
                     Edit Card Data
                   </button>
@@ -7497,14 +7497,14 @@ function getCurrentUserOwnershipSummary() {
                 ? `
                   <button
                     class="btn btn-primary"
-                    onclick="openEditOwnership('${escapeHtml(card.card_id)}')"
+                    onclick="openEditOwnership(${escapeHtml(JSON.stringify(String(card.card_id)))})"
                   >
                     Edit My Card
                   </button>
 
                   <button
                     class="btn btn-danger"
-                    onclick="removeFromMyCollection('${escapeHtml(card.card_id)}', this)"
+                    onclick="removeFromMyCollection(${escapeHtml(JSON.stringify(String(card.card_id)))}, this)"
                   >
                     Remove From My Collection
                   </button>
@@ -7512,7 +7512,7 @@ function getCurrentUserOwnershipSummary() {
                 : `
                   <button
                     class="btn btn-primary"
-                    onclick="openAddOwnership('${escapeHtml(card.card_id)}')"
+                    onclick="openAddOwnership(${escapeHtml(JSON.stringify(String(card.card_id)))})"
                   >
                     Add To My Collection
                   </button>
@@ -7521,7 +7521,7 @@ function getCurrentUserOwnershipSummary() {
 
             <button
               class="btn btn-secondary"
-              onclick="refreshCardPrice('${escapeHtml(card.card_id)}', true)"
+              onclick="refreshCardPrice(${escapeHtml(JSON.stringify(String(card.card_id)))}, true)"
             >
               ${price ? "Refresh Price" : "Get Price"}
             </button>
