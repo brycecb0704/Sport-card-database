@@ -8974,7 +8974,7 @@ function renderAIIdentificationReview(data) {
   panel.innerHTML = `
     <div class="ai-review-heading"><div><strong>AI identification results</strong></div><span class="ai-confidence">${escapeHtml(confidence)}</span></div>
     <dl class="ai-review-grid">${fields.map(([label,val]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(val)}</dd></div>`).join("")}</dl>
-    <div class="ai-review-actions"><button type="button" class="btn btn-primary" onclick="searchCatalogFromAI()">Find matches</button><button type="button" class="btn btn-secondary" onclick="clearAIIdentificationReview()">Clear</button><button type="button" id="createIdentifiedCardButton" class="btn btn-secondary" onclick="createIdentifiedCard()">Add as new card</button></div>
+    <div class="ai-review-actions"><button type="button" class="btn btn-primary" onclick="searchCatalogFromAI()">Find matches</button><button type="button" class="btn btn-secondary" onclick="clearAIIdentificationReview()">Clear</button><button type="button" id="createIdentifiedCardButton" class="btn btn-secondary hidden" onclick="createIdentifiedCard()">Add as new card</button></div>
     `;
   panel.classList.remove("hidden");
   if (search) search.value = value("name","Name","player","Player","player_name","playerName");
@@ -9096,8 +9096,10 @@ async function priceIdentifiedCatalogMatch(data) {
       (!brand || norm(card.card_brand) === norm(brand)) &&
       norm(card.parallel) === norm(parallel);
   });
+  const createButton = document.getElementById("createIdentifiedCardButton");
+  if (createButton) createButton.classList.toggle("hidden", matches.length !== 0);
   if (matches.length !== 1) {
-    say(matches.length ? "Multiple possible cards found. Select the exact variation to see its price." : "Not in the shared catalog yet. You can review the identification; pricing requires a verified card.");
+    say(matches.length ? "Multiple possible cards found. Select the exact variation to see its price." : "No exact catalog match. Review the details, then add this as a new shared card.");
     return;
   }
   const card = matches[0];
