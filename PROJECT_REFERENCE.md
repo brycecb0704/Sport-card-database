@@ -262,3 +262,12 @@ User requests implementing as much as possible before a single comprehensive tes
 - `50e50ba8`: newly created shared cards and sets now link to existing `sports` lookup rows, improving sport display and filtering. The function deployment is automatic; verify GitHub Action.
 
 **Before user acceptance testing:** finish external discovery/in-app workflow, backend-only catalog insert RLS with an audited migration, single shared image provenance, pricing provider diagnostics and source accuracy, UI form cleanup, and verify deployed workflows. Automated JS syntax checks are necessary but insufficient.
+
+## 18. 2026-10-21 implementation batch — no manual tests requested yet
+
+- `abf41bde`: automatic `refreshCardPrice(cardId, false, true)` is silent and no longer reloads the entire Google Sheets catalog for each price; updates the returned shared-price record in client state and re-renders. Manual refresh retains messages. This reduces network/free-tier load; UI end-to-end behavior still needs checking.
+- `4edb980c`: obsolete `ebay_sold_comps` rows from the removed SoldGraph integration no longer override active supported pricing sources in `getPrice`. This removes misleading stale sold data; does not provide new verified sold comps.
+- `6b119087` and `ae7e1c82`: structural workflow regression checks added and wired into GitHub Actions, in addition to JS syntax validation. CI success for `ae7e1c82`. Checks are structural only, not API/browser integration tests.
+- `0aaa53db`: when manual catalog search has no match, user can open a compact missing-card form (name, year, sport, brand, set, number, optional parallel); its data is reviewed in the existing AI review panel, checked for exact matches, and only written to shared catalog via explicit confirmation and authenticated Edge Function. Web search remains an external Google search, not automatic data import.
+
+**Outstanding:** Price quality and coverage still constrained by CardPricer reference + eBay active asking fallback, no confirmed sold feed; no licensed shared master photo acquisition; no automated real browser test with signed-in account; Supabase RLS still allows existing client-side catalog bridge inserts and should be hardened only after moving bridge creation server-side. The user asked to defer manual testing until bulk work is ready; do not misrepresent remaining items as completed.
