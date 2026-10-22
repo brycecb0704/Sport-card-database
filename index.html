@@ -9125,7 +9125,7 @@ async function priceIdentifiedCatalogMatch(data) {
     if (wanted === actual) return true;
     // Catalog names often add the year or "Baseball" to a series title.
     // Allow equivalent word sets, but never match on "Topps" alone.
-    const tokens = value => value.split(" ").filter(word => word.length > 1 && !/^\\d{4}$/.test(word));
+    const tokens = value => value.split(" ").filter(word => word.length > 1 && !/^\d{4}$/.test(word));
     const a = tokens(wanted), b = tokens(actual);
     return a.length >= 2 && b.length >= 2 &&
       (a.every(word => b.includes(word)) || b.every(word => a.includes(word)));
