@@ -533,7 +533,13 @@ Deno.serve(async (request: Request) => {
             const parallelMatches = targetParallel
               ? Boolean(rowParallel && normalize(rowParallel) === normalize(targetParallel))
               : !rowParallel;
+            // The catalog estimates an ungraded card. Do not mix graded
+            // reference marks (PSA/BGS/SGC 9/10 etc.) into raw values.
+            const rowGrade = normalize(row.grade ?? row.condition_grade ?? row.grading ?? "");
+            const isRaw = !rowGrade || ["raw", "ungraded", "none", "not graded"].includes(rowGrade);
+            const titleIsGraded = /\\b(?:psa|bgs|sgc|cgc|graded|gem mint|pristine)\\b/i.test(rowTitle);
             return price !== null &&
+              isRaw && !titleIsGraded &&
               playerMatches &&
               rowYear === year &&
               rowNumber === targetNumber &&
