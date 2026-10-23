@@ -359,3 +359,9 @@ Branch: `improve/reliability-batch-oct22` (based on main). Changes in this batch
 - Added a structural check for the reference-spread gate.
 - Inspected current branch contents and confirmed seven expected code/workflow invariants are present. **This is not a substitute for running Deno, browser integration tests, or live provider checks.**
 - Work is still in PR #1, not merged/deployed. The user requested one end-to-end manual test after the larger batch, not a test after each commit.
+
+### October 22 executable AI identity regression
+
+- Added `scripts/test-ai-shared-set-identity.js`, which extracts the actual shared-card set identity predicate from the Edge Function and checks that a correct set matches while wrong-brand, wrong-series, wrong-sport and wrong-name sets are rejected.
+- Added this test to the GitHub Actions validation workflow. It is an offline unit-level regression, not a substitute for a live authenticated Supabase session.
+- Production status remains unchanged while PR #1 is open. The remaining redesign, Sheets authoritative validation, bulk collection behavior, deployment, and signed-in end-to-end tests are not complete.
