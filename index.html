@@ -2064,6 +2064,43 @@
     .automatic-catalog-match strong {display:block;font-size:14px}
     .automatic-catalog-match p {font-size:13px;color:var(--muted);margin:8px 0 12px}
     .automatic-catalog-match .ai-candidate {display:block;width:100%;text-align:left;margin-top:7px;white-space:normal}
+
+/* 2026 collector visual refresh: warm charcoal, teal accents, spacious cards. */
+:root {
+  --bg:#f2f5f4; --surface:#ffffff; --surface-2:#e9f1ef;
+  --text:#142725; --muted:#647873; --border:#d8e5e1;
+  --accent:#087f70; --accent-hover:#07685d;
+  --shadow:0 12px 40px rgba(18,55,49,.08); --radius:18px;
+}
+body {background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;}
+.topbar {background:rgba(255,255,255,.94);backdrop-filter:blur(18px);border-bottom:1px solid var(--border);}
+.topbar-inner {gap:18px;}
+.brand-title {font-weight:800;letter-spacing:-.04em;}
+.brand-icon {background:linear-gradient(140deg,#086b60,#18b6a2);border-radius:15px;box-shadow:0 7px 22px rgba(8,127,112,.22);}
+.btn,.icon-btn,.account-button {transition:transform .16s ease,box-shadow .16s ease,background .16s ease;border-radius:12px;}
+.btn:hover,.icon-btn:hover,.account-button:hover {transform:translateY(-1px);}
+.panel,.card-tile,.modal,.stat-card,.collection-card {border-radius:var(--radius);box-shadow:var(--shadow);border-color:var(--border);}
+input,select,textarea {border-radius:12px;accent-color:var(--accent);}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible {outline:3px solid rgba(8,127,112,.32);outline-offset:2px;}
+.collector-help-trigger {white-space:nowrap;background:#e5f5f0;color:#086b60;border:1px solid #bee2d6;font-weight:700;}
+.collector-support-modal {max-width:680px;width:min(94vw,680px);}
+.collector-support-intro {color:var(--muted);line-height:1.55;}
+#collectorHelpForm {display:grid;gap:10px;}
+#collectorHelpForm label,.collector-review-item label {font-weight:700;font-size:.9rem;}
+#collectorHelpForm input,#collectorHelpForm select,#collectorHelpForm textarea,.collector-review-item textarea {width:100%;padding:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);}
+.collector-review-item {padding:18px;margin:12px 0;background:var(--surface-2);border:1px solid var(--border);border-radius:16px;}
+.collector-review-top,.collector-review-actions {display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;}
+.collector-review-actions {justify-content:flex-start;margin-top:12px;}
+.collector-review-item p {white-space:pre-wrap;overflow-wrap:anywhere;}
+.collector-review-item small {color:var(--muted);}
+.collector-verified-badge {display:inline-flex;gap:4px;align-items:center;color:#087f70;font-weight:800;font-size:.75rem;padding:3px 9px;border:1px solid #8bd4c4;border-radius:100px;background:#e4f8f1;}
+@media(max-width:640px) {
+ .collector-help-trigger {font-size:.76rem;padding:9px;}
+ .topbar-inner {gap:8px;}
+ .collector-support-modal {max-height:88dvh;overflow:auto;}
+}
+@media(prefers-reduced-motion:reduce) { .btn,.icon-btn,.account-button {transition:none;} }
+
 </style>
 </head>
 
@@ -2237,13 +2274,6 @@
 
         <div class="header-actions">
 
-          <button
-            id="themeToggle"
-            class="icon-btn"
-            title="Toggle dark mode"
-            onclick="toggleTheme()">
-            🌙
-          </button>
 
           <button
             class="account-button"
@@ -13021,5 +13051,6 @@ if (
 // ============================================================
 
 </script>    
+<script src="assets/collector-support.js" defer></script>
 </body>
 </html>
