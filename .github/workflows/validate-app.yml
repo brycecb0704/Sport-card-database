@@ -31,7 +31,9 @@ jobs:
         run: node scripts/test-ai-catalog-match.js
       - name: Test exact AI shared-card set identity
         run: node scripts/test-ai-shared-set-identity.js
-      - name: Test pricing cache eligibility\n        run: node scripts/test-pricing-cache.js\n      - name: Set up Deno for Edge Function checks
+      - name: Test pricing cache eligibility
+        run: node scripts/test-pricing-cache.js
+      - name: Set up Deno for Edge Function checks
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
