@@ -352,3 +352,10 @@ Branch: `improve/reliability-batch-oct22` (based on main). Changes in this batch
 - Candidate duplicates with a known, conflicting sport reference are excluded rather than blocking an unrelated card in a different sport. Rows without a sport reference remain conservative possible matches.
 - Extended structural regression checks for these invariants.
 - Still outstanding: Google Sheets bridge authority verification, full integration tests, catalog data cleanup, collection UI overhaul, and live pricing checks. Changes remain on a PR branch until merged and deployed.
+
+### October 22 pricing evidence consistency follow-up
+
+- CardPricer reference marks must now be positive and mutually consistent: the highest matched reference mark may not exceed twice the lowest matched mark. Conflicting values are rejected and the existing eBay asking fallback is attempted instead. This is a conservative accuracy gate, not evidence of completed sales.
+- Added a structural check for the reference-spread gate.
+- Inspected current branch contents and confirmed seven expected code/workflow invariants are present. **This is not a substitute for running Deno, browser integration tests, or live provider checks.**
+- Work is still in PR #1, not merged/deployed. The user requested one end-to-end manual test after the larger batch, not a test after each commit.
