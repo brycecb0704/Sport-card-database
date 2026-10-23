@@ -32,6 +32,7 @@ checks = {
     "collection grid/list controls": 'id="collectionGridView"' in html and 'id="collectionListView"' in html and 'function setCollectionView(view)' in html,
     "paginated Supabase reads": ".range(page * pageSize, (page + 1) * pageSize - 1)" in html,
     "price cache excludes failed or zero valuations": "Number(row.estimated_value) > 0" in pricing and "row.estimated_value !== null" in pricing,
+    "CardPricer rejects conflicting reference marks": "referenceSpread <= 2" in pricing and "referenceValue > 0" in pricing,
     "pricing cache prefers reference evidence": "sourcePriority(b.source) - sourcePriority(a.source)" in pricing,
     "pricing validates authenticated caller": '"/auth/v1/user"' in pricing,
     "pricing refuses non UUID card IDs": 'A valid catalog card ID is required.' in pricing,
