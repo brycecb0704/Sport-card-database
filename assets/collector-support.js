@@ -114,7 +114,7 @@
       <button class="btn" data-status="in_review" data-request="${safe(item.id)}">In review</button>
       <button class="btn" data-status="resolved" data-request="${safe(item.id)}">Resolve</button>
       <button class="btn" data-status="rejected" data-request="${safe(item.id)}">Reject</button>
-      ${item.card_id?`<button class="btn" data-verify="${safe(item.card_id)}">Verify card</button><button class="btn" data-edit-card="${safe(item.card_id)}">Edit card</button>`:""}
+      ${item.card_id?`<button class="btn" data-verify="${safe(item.card_id)}">Verify card</button><button class="btn" data-edit-card="${safe(item.card_id)}">Edit card</button><button class="btn" data-reprice="${safe(item.card_id)}">Refresh price</button>`:""}
       </div></article>`).join("") || "<p>No requests yet.</p>";
     target.querySelectorAll("[data-request]").forEach(button=>button.addEventListener("click",async()=>{
       const id=button.dataset.request;
@@ -122,6 +122,15 @@
       const {error}=await supabaseClient.from("support_requests").update({status:button.dataset.status,admin_note:note,reviewed_by:currentUser.id,updated_at:new Date().toISOString()}).eq("id",id);
       if(error)return notify(error.message,"error");
       notify("Request updated.","success");void loadQueue();
+    }));
+    target.querySelectorAll("[data-reprice]").forEach(button=>button.addEventListener("click",async()=>{
+      button.disabled=true;
+      try {
+        const {data,error}=await supabaseClient.functions.invoke("refresh-card-price",{body:{card_id:button.dataset.reprice,force_refresh:true}});
+        if(error || data?.error)throw error||new Error(data.error);
+        notify(data?.estimated_value>0?"Price refreshed.":"No reliable price was found; review the matching evidence.",data?.estimated_value>0?"success":"info");
+      } catch(error){notify("Price refresh failed: "+String(error?.message||error),"error");}
+      finally {button.disabled=false;}
     }));
     target.querySelectorAll("[data-verify]").forEach(button=>button.addEventListener("click",async()=>{
       if(!confirm("Mark this shared card as admin verified?"))return;
