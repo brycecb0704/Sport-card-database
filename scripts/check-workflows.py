@@ -8,8 +8,21 @@ from pathlib import Path
 html = Path("index.html").read_text(encoding="utf-8")
 pricing = Path("supabase/functions/refresh-card-price/index.ts").read_text(encoding="utf-8")
 creation = Path("supabase/functions/create-identified-card/index.ts").read_text(encoding="utf-8")
+identification = Path("supabase/functions/identify-card/index.ts").read_text(encoding="utf-8")
+support = Path("assets/collector-support.js").read_text(encoding="utf-8")
+moderation = Path("supabase/migrations/008_admin_review_requests.sql").read_text(encoding="utf-8")
 
 checks = {
+    "moon toggle removed": 'id="themeToggle"' not in html,
+    "new visual theme integrated": "--accent:#087f70" in html,
+    "support module loaded": 'src="assets/collector-support.js"' in html,
+    "support sends requests to database": 'from("support_requests").insert(payload)' in support,
+    "admin queue updates requests": 'from("support_requests").update(' in support,
+    "admin verification is server-authorized": 'rpc("admin_review_card"' in support,
+    "admin review protected by RLS": "alter table public.support_requests enable row level security" in moderation,
+    "new catalog cards automatically queued": "trg_queue_new_catalog_card_review" in moderation,
+    "verified badge displayed": "collector-verified-badge" in html,
+    "Gemini instructed to identify variants": "You, not the collector, must attempt to identify" in identification,
     "AI identification triggers price lookup": "void priceIdentifiedCatalogMatch(data)" in html,
     "AI identification exposes explicit shared-card action": 'onclick="createIdentifiedCard()"' in html,
     "shared creation uses authenticated edge function": 'functions.invoke("create-identified-card"' in html,
