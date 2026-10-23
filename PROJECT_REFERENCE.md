@@ -365,3 +365,19 @@ Branch: `improve/reliability-batch-oct22` (based on main). Changes in this batch
 - Added `scripts/test-ai-shared-set-identity.js`, which extracts the actual shared-card set identity predicate from the Edge Function and checks that a correct set matches while wrong-brand, wrong-series, wrong-sport and wrong-name sets are rejected.
 - Added this test to the GitHub Actions validation workflow. It is an offline unit-level regression, not a substitute for a live authenticated Supabase session.
 - Production status remains unchanged while PR #1 is open. The remaining redesign, Sheets authoritative validation, bulk collection behavior, deployment, and signed-in end-to-end tests are not complete.
+
+## 27. October 22 collector redesign and moderation implementation (development branch)
+
+User feedback: pricing still looked unchanged, many cards had no price, moon toggle unwanted, AI should infer the variant, and UI felt dated. User requested in-app bug reporting, card and price correction requests, an admin review queue, editable/verified shared catalog records, and newly added cards that are usable immediately but queued for review.
+
+Implemented on branch `improve/reliability-batch-oct22`:
+- Replaced primary light-theme palette with teal/charcoal and added modern spacing, softened cards, hover/focus treatments, responsive help button and support modal styling. Removed moon toggle and retired the legacy dark-mode setting.
+- Added `assets/collector-support.js` with signed-in support request form, contextual card correction request, admin queue, status/notes, verified-card RPC, allowed shared-card field edits, and forced price refresh for disputed cards.
+- Added `supabase/migrations/008_admin_review_requests.sql`: RLS-protected support_requests, admin role check based on profiles.role, field-restricted admin_review_card RPC, and a trigger to queue new unverified shared cards. New cards remain usable immediately.
+- Added a verified emblem to card tiles when the catalog or bridged Supabase record is marked verified.
+- Updated Gemini's prompt to inspect visual parallel and variant clues on front/back photos, leave uncertain variants blank, and explain ambiguity instead of asking the collector to guess.
+- Added admin-panel entry point to review queue and expanded structural/CI checks for support JS and Gemini TypeScript.
+
+**Critical deployment dependency:** The migration is only committed to GitHub. It must be reviewed and applied in the main Supabase project before the new support form/admin queue can work. The migration does not automatically apply on GitHub Pages. Admin identity depends on a securely assigned `profiles.role = 'admin'`; never allow users to grant this to themselves. No Supabase migration was applied by the assistant in this branch.
+
+**Verification limits:** Code commits are not live deploys. The assistant has not executed a real browser session, Gemini provider request, Supabase SQL migration, or signed-in admin workflow. Pricing accuracy for cards without usable evidence remains an open problem; the new moderation queue provides an escalation path but does not magically generate a value. The full top-app-quality visual redesign, catalog images, comprehensive mobile polish, and end-to-end tests are not yet complete.
