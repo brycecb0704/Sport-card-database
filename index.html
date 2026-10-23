@@ -3876,48 +3876,9 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
   // ============================================================
 
   function initializeTheme() {
-
-    const savedTheme =
-      localStorage.getItem("sportsCardTheme");
-
-    if (savedTheme === "dark") {
-      document.body.classList.add("dark-mode");
-    }
-
-    updateThemeButton();
-  }
-
-
-  function toggleTheme() {
-
-    document.body.classList.toggle("dark-mode");
-
-    const dark =
-      document.body.classList.contains("dark-mode");
-
-    localStorage.setItem(
-      "sportsCardTheme",
-      dark ? "dark" : "light"
-    );
-
-    updateThemeButton();
-  }
-
-
-  function updateThemeButton() {
-
-    const button =
-      document.getElementById("themeToggle");
-
-    if (!button) {
-      return;
-    }
-
-    const dark =
-      document.body.classList.contains("dark-mode");
-
-    button.innerHTML =
-      dark ? "☀️" : "🌙";
+    // The redesigned collector interface uses one consistent color theme.
+    document.body.classList.remove("dark-mode", "dark");
+    localStorage.removeItem("sportsCardTheme");
   }
 
 
