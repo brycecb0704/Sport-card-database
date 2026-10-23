@@ -552,7 +552,11 @@ Deno.serve(async (request: Request) => {
           if (matches.length) {
             const prices = matches.map((row: Record<string, any>) => parseMoney(row.current_price ?? row.currentPrice ?? row.market_price ?? row.marketPrice ?? row.price_usd ?? row.priceUsd ?? row.estimated_value ?? row.price)).filter((p: number | null): p is number => p !== null);
             const referenceValue = median(prices);
-            if (referenceValue !== null) {
+            // Conflicting marks for an ostensibly identical card are not
+            // trustworthy enough to publish as a reference valuation.
+            // Let the existing active-listing fallback handle this case.
+            const referenceSpread = prices.length ? Math.max(...prices) / Math.min(...prices) : Infinity;
+            if (referenceValue !== null && referenceValue > 0 && referenceSpread <= 2) {
               const chosen = matches[0];
               const confidenceLabel = String(chosen.provenance?.confidence?.label ?? "unknown");
               const confidenceScore = Number(chosen.provenance?.confidence?.score ?? 0);
