@@ -8,8 +8,21 @@ from pathlib import Path
 html = Path("index.html").read_text(encoding="utf-8")
 pricing = Path("supabase/functions/refresh-card-price/index.ts").read_text(encoding="utf-8")
 creation = Path("supabase/functions/create-identified-card/index.ts").read_text(encoding="utf-8")
+identification = Path("supabase/functions/identify-card/index.ts").read_text(encoding="utf-8")
+support = Path("assets/collector-support.js").read_text(encoding="utf-8")
+moderation = Path("supabase/migrations/008_admin_review_requests.sql").read_text(encoding="utf-8")
 
 checks = {
+    "moon toggle removed": 'id="themeToggle"' not in html,
+    "new visual theme integrated": "--accent:#087f70" in html,
+    "support module loaded": 'src="assets/collector-support.js"' in html,
+    "support sends requests to database": 'from("support_requests").insert(payload)' in support,
+    "admin queue updates requests": 'from("support_requests").update(' in support,
+    "admin verification is server-authorized": 'rpc("admin_review_card"' in support,
+    "admin review protected by RLS": "alter table public.support_requests enable row level security" in moderation,
+    "new catalog cards automatically queued": "trg_queue_new_catalog_card_review" in moderation,
+    "verified badge displayed": "collector-verified-badge" in html,
+    "Gemini instructed to identify variants": "You, not the collector, must attempt to identify" in identification,
     "AI identification triggers price lookup": "void priceIdentifiedCatalogMatch(data)" in html,
     "AI identification exposes explicit shared-card action": 'onclick="createIdentifiedCard()"' in html,
     "shared creation uses authenticated edge function": 'functions.invoke("create-identified-card"' in html,
@@ -31,6 +44,17 @@ checks = {
     "responsive mobile navigation": 'class="mobile-collector-nav"' in html and 'data-screen="collection"' in html,
     "collection grid/list controls": 'id="collectionGridView"' in html and 'id="collectionListView"' in html and 'function setCollectionView(view)' in html,
     "paginated Supabase reads": ".range(page * pageSize, (page + 1) * pageSize - 1)" in html,
+    "price cache excludes failed or zero valuations": "Number(row.estimated_value) > 0" in pricing and "row.estimated_value !== null" in pricing,
+    "CardPricer rejects conflicting reference marks": "referenceSpread <= 2" in pricing and "referenceValue > 0" in pricing,
+    "pricing cache prefers reference evidence": "sourcePriority(b.source) - sourcePriority(a.source)" in pricing,
+    "pricing validates authenticated caller": '"/auth/v1/user"' in pricing,
+    "pricing refuses non UUID card IDs": 'A valid catalog card ID is required.' in pricing,
+    "AI creation validates session user id": 'typeof user.id!=="string"' in creation,
+    "AI set lookup scopes by year": '"&year=eq."+year+"&select=id,name,year,brand,series,sport_id' in creation,
+    "AI exact set matching scopes brand and series": 'norm(row.brand)===norm(brand)' in creation and 'norm(row.series)===norm(series)' in creation,
+    "AI duplicate matching scopes sport": 'String(c.sport_id)===String(sportId)' in creation,
+    "AI bridge requires authenticated caller": '"/auth/v1/user"' in creation,
+    "AI bridge keeps catalog rows unverified": 'source:"Google Sheets bridge",verified:false' in creation,
     "recent failed asking evidence takes precedence": "if (latestActive) return latestActive;" in html,
     "pricing bridges catalog slug to UUID": "resolvedPriceCardId = await resolveOwnershipCardId(cardId)" in html,
     "automatic pricing failure cooldown": "automaticPricingFailures" in html,

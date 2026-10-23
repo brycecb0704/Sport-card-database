@@ -333,3 +333,51 @@ User explicitly requires the AI, not the user, to determine whether a scanned ca
 **Known limitations / completion blockers:** Matcher currently reconciles against the loaded local catalog, not a server-side verified authoritative Sheets snapshot. Gemini can misidentify cards, so only unique high-confidence matches auto-advance; lower confidence and multiple candidates still require review. No reliable free sold-comps API has been integrated, and active eBay asking prices are labeled as estimates, not sales. Shared catalog images need a rights-cleared upload/source and backend curation, not arbitrary scraped images. Migration 007 still needs to be applied to live Supabase after resolving migration history drift, and authenticated real-browser integration testing has not occurred. Do not mark these finished just because CI passes.
 
 - `fcf84b09`: unique high-confidence AI scan now triggers a silent shared price refresh after opening ownership editor, if pricing is missing/stale. The pricing result is still only as reliable as its source.
+
+## 26. October 22 reliability development branch (not yet production deployed)
+
+Branch: `improve/reliability-batch-oct22` (based on main). Changes in this batch:
+
+- Pricing Edge Function now excludes null, nonnumeric, zero, and negative estimated values from the successful 24-hour pricing cache. This avoids returning a failed valuation as if it were a usable cached price. A failed lookup can still be recorded for diagnostics; the fix only changes cache eligibility.
+- Added `scripts/test-pricing-cache.js`, which extracts and executes the actual cache-filter logic from the Edge Function and tests stale, unsupported, null, zero, nonnumeric, and positive values without paid API calls.
+- Added structural checks for price cache rules, source priority, caller authentication, UUID validation, and unverified Google Sheets bridge rows.
+- GitHub Actions validation workflow now runs the pricing-cache regression test.
+
+**Not yet done or verified:** This is a development branch, not a claim of a live deployment. No production Supabase migrations have been applied. The Google Sheets bridge still accepts browser-supplied card facts, so authoritative server-side verification remains an important security/data-integrity follow-up. Full signed-in end-to-end tests, live provider accuracy checks, mobile UX redesign, and bulk collection tests remain outstanding. Do not label these as complete until implemented and tested.
+
+### October 22 follow-up: AI catalog duplicate matching
+
+- Shared-card creation now rejects a successful auth response without a valid user ID.
+- AI duplicate reconciliation now restricts set lookup by year and checks the exact normalized set name, brand, series, and sport reference before reusing a set-linked card.
+- Candidate duplicates with a known, conflicting sport reference are excluded rather than blocking an unrelated card in a different sport. Rows without a sport reference remain conservative possible matches.
+- Extended structural regression checks for these invariants.
+- Still outstanding: Google Sheets bridge authority verification, full integration tests, catalog data cleanup, collection UI overhaul, and live pricing checks. Changes remain on a PR branch until merged and deployed.
+
+### October 22 pricing evidence consistency follow-up
+
+- CardPricer reference marks must now be positive and mutually consistent: the highest matched reference mark may not exceed twice the lowest matched mark. Conflicting values are rejected and the existing eBay asking fallback is attempted instead. This is a conservative accuracy gate, not evidence of completed sales.
+- Added a structural check for the reference-spread gate.
+- Inspected current branch contents and confirmed seven expected code/workflow invariants are present. **This is not a substitute for running Deno, browser integration tests, or live provider checks.**
+- Work is still in PR #1, not merged/deployed. The user requested one end-to-end manual test after the larger batch, not a test after each commit.
+
+### October 22 executable AI identity regression
+
+- Added `scripts/test-ai-shared-set-identity.js`, which extracts the actual shared-card set identity predicate from the Edge Function and checks that a correct set matches while wrong-brand, wrong-series, wrong-sport and wrong-name sets are rejected.
+- Added this test to the GitHub Actions validation workflow. It is an offline unit-level regression, not a substitute for a live authenticated Supabase session.
+- Production status remains unchanged while PR #1 is open. The remaining redesign, Sheets authoritative validation, bulk collection behavior, deployment, and signed-in end-to-end tests are not complete.
+
+## 27. October 22 collector redesign and moderation implementation (development branch)
+
+User feedback: pricing still looked unchanged, many cards had no price, moon toggle unwanted, AI should infer the variant, and UI felt dated. User requested in-app bug reporting, card and price correction requests, an admin review queue, editable/verified shared catalog records, and newly added cards that are usable immediately but queued for review.
+
+Implemented on branch `improve/reliability-batch-oct22`:
+- Replaced primary light-theme palette with teal/charcoal and added modern spacing, softened cards, hover/focus treatments, responsive help button and support modal styling. Removed moon toggle and retired the legacy dark-mode setting.
+- Added `assets/collector-support.js` with signed-in support request form, contextual card correction request, admin queue, status/notes, verified-card RPC, allowed shared-card field edits, and forced price refresh for disputed cards.
+- Added `supabase/migrations/008_admin_review_requests.sql`: RLS-protected support_requests, admin role check based on profiles.role, field-restricted admin_review_card RPC, and a trigger to queue new unverified shared cards. New cards remain usable immediately.
+- Added a verified emblem to card tiles when the catalog or bridged Supabase record is marked verified.
+- Updated Gemini's prompt to inspect visual parallel and variant clues on front/back photos, leave uncertain variants blank, and explain ambiguity instead of asking the collector to guess.
+- Added admin-panel entry point to review queue and expanded structural/CI checks for support JS and Gemini TypeScript.
+
+**Critical deployment dependency:** The migration is only committed to GitHub. It must be reviewed and applied in the main Supabase project before the new support form/admin queue can work. The migration does not automatically apply on GitHub Pages. Admin identity depends on a securely assigned `profiles.role = 'admin'`; never allow users to grant this to themselves. No Supabase migration was applied by the assistant in this branch.
+
+**Verification limits:** Code commits are not live deploys. The assistant has not executed a real browser session, Gemini provider request, Supabase SQL migration, or signed-in admin workflow. Pricing accuracy for cards without usable evidence remains an open problem; the new moderation queue provides an escalation path but does not magically generate a value. The full top-app-quality visual redesign, catalog images, comprehensive mobile polish, and end-to-end tests are not yet complete.

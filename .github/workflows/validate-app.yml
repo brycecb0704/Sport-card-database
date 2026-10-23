@@ -23,15 +23,22 @@ jobs:
           python-version: "3.12"
       - name: Check inline JavaScript syntax
         run: python scripts/check-inline-js.py index.html
+      - name: Check collector support JavaScript syntax
+        run: node --check assets/collector-support.js
       - name: Check critical workflow invariants
         run: python scripts/check-workflows.py
       - name: Test automatic AI catalog reconciliation
         run: node scripts/test-ai-catalog-match.js
+      - name: Test exact AI shared-card set identity
+        run: node scripts/test-ai-shared-set-identity.js
+      - name: Test pricing cache eligibility
+        run: node scripts/test-pricing-cache.js
       - name: Set up Deno for Edge Function checks
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
       - name: Check Supabase Edge Function TypeScript
         run: |
+          deno check supabase/functions/identify-card/index.ts
           deno check supabase/functions/create-identified-card/index.ts
           deno check supabase/functions/refresh-card-price/index.ts

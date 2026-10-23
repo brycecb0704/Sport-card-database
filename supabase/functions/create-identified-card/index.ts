@@ -20,6 +20,7 @@ Deno.serve(async request=>{
     const auth=await fetch(url+"/auth/v1/user",{headers:{apikey:service,Authorization:token}});
     if(!auth.ok)return json({error:"Invalid session"},401);
     const user=await auth.json();
+    if(!user?.id||typeof user.id!=="string")return json({error:"Invalid session"},401);
     const payload=await request.json();
     const card=payload?.card;
     if(!card||typeof card!=="object")return json({error:"Card details required"},400);
@@ -92,11 +93,15 @@ Deno.serve(async request=>{
     const sports=await get("sports?name=ilike."+encodeURIComponent(sport)+"&select=id,name&limit=30");
     const sportId=sports.find((row:Record<string,unknown>)=>norm(row.name)===norm(sport))?.id??null;
     const existing=await get("cards?year_made=eq."+year+"&card_number=eq."+encodeURIComponent(number)+"&select=*&limit=200");
-    const matchingSets=await get("card_sets?name=ilike."+encodeURIComponent(set)+"&select=id,name&limit=100");
-    const matchingSetIds=new Set(matchingSets.filter((row:Record<string,unknown>)=>norm(row.name)===norm(set)).map((row:Record<string,unknown>)=>String(row.id)));
+    const matchingSets=await get("card_sets?name=ilike."+encodeURIComponent(set)+"&year=eq."+year+"&select=id,name,year,brand,series,sport_id&limit=100");
+    const matchingSetIds=new Set(matchingSets.filter((row:Record<string,unknown>)=>
+      norm(row.name)===norm(set)&&norm(row.brand)===norm(brand)&&
+      norm(row.series)===norm(series)&&String(row.sport_id??"")===String(sportId??"")
+    ).map((row:Record<string,unknown>)=>String(row.id)));
     const candidates=existing.filter((c:Record<string,unknown>)=>
       norm(c.name)===norm(name)&&norm(c.card_brand)===norm(brand)&&
-      norm(c.card_series)===norm(series)&&norm(c.parallel)===norm(parallel));
+      norm(c.card_series)===norm(series)&&norm(c.parallel)===norm(parallel)&&
+      (!sportId||!c.sport_id||String(c.sport_id)===String(sportId)));
     const exact=candidates.find((c:Record<string,unknown>)=>
       Boolean(c.card_set_id&&matchingSetIds.has(String(c.card_set_id))));
     if(exact)return json({success:true,created:false,card:exact});
