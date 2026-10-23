@@ -6062,6 +6062,7 @@ function getCurrentUserOwnershipSummary() {
           }
 
           <div class="card-tile-badges">
+            ${(card.verified || getSupabaseCard(card.card_id)?.verified) ? '<span class="collector-verified-badge" title="Reviewed by an administrator">✓ Verified</span>' : ""}
             ${cardBadges(card)}
           </div>
 
